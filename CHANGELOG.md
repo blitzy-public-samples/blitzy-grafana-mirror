@@ -1,3 +1,16 @@
+<!-- Unreleased START -->
+
+# Unreleased
+
+### Features and enhancements
+
+- **Frontend:** Converted 71 class components to functional components with React 18 hooks (`useState`, `useReducer`, `useEffect`, `useRef`, `useCallback`, `useMemo`, `React.memo`).
+- **Frontend:** Replaced raw `<button>`, `<table>`, and `<form>` elements with their `@grafana/ui` equivalents (`Button` / `LinkButton` / `IconButton` / `ToolbarButton`, `InteractiveTable` / `Table`, and `Form` / `Field` / `FieldSet`) across 199 files.
+- **Frontend:** Migrated inline `style={{}}` attributes and hardcoded legacy `className` strings to `useStyles2(getStyles)` / `Box` / `Stack` / `Grid` theme-aware composition across 357 files.
+- **Frontend:** Eliminated 568 occurrences of TypeScript `any` across 443 files in favor of concrete types, generics, inferred types, or `unknown` with narrowing.
+
+<!-- Unreleased END -->
+
 <!-- 12.3.6+security-01 START -->
 
 # 12.3.6+security-01 (2026-03-25)
