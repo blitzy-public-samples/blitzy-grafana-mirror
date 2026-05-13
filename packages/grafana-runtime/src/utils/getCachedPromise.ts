@@ -2,8 +2,7 @@ import { type LogContext } from '@grafana/faro-web-sdk';
 
 import { createMonitoringLogger, type MonitoringLogger } from './logging';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const cache: Map<string, Promise<any>> = new Map();
+const cache: Map<string, Promise<unknown>> = new Map();
 export const MAX_CACHE_SIZE = 500;
 
 interface OnErrorArgs {
@@ -140,7 +139,10 @@ export function getCachedPromise<T>(promise: PromiseFunction<T>, options?: Cache
   const cached = cache.get(key);
 
   if (cached) {
-    return cached;
+    // The cache stores heterogeneous Promise values keyed by string, so the runtime cannot statically prove the
+    // entry's type matches the caller's T. Callers using a stable cacheKey-to-type mapping make this cast safe.
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+    return cached as Promise<T>;
   }
 
   if (onError) {
