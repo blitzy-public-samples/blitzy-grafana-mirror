@@ -637,9 +637,6 @@
   "packages/grafana-ui/src/slate-plugins/suggestions.tsx": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 2
-    },
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
     }
   },
   "packages/grafana-ui/src/themes/GlobalStyles/forms.ts": {
