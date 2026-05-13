@@ -203,11 +203,6 @@
       "count": 1
     }
   },
-  "packages/grafana-data/src/types/select.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    }
-  },
   "packages/grafana-data/src/types/trace.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1
