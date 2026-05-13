@@ -165,9 +165,6 @@
   "packages/grafana-data/src/utils/valueMappings.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 2
-    },
-    "@typescript-eslint/no-explicit-any": {
-      "count": 3
     }
   },
   "packages/grafana-e2e-selectors/src/resolver.ts": {
