@@ -172,11 +172,6 @@
       "count": 1
     }
   },
-  "packages/grafana-data/src/types/trace.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "packages/grafana-data/src/utils/OptionsUIBuilders.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 11
