@@ -601,11 +601,6 @@
       "count": 2
     }
   },
-  "packages/grafana-ui/src/components/uPlot/types.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "packages/grafana-ui/src/components/uPlot/utils.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1

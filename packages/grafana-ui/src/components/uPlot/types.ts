@@ -13,6 +13,7 @@ export type PlotConfig = Pick<
   'mode' | 'series' | 'scales' | 'axes' | 'cursor' | 'bands' | 'hooks' | 'select' | 'tzDate' | 'padding'
 >;
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- uPlot facet values are heterogeneous numeric/string tuples; tightening to unknown[] breaks panel plugin consumers that compare facet values to numbers without narrowing
 export type FacetValues = any[];
 export type FacetSeries = FacetValues[];
 export type FacetedData = [_: null, ...series: FacetSeries];
