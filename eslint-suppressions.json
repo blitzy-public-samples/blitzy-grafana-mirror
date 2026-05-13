@@ -87,11 +87,6 @@
       "count": 2
     }
   },
-  "packages/grafana-data/src/transformations/transformDataFrame.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 6
-    }
-  },
   "packages/grafana-data/src/transformations/transformers/nulls/nullInsertThreshold.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 2

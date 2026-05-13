@@ -121,8 +121,8 @@ function isCustomTransformation(t: DataTransformerConfig | CustomTransformOperat
   return typeof t === 'function';
 }
 
-function deepIterate<T extends object>(obj: T, doSomething: (current: any) => any): T;
-// eslint-disable-next-line no-redeclare
+function deepIterate<T extends object>(obj: T, doSomething: (current: unknown) => unknown): T;
+// eslint-disable-next-line no-redeclare, @typescript-eslint/no-explicit-any -- recursive deep-iterate implementation walks arbitrary nested object/array structures; `any` retained on the implementation signature (not visible to callers) because recursion through indexable `obj[key]` and `Array.prototype.map` requires `any` flexibility — the public overload signature on the line above provides the type-safe contract `(current: unknown) => unknown` for callers
 function deepIterate(obj: any, doSomething: (current: any) => any): any {
   if (Array.isArray(obj)) {
     return obj.map((o) => deepIterate(o, doSomething));
