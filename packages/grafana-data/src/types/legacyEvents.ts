@@ -27,11 +27,12 @@ export const PanelEvents = {
   initPanelActions: eventFactory<AngularPanelMenuItem[]>('init-panel-actions'),
   initialized: eventFactory('panel-initialized'),
   panelTeardown: eventFactory('panel-teardown'),
-  render: eventFactory<any>('render'),
+  render: eventFactory('render'),
 };
 
 /** @public */
 export interface LegacyGraphHoverEventPayload extends DataHoverPayload {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- `pos` is the legacy flot.js graph-hover position object; flot has no upstream `.d.ts` and the shape varies per chart axis configuration
   pos: any;
   panel: {
     id: number;
