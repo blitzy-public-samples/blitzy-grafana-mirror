@@ -39,6 +39,7 @@ export function ExampleFrame(props: ExampleFrameProps) {
             <Source dark={theme.isDark} code={sourceString} language="tsx" />
           </div>
         )}
+        {/* Design system gap: Storybook example frame container — raw <button> kept per refactor protocol */}
         <button className={styles.toggle} onClick={() => setIsExpanded(!isExpanded)}>
           {/* eslint-disable-next-line @grafana/i18n/no-untranslated-strings */}
           {isExpanded ? 'Hide code' : 'Show code'}
