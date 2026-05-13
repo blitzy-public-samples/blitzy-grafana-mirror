@@ -102,9 +102,6 @@
   "packages/grafana-data/src/table/amendTimeSeries.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 5
-    },
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
     }
   },
   "packages/grafana-data/src/themes/colorManipulator.ts": {
