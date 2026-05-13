@@ -291,11 +291,6 @@
       "count": 1
     }
   },
-  "packages/grafana-schema/src/veneer/common.types.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "packages/grafana-schema/src/veneer/dashboard.types.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 5

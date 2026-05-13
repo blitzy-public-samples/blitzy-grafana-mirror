@@ -2,7 +2,7 @@ import * as raw from '../common/common.gen';
 
 import { type MatcherConfig } from './dashboard.types';
 
-export interface MapLayerOptions<TConfig = any> extends raw.MapLayerOptions {
+export interface MapLayerOptions<TConfig = unknown> extends raw.MapLayerOptions {
   // Custom options depending on the type
   config?: TConfig;
   filterData?: MatcherConfig;
