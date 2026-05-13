@@ -192,11 +192,6 @@
       "count": 7
     }
   },
-  "packages/grafana-data/src/types/datasource.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 24
-    }
-  },
   "packages/grafana-data/src/types/explore.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1

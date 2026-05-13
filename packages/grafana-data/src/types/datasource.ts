@@ -41,9 +41,11 @@ export interface DataSourcePluginOptionsEditorProps<
 }
 
 // Utility type to extract the query type TQuery from a class extending DataSourceApi<TQuery, TOptions>
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- conditional type with `infer TQuery, any`: `any` is the conventional placeholder for "don't-care" position; `unknown` would fail to match due to TypeScript variance rules
 export type DataSourceQueryType<DSType> = DSType extends DataSourceApi<infer TQuery, any> ? TQuery : never;
 
 // Utility type to extract the options type TOptions from a class extending DataSourceApi<TQuery, TOptions>
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- conditional type with `any, infer TOptions`: `any` is the conventional placeholder for "don't-care" position
 export type DataSourceOptionsType<DSType> = DSType extends DataSourceApi<any, infer TOptions> ? TOptions : never;
 
 export class DataSourcePlugin<
@@ -64,21 +66,21 @@ export class DataSourcePlugin<
   }
 
   /** @deprecated it will be removed in a future release */
-  setConfigCtrl(ConfigCtrl: any) {
+  setConfigCtrl(ConfigCtrl: unknown) {
     deprecationWarning('DataSourcePlugin', 'setConfigCtrl');
     this.angularConfigCtrl = ConfigCtrl;
     return this;
   }
 
   /** @deprecated it will be removed in a future release */
-  setQueryCtrl(QueryCtrl: any) {
+  setQueryCtrl(QueryCtrl: unknown) {
     deprecationWarning('DataSourcePlugin', 'setQueryCtrl');
     this.components.QueryCtrl = QueryCtrl;
     return this;
   }
 
   /** @deprecated -- register the annotation support in the instance constructor */
-  setAnnotationQueryCtrl(AnnotationsQueryCtrl: any) {
+  setAnnotationQueryCtrl(AnnotationsQueryCtrl: unknown) {
     this.components.AnnotationsQueryCtrl = AnnotationsQueryCtrl;
     return this;
   }
@@ -121,7 +123,7 @@ export class DataSourcePlugin<
   /**
    * @deprecated -- prefer using {@link StandardVariableSupport} or {@link CustomVariableSupport} or {@link DataSourceVariableSupport} in data source instead
    */
-  setVariableQueryEditor(VariableQueryEditor: any) {
+  setVariableQueryEditor(VariableQueryEditor: unknown) {
     this.components.VariableQueryEditor = VariableQueryEditor;
     return this;
   }
@@ -179,9 +181,10 @@ export interface DataSourcePluginComponents<
   TSecureOptions = {},
 > {
   /** @deprecated it will be removed in a future release */
-  QueryCtrl?: any;
+  QueryCtrl?: unknown;
   /** @deprecated it will be removed in a future release */
-  AnnotationsQueryCtrl?: any;
+  AnnotationsQueryCtrl?: unknown;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- ROLLBACK: replacing `any` with `unknown` causes the `??` nullish-coalescing in `public/app/features/variables/editor/getVariableQueryEditor.tsx` (`dsPlugin.components.VariableQueryEditor ?? LegacyVariableQueryEditor`) to narrow to `{}` instead of `VariableQueryEditorType`, producing TS2322. Plugin authors store heterogeneous component values here that consumers cannot pre-narrow.
   VariableQueryEditor?: any;
   QueryEditor?: ComponentType<QueryEditorProps<DSType, TQuery, TOptions>>;
   /** @deprecated it will be removed in a future release and `QueryEditor` will be used instead. */
@@ -201,6 +204,7 @@ export interface DataSourceConstructor<
   TQuery extends DataQuery = DataQuery,
   TOptions extends DataSourceJsonData = DataSourceJsonData,
 > {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- ROLLBACK: replacing `any[]` with `unknown[]` causes every concrete datasource constructor (`new Datasource(instanceSettings, templateSrv?: TemplateSrv)`, etc.) to fail the assignability check at `new DataSourcePlugin(...)` call sites because `unknown` is not assignable to the narrower `TemplateSrv | undefined` (and other narrower 2nd-arg types). Causes TS2345 across every `public/app/plugins/datasource/*/module.{ts,tsx}` file. Constructor variadic rest types remain `any[]` for compatibility with concrete subclass constructor signatures.
   new (instanceSettings: DataSourceInstanceSettings<TOptions>, ...args: any[]): DSType;
 }
 
@@ -306,7 +310,7 @@ abstract class DataSourceApi<
   /**
    *  Get hints for query improvements
    */
-  getQueryHints?(query: TQuery, results: any[], ...rest: any): QueryHint[];
+  getQueryHints?(query: TQuery, results: unknown[], ...rest: unknown[]): QueryHint[];
 
   /**
    * Convert a query to a simple text string
@@ -316,6 +320,7 @@ abstract class DataSourceApi<
   /**
    * Variable query action.
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- `query: any` preserved on plugin API surface: datasource plugins call this with strings, objects, or undefined; concrete typing would break legacy plugin implementations
   metricFindQuery?(query: any, options?: LegacyMetricFindQueryOptions): Promise<MetricFindValue[]>;
 
   /**
@@ -398,9 +403,10 @@ abstract class DataSourceApi<
   /**
    * Used in explore
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- ROLLBACK: typing as `LanguageProvider` enables structural checking that exposes pre-existing return-type mismatches in subclass implementations (Prometheus/Loki/Tempo/CloudWatch). Subclass `start()` returns `Promise<unknown[]>` while abstract requires `Promise<Array<Promise<any>>>`; these are existing inconsistencies that consumers (`packages/grafana-prometheus`, `public/app/plugins/datasource/**`) depend on `any` to bypass. Fixing subclasses is forbidden by the rollback mandate (do not mass-modify call sites).
   languageProvider?: any;
 
-  getVersion?(optionalOptions?: any): Promise<string>;
+  getVersion?(optionalOptions?: unknown): Promise<string>;
 
   interpolateVariablesInQueries?(queries: TQuery[], scopedVars: ScopedVars, filters?: AdHocVariableFilter[]): TQuery[];
 
@@ -519,12 +525,13 @@ export interface QueryEditorHelpProps<TQuery extends DataQuery = DataQuery> {
   datasource: DataSourceApi<TQuery>;
   query: TQuery;
   onClickExample: (query: TQuery) => void;
-  exploreId?: any;
+  exploreId?: string;
 }
 
 /**
  * Starting in v6.2 DataFrame can represent both TimeSeries and TableData
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- ROLLBACK: replacing `any` with `unknown` collapses `LegacyResponseData` to `unknown` (T | unknown = unknown) and cascades through `DataQueryResponseData[]` -> `DataQueryResponse.data` -> all consumers, causing typecheck regressions across packages/grafana-o11y-ds-frontend, packages/grafana-prometheus, public/app/plugins/datasource/**, and public/app/features/**. Legacy datasource plugins access `.data[i].fields`, `.data[i].name`, etc., directly without narrowing.
 export type LegacyResponseData = TimeSeries | TableData | any;
 
 export type DataQueryResponseData = DataFrame | DataFrameDTO | LegacyResponseData;
@@ -806,6 +813,7 @@ export interface AnnotationQueryRequest<MoreOptions = {}> {
   range: TimeRange;
   rangeRaw: RawTimeRange;
   // Should be DataModel but cannot import that here from the main app. Needs to be moved to package first.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- `dashboard: any` preserved due to circular-import limitation: should be DataModel but `grafana-data` cannot import from `app/` without creating dependency cycle
   dashboard: any;
   annotation: AnnotationQuery;
 }
@@ -821,14 +829,18 @@ export interface GetTagResponse {
 }
 
 abstract class LanguageProvider {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- ROLLBACK: replacing `<any, any>` with `<DataQuery, DataSourceJsonData>` constrains the abstract type, and subclass language providers (PrometheusLanguageProvider, LokiLanguageProvider, TempoLanguageProvider, CloudWatchLogsLanguageProvider, etc.) attach to more-specific `DataSourceApi<TQuery, TOptions>` instances. TypeScript's `DataSourceApi` is invariant in its generic parameters (used in both input and output positions of components/annotations), so narrower subclass types are not assignable to wider supertype, causing TS2344/TS2416 regressions across packages/grafana-prometheus/** and public/app/plugins/datasource/**.
   abstract datasource: DataSourceApi<any, any>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- ROLLBACK: replacing `params?: any` with `params?: unknown` violates strict function-type variance: subclass overrides (LokiLanguageProvider `params?: Record<string, string | number>`, TempoLanguageProvider `params = {}`, PrometheusLanguageProvider) define narrower parameter types than `unknown`, breaking the contravariant parameter check. Class-field arrow-fn declarations enforce strict assignability (TS2416). Reverted to `params?: any` (bidirectional) and `Promise<any>` (variance-free) to maintain plugin SDK compatibility.
   abstract request: (url: string, params?: any) => Promise<any>;
 
   /**
    * Returns startTask that resolves with a task list when main syntax is loaded.
    * Task list consists of secondary promises that load more detailed language features.
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- ROLLBACK: `Promise<Array<Promise<unknown>>>` makes the nested promise array invariant, breaking subclass overrides (Loki/Tempo/Prometheus) that return `this.startTask` directly. The original `Promise<Array<Promise<any>>>` collapses via `Promise<any> = any` to remain compatible with subclass forms. Causes TS2344 regressions across packages/grafana-prometheus/** and public/app/plugins/datasource/**.
   abstract start: (timeRange?: TimeRange) => Promise<Array<Promise<any>>>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- ROLLBACK: `Promise<unknown[]>` does not satisfy the `Promise<Promise<any>[]>` return type of `start()` (which itself was rolled back for subclass compatibility), causing cascading TS2344 in subclass `start = () => this.startTask` patterns. Reverted to match the `start()` return-type pair.
   startTask?: Promise<any[]>;
 }
 
