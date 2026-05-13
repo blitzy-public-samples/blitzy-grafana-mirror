@@ -8,9 +8,11 @@ import { type TimeRange } from './time';
 /**
  * Callback info for DataLink click events
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic default `T = any` preserved for back-compat: DataLinkClickEvent.origin is consumed by panel plugins that access fields directly without narrowing
 export interface DataLinkClickEvent<T = any> {
   origin: T;
   replaceVariables: InterpolateFunction | undefined;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- rollback per AAP §0.9.2.11 trigger: `e: unknown` broke click handlers across fieldOverrides.ts, dataLinks.ts, table.ts that call `event.preventDefault()` / `event.ctrlKey` / `event.metaKey` directly without narrowing
   e?: any; // mouse|react event
 }
 
@@ -31,6 +33,7 @@ export enum DataLinkConfigOrigin {
  * TODO: <T extends DataQuery> is not strictly true for internal links as we do not need refId for example but all
  *  data source defined queries extend this so this is more for documentation.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- rollback per AAP §0.9.2.11 trigger: tightening default to `DataQuery` broke test fixtures and call sites in dataLinks.test.ts / fieldOverrides.test.ts that pass non-standard query shapes (e.g. `query: '12345'`, `query: { query: '...' }`) relying on `T = any` for structural back-compat
 export interface DataLink<T extends DataQuery = any> {
   title: string;
   targetBlank?: boolean;
@@ -81,6 +84,7 @@ export interface DataLinkTransformationConfig {
 }
 
 /** @internal */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- rollback per AAP §0.9.2.11 trigger: tightening default to `DataQuery` cascades through DataLink<T>.internal: InternalDataLink<T> and breaks the same test fixtures / production sites that rely on `T = any`
 export interface InternalDataLink<T extends DataQuery = any> {
   query: T | ((options: { replaceVariables: InterpolateFunction; scopedVars: ScopedVars }) => T);
   datasourceUid: string;
@@ -92,6 +96,7 @@ export interface InternalDataLink<T extends DataQuery = any> {
 /**
  * Processed Link Model. The values are ready to use
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic default `T = any` preserved for back-compat: LinkModel.origin is heavily consumed by data link rendering across panel plugins
 export interface LinkModel<T = any> {
   href: string;
   title: string;
@@ -99,6 +104,7 @@ export interface LinkModel<T = any> {
   origin: T;
 
   // When a click callback exists, this is passed the raw mouse|react event
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- rollback per AAP §0.9.2.11 trigger: (1) `e: unknown` broke click handlers that directly call event.preventDefault / event.ctrlKey in production code, (2) `origin?: T` introduced contravariant assignment failures where `LinkModel<Field<any>>` is no longer assignable to `LinkModel<unknown>` (function parameter contravariance)
   onClick?: (e: any, origin?: any) => void;
   oneClick?: boolean;
 
