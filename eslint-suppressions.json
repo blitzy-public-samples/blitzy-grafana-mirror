@@ -157,11 +157,6 @@
       "count": 3
     }
   },
-  "packages/grafana-data/src/types/explore.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "packages/grafana-data/src/types/flot.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1

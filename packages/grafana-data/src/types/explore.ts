@@ -4,6 +4,7 @@ import { type PreferredVisualisationType } from './data';
 import { type SelectableValue } from './select';
 import { type TimeRange } from './time';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- preserved for back-compat: AnyQuery is the default parameter for ExploreUrlState consumers that index arbitrary extra query fields
 type AnyQuery = DataQuery & Record<string, any>;
 
 // enforce type-incompatibility with RawTimeRange to ensure it's parsed and converted.
