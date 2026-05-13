@@ -60,8 +60,9 @@ export class Echo implements EchoSrv {
       }
     }
 
+    const payloadObj = typeof event.payload === 'object' && event.payload !== null ? event.payload : {};
     echoLog(`${event.type} event`, false, {
-      ...event.payload,
+      ...payloadObj,
       meta: _event.meta,
     });
   };

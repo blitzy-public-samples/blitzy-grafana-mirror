@@ -58,7 +58,7 @@ export interface EchoMeta {
  *
  * @public
  */
-export interface EchoBackend<T extends EchoEvent = any, O = any> {
+export interface EchoBackend<T extends EchoEvent = EchoEvent, O = unknown> {
   options: O;
   supportedEvents: EchoEventType[];
   flush: () => void;
@@ -70,7 +70,7 @@ export interface EchoBackend<T extends EchoEvent = any, O = any> {
  *
  * @public
  */
-export interface EchoEvent<T extends EchoEventType = any, P = any> {
+export interface EchoEvent<T extends EchoEventType = EchoEventType, P = unknown> {
   type: EchoEventType;
   /**
    * Event payload containing event specific data.

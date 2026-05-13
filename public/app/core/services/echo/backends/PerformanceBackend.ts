@@ -24,7 +24,17 @@ export class PerformanceBackend implements EchoBackend<PerformanceEvent, Perform
   constructor(public options: PerformanceBackendOptions) {}
 
   addEvent = (e: EchoEvent) => {
-    this.buffer.push(e.payload);
+    const payload = e.payload;
+    if (
+      typeof payload === 'object' &&
+      payload !== null &&
+      'name' in payload &&
+      'value' in payload &&
+      typeof payload.name === 'string' &&
+      typeof payload.value === 'number'
+    ) {
+      this.buffer.push({ name: payload.name, value: payload.value });
+    }
   };
 
   flush = () => {

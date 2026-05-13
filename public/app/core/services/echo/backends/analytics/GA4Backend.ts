@@ -1,5 +1,5 @@
 import { type CurrentUserDTO } from '@grafana/data';
-import { type EchoBackend, EchoEventType, type PageviewEchoEvent } from '@grafana/runtime';
+import { type EchoBackend, type EchoEvent, EchoEventType, isPageviewEvent, type PageviewEchoEvent } from '@grafana/runtime';
 
 import { loadScript } from '../../utils';
 
@@ -41,8 +41,11 @@ export class GA4EchoBackend implements EchoBackend<PageviewEchoEvent, GA4EchoBac
     window.gtag('config', options.googleAnalyticsId, configOptions);
   }
 
-  addEvent = (e: PageviewEchoEvent) => {
+  addEvent = (e: EchoEvent) => {
     if (!window.gtag) {
+      return;
+    }
+    if (!isPageviewEvent(e)) {
       return;
     }
     // this should prevent duplicate events in case enhanced tracking is enabled

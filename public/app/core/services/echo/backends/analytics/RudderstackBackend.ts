@@ -1,6 +1,7 @@
 import { type BuildInfo } from '@grafana/data';
 import {
   type EchoBackend,
+  type EchoEvent,
   EchoEventType,
   isExperimentViewEvent,
   isInteractionEvent,
@@ -119,7 +120,7 @@ export class RudderstackBackend implements EchoBackend<PageviewEchoEvent, Rudder
     }
   }
 
-  addEvent = (e: PageviewEchoEvent) => {
+  addEvent = (e: EchoEvent) => {
     if (!window.rudderanalytics) {
       return;
     }

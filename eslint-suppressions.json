@@ -243,11 +243,6 @@
       "count": 1
     }
   },
-  "packages/grafana-runtime/src/services/EchoSrv.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 4
-    }
-  },
   "packages/grafana-runtime/src/services/LocationService.tsx": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1
