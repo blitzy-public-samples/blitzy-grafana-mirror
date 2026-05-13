@@ -12,6 +12,7 @@ import {
   config,
   type DataSourceSrv,
   DataSourceWithBackend,
+  type FetchErrorDataProps,
   HealthCheckError,
   type HealthCheckResultDetails,
   isFetchError,
@@ -82,7 +83,10 @@ const parseHealthCheckError = (errorResponse: any): parseDataSourceSaveResponse 
   if (errorResponse.error && errorResponse.error instanceof HealthCheckError) {
     message = errorResponse.error.message;
     details = errorResponse.error.details;
-  } else if (isFetchError(errorResponse)) {
+  } else if (
+    // Narrow with the canonical fetch-error body so `errorResponse.data.message` is typed.
+    isFetchError<FetchErrorDataProps>(errorResponse)
+  ) {
     message = errorResponse.data.message ?? `HTTP error ${errorResponse.statusText}`;
   } else if (errorResponse instanceof Error) {
     message = errorResponse.message;

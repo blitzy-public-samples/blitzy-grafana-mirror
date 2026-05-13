@@ -127,7 +127,20 @@ export class ScopedResourceClient<T = object, S = object, K = string> implements
     finalOpts.labelSelector = this.parseListOptionsSelector(finalOpts?.labelSelector);
     finalOpts.fieldSelector = this.parseListOptionsSelector(finalOpts?.fieldSelector);
 
-    return getBackendSrv().get<ResourceList<T, S, K>>(this.url, opts);
+    // `BackendSrv.get`'s `params` argument is now typed as
+    // `Record<string, unknown> | undefined` after the runtime-package
+    // `any -> unknown` refactor. `ListOptions` is structurally compatible
+    // (all optional, string-keyed) but TypeScript does not auto-coerce
+    // interface types into a record. Materialize a fresh plain object via
+    // `Object.fromEntries(Object.entries(...))` so the resulting
+    // index-signature type is assignable without a type assertion. The
+    // selector mutations applied to `finalOpts` (which aliases `opts`
+    // when `opts` is defined) are visible here because we read the
+    // current property values from the same reference.
+    return getBackendSrv().get<ResourceList<T, S, K>>(
+      this.url,
+      opts ? Object.fromEntries(Object.entries(opts)) : undefined
+    );
   }
 
   public async create(obj: ResourceForCreate<T, K>, params?: ResourceClientWriteParams): Promise<Resource<T, S, K>> {

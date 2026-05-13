@@ -73,6 +73,45 @@ function convertGlobToRegEx(text: string): string {
   }
 }
 
+/**
+ * Shape of a single Graphite series entry in the query response.
+ * Mirrors the structure consumed by `convertResponseToDataFrames`.
+ *
+ * Notes on optionality:
+ * - `title` is computed in-place by `convertResponseToDataFrames` (it is set to
+ *   `target` after parsing the refID suffix), so the Graphite/Metrictank wire
+ *   format does not include it.
+ * - `tags` is consumed downstream by `toDataFrame`, but is not present on every
+ *   series the Graphite/Metrictank backends emit.
+ * - `meta` is only populated by Metrictank, so it is optional in the underlying
+ *   protocol; plain Graphite responses omit it entirely.
+ */
+type GraphiteSeries = {
+  target: string;
+  title?: string;
+  tags?: Record<string, string | number>;
+  datapoints: Array<[number, number]>;
+  meta?: MetricTankSeriesMeta[];
+};
+
+/**
+ * Shape of the data returned by a Graphite `/render` query.
+ * Plain Graphite returns an array of series; Metrictank wraps them in an
+ * object with `series` and `meta`. Either form is supported.
+ */
+type GraphiteQueryResponseData = { series?: GraphiteSeries[]; meta?: MetricTankRequestMeta } | GraphiteSeries[];
+
+/**
+ * Shape of an item returned by the `/metrics/find` endpoint.
+ */
+type GraphiteMetricFindItem = { text: string; expandable: boolean | number };
+
+/**
+ * Shape of the response returned by the `/metrics/expand` endpoint.
+ * `results` is the list of fully-expanded metric names (strings).
+ */
+type GraphiteMetricExpandResponse = { results: string[] };
+
 export class GraphiteDatasource
   extends DataSourceWithBackend<GraphiteQuery, GraphiteOptions>
   implements DataSourceWithQueryExportSupport<GraphiteQuery>
@@ -257,7 +296,7 @@ export class GraphiteDatasource
       httpOptions.requestId = this.name + '.panelId.' + options.panelId;
     }
 
-    return this.doGraphiteRequest(httpOptions).pipe(
+    return this.doGraphiteRequest<GraphiteQueryResponseData>(httpOptions).pipe(
       map((result) => this.convertResponseToDataFrames(result, formattedRefIdsMap))
     );
   }
@@ -394,20 +433,22 @@ export class GraphiteDatasource
     }
   }
 
-  convertResponseToDataFrames = (result: FetchResponse, refIdMap: { [key: string]: string }): DataQueryResponse => {
+  convertResponseToDataFrames = (
+    result: FetchResponse<GraphiteQueryResponseData>,
+    refIdMap: { [key: string]: string }
+  ): DataQueryResponse => {
     const data: DataFrame[] = [];
     if (!result || !result.data) {
       return { data };
     }
 
+    // Narrow the response shape: either a Metrictank-style wrapped object with
+    // `series` + `meta`, or a plain Graphite-style array of series.
+    const responseData = result.data;
     // Series are either at the root or under a node called 'series'
-    const series: Array<{
-      target: string;
-      title: string;
-      tags: Record<string, string | number>;
-      datapoints: Array<[number, number]>;
-      meta: MetricTankSeriesMeta[];
-    }> = result.data.series || result.data;
+    const series: GraphiteSeries[] | undefined = isArray(responseData) ? responseData : responseData.series;
+    // Metrictank request metadata is only present on the wrapped-object form.
+    const requestMeta: MetricTankRequestMeta | undefined = isArray(responseData) ? undefined : responseData.meta;
 
     if (!isArray(series)) {
       throw { message: 'Missing series in result', data: result };
@@ -439,7 +480,7 @@ export class GraphiteDatasource
       if (s.meta) {
         frame.meta = {
           custom: {
-            requestMetaList: result.data.meta, // info for the whole request
+            requestMetaList: requestMeta, // info for the whole request
             seriesMetaList: s.meta, // Array of metadata
           },
         };
@@ -456,8 +497,8 @@ export class GraphiteDatasource
         }
 
         // only add the request stats to the first frame
-        if (i === 0 && result.data.meta.stats) {
-          frame.meta.stats = this.getRequestStats(result.data.meta);
+        if (i === 0 && requestMeta?.stats) {
+          frame.meta.stats = this.getRequestStats(requestMeta);
         }
       }
 
@@ -831,9 +872,9 @@ export class GraphiteDatasource
     };
 
     return lastValueFrom(
-      this.doGraphiteRequest(httpOptions).pipe(
-        map((results: FetchResponse) => {
-          return _map(results.data, (metric) => {
+      this.doGraphiteRequest<GraphiteMetricFindItem[]>(httpOptions).pipe(
+        map((results) => {
+          return _map(results.data, (metric): MetricFindValue => {
             return {
               text: metric.text,
               expandable: metric.expandable ? true : false,
@@ -884,9 +925,9 @@ export class GraphiteDatasource
     };
 
     return lastValueFrom(
-      this.doGraphiteRequest(httpOptions).pipe(
-        map((results: FetchResponse) => {
-          return _map(results.data.results, (metric) => {
+      this.doGraphiteRequest<GraphiteMetricExpandResponse>(httpOptions).pipe(
+        map((results) => {
+          return _map(results.data.results, (metric): MetricFindValue => {
             return {
               text: metric,
               expandable: false,
@@ -995,8 +1036,8 @@ export class GraphiteDatasource
     }
 
     return lastValueFrom(
-      this.doGraphiteRequest(httpOptions).pipe(
-        map((results: FetchResponse) => {
+      this.doGraphiteRequest<string>(httpOptions).pipe(
+        map((results) => {
           if (results.data) {
             const semver = new SemVer(results.data);
             return valid(semver) ? results.data : '';
@@ -1054,8 +1095,8 @@ export class GraphiteDatasource
     }
 
     return lastValueFrom(
-      this.doGraphiteRequest(httpOptions).pipe(
-        map((results: FetchResponse) => {
+      this.doGraphiteRequest<string>(httpOptions).pipe(
+        map((results) => {
           // Fix for a Graphite bug: https://github.com/graphite-project/graphite-web/issues/2609
           // There is a fix for it https://github.com/graphite-project/graphite-web/pull/2612 but
           // it was merged to master in July 2020 but it has never been released (the last Graphite

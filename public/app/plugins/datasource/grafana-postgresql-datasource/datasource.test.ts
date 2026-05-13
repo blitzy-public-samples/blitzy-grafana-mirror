@@ -520,7 +520,11 @@ describe('PostgreSQLDatasource', () => {
       const results = await ds.metricFindQuery(query, { range: defaultRange, searchFilter: 'aTit' });
 
       expect(fetchMock).toBeCalledTimes(1);
-      expect(fetchMock.mock.calls[0][0].data.queries[0].rawSql).toBe(
+      // BackendSrvRequest.data is typed `unknown`; the SQL datasources serialize
+      // the query envelope `{ queries: [{ rawSql }] }` through this field, so we
+      // narrow at the assertion boundary.
+      const requestData = fetchMock.mock.calls[0][0].data as { queries: Array<{ rawSql: string }> };
+      expect(requestData.queries[0].rawSql).toBe(
         "select title from atable where title LIKE 'aTit%'"
       );
       expect(results).toEqual([
@@ -575,7 +579,9 @@ describe('PostgreSQLDatasource', () => {
       const results = await ds.metricFindQuery(query, { range: defaultRange });
 
       expect(fetchMock).toBeCalledTimes(1);
-      expect(fetchMock.mock.calls[0][0].data.queries[0].rawSql).toBe("select title from atable where title LIKE '%'");
+      // See note above on BackendSrvRequest.data narrowing.
+      const requestData = fetchMock.mock.calls[0][0].data as { queries: Array<{ rawSql: string }> };
+      expect(requestData.queries[0].rawSql).toBe("select title from atable where title LIKE '%'");
       expect(results).toEqual([
         { text: 'aTitle' },
         { text: 'aTitle2' },

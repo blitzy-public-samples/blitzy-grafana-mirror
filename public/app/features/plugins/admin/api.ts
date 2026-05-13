@@ -68,7 +68,9 @@ export async function getPluginInsights(id: string, version: string | undefined)
     throw new Error('Version is required');
   }
   try {
-    const insights = await getBackendSrv().get(`${GCOM_API_ROOT}/plugins/${id}/versions/${version}/insights`);
+    const insights = await getBackendSrv().get<CatalogPluginInsights>(
+      `${GCOM_API_ROOT}/plugins/${id}/versions/${version}/insights`
+    );
     return insights;
   } catch (error) {
     if (isFetchError(error)) {

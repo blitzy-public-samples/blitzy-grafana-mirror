@@ -26,7 +26,7 @@ export function loadSettings(showSpinner = true): ThunkResult<Promise<Settings>>
         dispatch(loadingBegin());
       }
       dispatch(loadProviders());
-      const result = await getBackendSrv().get('/api/admin/settings');
+      const result = await getBackendSrv().get<Settings>('/api/admin/settings');
       dispatch(settingsUpdated(result));
       await dispatch(loadProviderStatuses());
       if (showSpinner) {
@@ -34,14 +34,28 @@ export function loadSettings(showSpinner = true): ThunkResult<Promise<Settings>>
       }
       return result;
     }
+    // Without SettingsRead permission, return an empty Settings object so the
+    // thunk's return type contract (Promise<Settings>) is honored on all paths.
+    // Declaring the local with the explicit `Settings` type avoids a type
+    // assertion — the empty object literal `{}` is structurally assignable to
+    // `Settings = { [key: string]: SettingsSection }` via its index signature.
+    const empty: Settings = {};
+    return empty;
   };
 }
 
 export function loadProviders(provider = ''): ThunkResult<Promise<SSOProvider[]>> {
   return async (dispatch) => {
-    const result = await getBackendSrv().get(`/api/v1/sso-settings${provider ? `/${provider}` : ''}`);
-    dispatch(providersLoaded(provider ? [result] : result));
-    return result;
+    // The endpoint returns a single SSOProvider when a specific provider is requested
+    // and an array of SSOProvider otherwise. Type the response as a union and normalize
+    // to SSOProvider[] before dispatching/returning. Using `Array.isArray` narrows the
+    // union at runtime without requiring a type assertion.
+    const result = await getBackendSrv().get<SSOProvider | SSOProvider[]>(
+      `/api/v1/sso-settings${provider ? `/${provider}` : ''}`
+    );
+    const providers = Array.isArray(result) ? result : [result];
+    dispatch(providersLoaded(providers));
+    return providers;
   };
 }
 
@@ -79,7 +93,7 @@ export function saveSettings(data: UpdateSettingsQuery): ThunkResult<Promise<boo
         return true;
       } catch (error) {
         console.log(error);
-        if (isFetchError(error)) {
+        if (isFetchError<SettingsError>(error)) {
           error.isHandled = true;
           const updateErr: SettingsError = {
             message: error.data?.message,

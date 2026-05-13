@@ -73,7 +73,7 @@ export function toDataQueryResponse(
   }
 
   // If the response isn't in a correct shape we just ignore the data and pass empty DataQueryResponse.
-  const fetchResponse = res as FetchResponse;
+  const fetchResponse = res as FetchResponse<BackendDataSourceResponse | undefined>;
   if (fetchResponse.data?.results) {
     const results = fetchResponse.data.results;
     const refIDs = queries?.length ? queries.map((q) => q.refId) : Object.keys(results);
@@ -198,7 +198,30 @@ export interface TestingStatus {
  * @returns {TestingStatus}
  */
 export function toTestingStatus(err: FetchError): TestingStatus {
-  const queryResponse = toDataQueryResponse(err);
+  // After the runtime-package `any -> unknown` refactor, `FetchError.data` is
+  // `unknown` and cannot be passed directly to `toDataQueryResponse` (whose
+  // union expects `data: BackendDataSourceResponse | undefined`). Build a
+  // `DataQueryError`-shaped wrapper that preserves the fields downstream
+  // consumers read (`status`, `statusText`, `traceId`, `data.message`,
+  // `data.error`) — this is the same information path that the previous
+  // assertion-based implementation produced via `toDataQueryError(res)` inside
+  // `toDataQueryResponse`. Narrowing `err.data` with `typeof === 'object'` and
+  // `'message'/'error' in` predicates avoids any type assertions.
+  const errData = err.data;
+  const errDataIsObject = errData != null && typeof errData === 'object';
+  const errDataMessage =
+    errDataIsObject && 'message' in errData && typeof errData.message === 'string' ? errData.message : undefined;
+  const errDataError =
+    errDataIsObject && 'error' in errData && typeof errData.error === 'string' ? errData.error : undefined;
+  const wrappedError: DataQueryError = {
+    status: err.status,
+    statusText: err.statusText,
+    traceId: err.traceId,
+    data: errDataMessage !== undefined || errDataError !== undefined
+      ? { message: errDataMessage, error: errDataError }
+      : undefined,
+  };
+  const queryResponse = toDataQueryResponse(wrappedError);
   // POST api/ds/query errors returned as { message: string, error: string } objects
   if (queryResponse.error?.data?.message) {
     return {

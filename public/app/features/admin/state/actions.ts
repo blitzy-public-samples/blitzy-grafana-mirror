@@ -1,15 +1,21 @@
 import { debounce } from 'lodash';
 
 import { dateTimeFormatTimeAgo } from '@grafana/data';
-import { featureEnabled, getBackendSrv, isFetchError, locationService } from '@grafana/runtime';
+import { type FetchErrorDataProps, featureEnabled, getBackendSrv, isFetchError, locationService } from '@grafana/runtime';
 import { type FetchDataArgs } from '@grafana/ui';
 import config from 'app/core/config';
 import { contextSrv } from 'app/core/services/context_srv';
 import { accessControlQueryParam } from 'app/core/utils/accessControl';
 import { AccessControlAction } from 'app/types/accessControl';
-import { type LdapUser } from 'app/types/ldap';
+import { type LdapConnectionInfo, type LdapUser, type SyncInfo } from 'app/types/ldap';
 import { type ThunkResult } from 'app/types/store';
-import { type UserDTO, type UserSession, type UserFilter, type AnonUserFilter } from 'app/types/user';
+import {
+  type AnonUserFilter,
+  type UserDTO,
+  type UserFilter,
+  type UserOrg,
+  type UserSession,
+} from 'app/types/user';
 
 import {
   userAdminPageLoadedAction,
@@ -35,6 +41,8 @@ import {
   anonUserSortChanged,
   anonPageChanged,
   anonQueryChanged,
+  type UsersFetched,
+  type UsersAnonymousDevicesFetched,
 } from './reducers';
 // UserAdminPage
 
@@ -52,10 +60,15 @@ export function loadAdminUserPage(userUid: string): ThunkResult<void> {
     } catch (error) {
       console.error(error);
 
-      if (isFetchError(error)) {
+      if (isFetchError<FetchErrorDataProps>(error)) {
+        // After the runtime-package `any -> unknown` refactor:
+        //   `FetchErrorDataProps.message` is `string | undefined` — use `?? ''`
+        //   `FetchErrorDataProps.error`   is `string | unknown`   — narrow via `typeof`
+        // These avoid type assertions while satisfying the action payload's
+        // `title: string; body: string;` contract.
         const userError = {
-          title: error.data.message,
-          body: error.data.error,
+          title: error.data.message ?? '',
+          body: typeof error.data.error === 'string' ? error.data.error : '',
         };
 
         dispatch(userAdminPageFailedAction(userError));
@@ -66,7 +79,7 @@ export function loadAdminUserPage(userUid: string): ThunkResult<void> {
 
 export function loadUserProfile(userUid: string): ThunkResult<void> {
   return async (dispatch) => {
-    const user = await getBackendSrv().get(`/api/users/${userUid}`, accessControlQueryParam());
+    const user = await getBackendSrv().get<UserDTO>(`/api/users/${userUid}`, accessControlQueryParam());
     dispatch(userProfileLoadedAction(user));
   };
 }
@@ -117,7 +130,7 @@ export function updateUserPermissions(userUid: string, isGrafanaAdmin: boolean):
 
 export function loadUserOrgs(userUid: string): ThunkResult<void> {
   return async (dispatch) => {
-    const orgs = await getBackendSrv().get(`/api/users/${userUid}/orgs`);
+    const orgs = await getBackendSrv().get<UserOrg[]>(`/api/users/${userUid}/orgs`);
     dispatch(userOrgsLoadedAction(orgs));
   };
 }
@@ -154,7 +167,7 @@ export function loadUserSessions(userUid: string): ThunkResult<void> {
       return;
     }
 
-    const tokens = await getBackendSrv().get(`/api/admin/users/${userUid}/auth-tokens`);
+    const tokens = await getBackendSrv().get<UserSession[]>(`/api/admin/users/${userUid}/auth-tokens`);
     tokens.reverse();
 
     const sessions = tokens.map((session: UserSession) => {
@@ -199,7 +212,7 @@ export function loadLdapSyncStatus(): ThunkResult<void> {
     // Available only in enterprise
     const canReadLDAPStatus = contextSrv.hasPermission(AccessControlAction.LDAPStatusRead);
     if (featureEnabled('ldapsync') && canReadLDAPStatus) {
-      const syncStatus = await getBackendSrv().get(`/api/admin/ldap-sync-status`);
+      const syncStatus = await getBackendSrv().get<SyncInfo>(`/api/admin/ldap-sync-status`);
       dispatch(ldapSyncStatusLoadedAction(syncStatus));
     }
   };
@@ -221,14 +234,19 @@ export function loadLdapState(): ThunkResult<void> {
     }
 
     try {
-      const connectionInfo = await getBackendSrv().get(`/api/admin/ldap/status`);
+      const connectionInfo = await getBackendSrv().get<LdapConnectionInfo>(`/api/admin/ldap/status`);
       dispatch(ldapConnectionInfoLoadedAction(connectionInfo));
     } catch (error) {
-      if (isFetchError(error)) {
+      if (isFetchError<FetchErrorDataProps>(error)) {
         error.isHandled = true;
+        // After the runtime-package `any -> unknown` refactor:
+        //   `FetchErrorDataProps.message` is `string | undefined` — use `?? ''`
+        //   `FetchErrorDataProps.error`   is `string | unknown`   — narrow via `typeof`
+        // These avoid type assertions while satisfying the `LdapError`
+        // payload's `title: string; body: string;` contract.
         const ldapError = {
-          title: error.data.message,
-          body: error.data.error,
+          title: error.data.message ?? '',
+          body: typeof error.data.error === 'string' ? error.data.error : '',
         };
         dispatch(ldapFailedAction(ldapError));
       }
@@ -236,10 +254,21 @@ export function loadLdapState(): ThunkResult<void> {
   };
 }
 
+interface LdapUserResponse {
+  name: LdapUser['info']['name'];
+  surname: LdapUser['info']['surname'];
+  email: LdapUser['info']['email'];
+  login: LdapUser['info']['login'];
+  isGrafanaAdmin: LdapUser['permissions']['isGrafanaAdmin'];
+  isDisabled: LdapUser['permissions']['isDisabled'];
+  roles: LdapUser['roles'];
+  teams: LdapUser['teams'];
+}
+
 export function loadUserMapping(username: string): ThunkResult<void> {
   return async (dispatch) => {
     try {
-      const response = await getBackendSrv().get(`/api/admin/ldap/${encodeURIComponent(username)}`);
+      const response = await getBackendSrv().get<LdapUserResponse>(`/api/admin/ldap/${encodeURIComponent(username)}`);
       const { name, surname, email, login, isGrafanaAdmin, isDisabled, roles, teams } = response;
       const userInfo: LdapUser = {
         info: { name, surname, email, login },
@@ -249,11 +278,16 @@ export function loadUserMapping(username: string): ThunkResult<void> {
       };
       dispatch(userMappingInfoLoadedAction(userInfo));
     } catch (error) {
-      if (isFetchError(error)) {
+      if (isFetchError<FetchErrorDataProps>(error)) {
         error.isHandled = true;
+        // After the runtime-package `any -> unknown` refactor:
+        //   `FetchErrorDataProps.message` is `string | undefined` — use `?? ''`
+        //   `FetchErrorDataProps.error`   is `string | unknown`   — narrow via `typeof`
+        // These avoid type assertions while satisfying the `LdapError`
+        // payload's `title: string; body: string;` contract.
         const userError = {
-          title: error.data.message,
-          body: error.data.error,
+          title: error.data.message ?? '',
+          body: typeof error.data.error === 'string' ? error.data.error : '',
         };
         dispatch(clearUserMappingInfoAction());
         dispatch(userMappingInfoFailedAction(userError));
@@ -296,7 +330,7 @@ export function fetchUsers(): ThunkResult<void> {
       if (sort) {
         url += `&sort=${sort}`;
       }
-      const result = await getBackendSrv().get(url);
+      const result = await getBackendSrv().get<UsersFetched>(url);
       dispatch(usersFetched(result));
     } catch (error) {
       usersFetchEnd();
@@ -363,7 +397,7 @@ export function fetchUsersAnonymousDevices(): ThunkResult<void> {
       if (sort) {
         url += `&sort=${sort}`;
       }
-      const result = await getBackendSrv().get(url);
+      const result = await getBackendSrv().get<UsersAnonymousDevicesFetched>(url);
       dispatch(usersAnonymousDevicesFetched(result));
     } catch (error) {
       console.error(error);

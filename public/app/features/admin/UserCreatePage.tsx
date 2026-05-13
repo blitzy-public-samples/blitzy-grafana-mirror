@@ -15,7 +15,7 @@ interface UserDTO {
   login?: string;
 }
 
-const createUser = async (user: UserDTO) => getBackendSrv().post('/api/admin/users', user);
+const createUser = async (user: UserDTO) => getBackendSrv().post<{ uid: string }>('/api/admin/users', user);
 
 const pageNav: NavModelItem = {
   icon: 'user',

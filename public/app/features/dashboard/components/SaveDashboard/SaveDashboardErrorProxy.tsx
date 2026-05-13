@@ -13,12 +13,21 @@ import { SaveDashboardAsButton } from './SaveDashboardButton';
 import { type SaveDashboardModalProps } from './types';
 import { useDashboardSave } from './useDashboardSave';
 
+/**
+ * Body shape returned by the dashboard save endpoint when it surfaces a
+ * recoverable conflict. The `status` discriminates which proxy modal to render.
+ */
+export interface DashboardSaveErrorData {
+  status?: 'version-mismatch' | 'name-exists' | 'plugin-dashboard' | string;
+  message?: string;
+}
+
 interface SaveDashboardErrorProxyProps {
   /** original dashboard */
   dashboard: DashboardModel;
   /** dashboard save model with applied modifications, i.e. title */
   dashboardSaveModel: Dashboard;
-  error: FetchError;
+  error: FetchError<DashboardSaveErrorData>;
   onDismiss: () => void;
   setErrorIsHandled: React.Dispatch<React.SetStateAction<boolean>>;
 }
@@ -156,7 +165,7 @@ const ConfirmPluginDashboardSaveModal = ({ onDismiss, dashboard }: SaveDashboard
   );
 };
 
-export const proxyHandlesError = (errorStatus: string) => {
+export const proxyHandlesError = (errorStatus: string | undefined) => {
   switch (errorStatus) {
     case 'version-mismatch':
     case 'name-exists':

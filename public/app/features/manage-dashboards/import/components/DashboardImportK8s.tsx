@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react';
 
 import { AppEvents, LoadingState } from '@grafana/data';
 import { t } from '@grafana/i18n';
-import { config, getBackendSrv, isFetchError, reportInteraction } from '@grafana/runtime';
+import { type FetchErrorDataProps, config, getBackendSrv, isFetchError, reportInteraction } from '@grafana/runtime';
 import { Spinner, Stack } from '@grafana/ui';
 import { appEvents } from 'app/core/app_events';
 import { Page } from 'app/core/components/Page/Page';
 import { type GrafanaRouteComponentProps } from 'app/core/navigation/types';
 import { ExportFormat } from 'app/features/dashboard/api/types';
 import { isDashboardV1Resource, isDashboardV2Resource } from 'app/features/dashboard/api/utils';
+import { type GnetDashboard } from 'app/features/dashboard/dashgrid/DashboardLibrary/types';
 
 import { type DashboardInputs, DashboardSource } from '../../types';
 import { detectExportFormat, extractV1Inputs, extractV2Inputs } from '../utils/inputs';
@@ -61,7 +62,7 @@ export function DashboardImportK8s({ queryParams }: Props) {
     setState((prev) => ({ ...prev, status: LoadingState.Loading }));
 
     try {
-      const response = await getBackendSrv().get(`/api/gnet/dashboards/${id}`);
+      const response = await getBackendSrv().get<GnetDashboard>(`/api/gnet/dashboards/${id}`);
       const dashboard = response.json;
       const format = detectExportFormat(dashboard);
       const inputs =
@@ -72,13 +73,13 @@ export function DashboardImportK8s({ queryParams }: Props) {
         dashboard,
         dashboardUid: undefined,
         inputs,
-        meta: { updatedAt: response.updatedAt, orgName: response.orgName },
+        meta: { updatedAt: response.updatedAt ?? '', orgName: response.orgName ?? '' },
         source: DashboardSource.Gcom,
         format,
       });
     } catch (error) {
       setState((prev) => ({ ...prev, status: LoadingState.Error }));
-      if (isFetchError(error)) {
+      if (isFetchError<FetchErrorDataProps>(error)) {
         appEvents.emit(AppEvents.alertError, ['Failed to load dashboard', error.data?.message || 'Unknown error']);
       }
     }

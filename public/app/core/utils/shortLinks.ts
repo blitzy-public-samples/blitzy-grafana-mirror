@@ -34,7 +34,7 @@ function getRelativeURLPath(url: string) {
 }
 
 const createShortLinkLegacy = async (path: string): Promise<string> => {
-  const shortLink = await getBackendSrv().post(`/api/short-urls`, {
+  const shortLink = await getBackendSrv().post<{ url: string }>(`/api/short-urls`, {
     path: getRelativeURLPath(path),
   });
   return shortLink.url;

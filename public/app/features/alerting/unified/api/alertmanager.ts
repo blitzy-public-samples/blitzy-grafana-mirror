@@ -1,6 +1,6 @@
 import { lastValueFrom } from 'rxjs';
 
-import { getBackendSrv, isFetchError } from '@grafana/runtime';
+import { type FetchErrorDataProps, getBackendSrv, isFetchError } from '@grafana/runtime';
 import {
   type AlertManagerCortexConfig,
   type AlertmanagerGroup,
@@ -31,7 +31,9 @@ export async function fetchAlertManagerConfig(alertManagerSourceName: string): P
     // if no config has been uploaded to grafana, it returns error instead of latest config
     if (
       alertManagerSourceName === GRAFANA_RULES_SOURCE_NAME &&
-      isFetchError(e) &&
+      // Narrow the caught error to the canonical fetch-error body so
+      // `e.data?.message` is typed.
+      isFetchError<FetchErrorDataProps>(e) &&
       e.data?.message?.includes('could not find an Alertmanager configuration')
     ) {
       return {

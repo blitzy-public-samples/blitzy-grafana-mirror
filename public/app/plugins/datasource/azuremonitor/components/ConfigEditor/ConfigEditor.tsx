@@ -7,7 +7,14 @@ import {
 } from '@grafana/data';
 import { t } from '@grafana/i18n';
 import { AdvancedHttpSettings, ConfigSection, DataSourceDescription } from '@grafana/plugin-ui';
-import { getBackendSrv, getTemplateSrv, isFetchError, type TemplateSrv, config } from '@grafana/runtime';
+import {
+  type FetchErrorDataProps,
+  getBackendSrv,
+  getTemplateSrv,
+  isFetchError,
+  type TemplateSrv,
+  config,
+} from '@grafana/runtime';
 import { Alert, Divider, SecureSocksProxySettings } from '@grafana/ui';
 
 import ResponseParser from '../../azure_monitor/response_parser';
@@ -63,8 +70,11 @@ export class ConfigEditor extends PureComponent<Props, State> {
   private saveOptions = async (): Promise<void> => {
     if (this.state.unsaved) {
       await getBackendSrv()
-        .put(`/api/datasources/uid/${this.props.options.uid}`, this.props.options)
-        .then((result: { datasource: AzureMonitorDataSourceSettings }) => {
+        .put<{ datasource: AzureMonitorDataSourceSettings }>(
+          `/api/datasources/uid/${this.props.options.uid}`,
+          this.props.options
+        )
+        .then((result) => {
           updateDatasourcePluginOption(this.props, 'version', result.datasource.version);
         });
 
@@ -87,7 +97,9 @@ export class ConfigEditor extends PureComponent<Props, State> {
       this.setState({ error: undefined });
       return ResponseParser.parseSubscriptionsForSelect(result);
     } catch (err) {
-      if (isFetchError(err)) {
+      // Narrow the error body to the canonical fetch-error shape so the
+      // `details` field receives the upstream Azure failure message verbatim.
+      if (isFetchError<FetchErrorDataProps>(err)) {
         this.setState({
           error: {
             title: 'Error requesting subscriptions',

@@ -24,8 +24,8 @@ export const TeamPicker = ({ onSelected, className, teamId }: Props) => {
     }
 
     getBackendSrv()
-      .get(`/api/teams/${teamId}`)
-      .then((team: Team) => {
+      .get<Team>(`/api/teams/${teamId}`)
+      .then((team) => {
         setValue({
           value: team,
           label: team.name,
@@ -45,8 +45,8 @@ export const TeamPicker = ({ onSelected, className, teamId }: Props) => {
           }
 
           return getBackendSrv()
-            .get(`/api/teams/search?perpage=100&page=1&query=${query}`)
-            .then((result: { teams: Team[] }) => {
+            .get<{ teams: Team[] }>(`/api/teams/search?perpage=100&page=1&query=${query}`)
+            .then((result) => {
               const teams: Array<SelectableValue<Team>> = result.teams.map((team) => {
                 return {
                   value: team,

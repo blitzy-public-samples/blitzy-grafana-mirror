@@ -18,6 +18,7 @@ import { Button, ScrollContainer, stylesFactory, TagList } from '@grafana/ui';
 import { AbstractList } from '@grafana/ui/internal';
 import { appEvents } from 'app/core/app_events';
 import { getDashboardSrv } from 'app/features/dashboard/services/DashboardSrv';
+import { type DashboardSearchHit } from 'app/features/search/types';
 
 import { AnnotationListItem } from './AnnotationListItem';
 import { type Options } from './panelcfg.gen';
@@ -128,7 +129,11 @@ export class AnnoListPanel extends PureComponent<Props, State> {
       params.tags = params.tags ? [...params.tags, ...queryTags] : queryTags;
     }
 
-    const annotations = await getBackendSrv().get('/api/annotations', params, this.state.requestId);
+    const annotations = await getBackendSrv().get<AnnotationEvent[]>(
+      '/api/annotations',
+      params,
+      this.state.requestId
+    );
 
     this.setState({
       annotations,
@@ -157,7 +162,9 @@ export class AnnoListPanel extends PureComponent<Props, State> {
       return;
     }
 
-    const result = await getBackendSrv().get('/api/search', { dashboardUIDs: anno.dashboardUID });
+    const result = await getBackendSrv().get<DashboardSearchHit[]>('/api/search', {
+      dashboardUIDs: anno.dashboardUID,
+    });
     if (result && result.length && result[0].uid === anno.dashboardUID) {
       const dash = result[0];
       const url = new URL(dash.url, window.location.origin);

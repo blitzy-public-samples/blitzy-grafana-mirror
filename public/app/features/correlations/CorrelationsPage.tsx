@@ -9,6 +9,7 @@ import {
   type CorrelationData,
   type CorrelationsData,
   type FetchError,
+  type FetchErrorDataProps,
   isFetchError,
   reportInteraction,
 } from '@grafana/runtime';
@@ -205,7 +206,9 @@ export default function CorrelationsPage(props: CorrelationsPageProps) {
                 title={t('correlations.alert.title', 'Error fetching correlation data')}
                 topSpacing={2}
               >
-                {(isFetchError(error) && error.data?.message) ||
+                {// Narrow with the canonical fetch-error body so
+                // `error.data?.message` is typed.
+                (isFetchError<FetchErrorDataProps>(error) && error.data?.message) ||
                   t(
                     'correlations.alert.error-message',
                     'An unknown error occurred while fetching correlation data. Please try again.'

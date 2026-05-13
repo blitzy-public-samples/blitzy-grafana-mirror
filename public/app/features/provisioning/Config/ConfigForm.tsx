@@ -20,7 +20,9 @@ import {
   Switch,
 } from '@grafana/ui';
 import {
+  type ErrorDetails,
   type Repository,
+  type Status,
   useGetFrontendSettingsQuery,
   useGetRepositoryRefsQuery,
 } from 'app/api/clients/provisioning/v0alpha1';
@@ -137,7 +139,11 @@ export function ConfigForm({ data }: ConfigFormProps) {
       const spec = dataToSpec(form);
       await submitData(spec, form.token);
     } catch (err) {
-      if (isFetchError(err)) {
+      // Narrow the caught error to a fetch error whose body matches the
+      // shape expected by `getConfigFormErrors`/`extractFormErrors`
+      // (`ErrorDetails[] | Status`). After the runtime-package `any -> unknown`
+      // refactor, `err.data` is `unknown` by default and must be narrowed.
+      if (isFetchError<ErrorDetails[] | Status>(err)) {
         const fieldErrors = getConfigFormErrors(err.data);
 
         if (fieldErrors.length > 0) {

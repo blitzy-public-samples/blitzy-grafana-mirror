@@ -28,8 +28,8 @@ export const UserPicker = ({ className, onSelected, inputId }: Props) => {
           }
 
           return getBackendSrv()
-            .get(`/api/org/users/lookup?query=${query}&limit=100`)
-            .then((result: OrgUser[]) => {
+            .get<OrgUser[]>(`/api/org/users/lookup?query=${query}&limit=100`)
+            .then((result) => {
               return result.map((user) => ({
                 id: user.userId,
                 uid: user.uid,

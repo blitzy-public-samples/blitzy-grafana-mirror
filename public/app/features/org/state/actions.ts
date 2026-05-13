@@ -1,5 +1,6 @@
 import { getBackendSrv } from '@grafana/runtime';
 import { updateConfigurationSubtitle } from 'app/core/reducers/navModel';
+import { type Organization } from 'app/types/organization';
 import { type ThunkResult } from 'app/types/store';
 import { type UserOrg } from 'app/types/user';
 
@@ -11,7 +12,7 @@ export function loadOrganization(
   dependencies: OrganizationDependencies = { getBackendSrv: getBackendSrv }
 ): ThunkResult<void> {
   return async (dispatch) => {
-    const organizationResponse = await dependencies.getBackendSrv().get('/api/org');
+    const organizationResponse = await dependencies.getBackendSrv().get<Organization>('/api/org');
     dispatch(organizationLoaded(organizationResponse));
 
     return organizationResponse;
@@ -36,7 +37,11 @@ export function setUserOrganization(
   dependencies: OrganizationDependencies = { getBackendSrv: getBackendSrv }
 ): ThunkResult<void> {
   return async (dispatch) => {
-    const organizationResponse = await dependencies.getBackendSrv().post('/api/user/using/' + orgId);
+    // `/api/user/using/:orgId` returns the newly selected org metadata; only
+    // `name` is consumed for the navmodel subtitle update.
+    const organizationResponse = await dependencies
+      .getBackendSrv()
+      .post<{ name: string }>('/api/user/using/' + orgId);
 
     dispatch(updateConfigurationSubtitle(organizationResponse.name));
   };
@@ -47,7 +52,9 @@ export function createOrganization(
   dependencies: OrganizationDependencies = { getBackendSrv: getBackendSrv }
 ): ThunkResult<void> {
   return async (dispatch) => {
-    const result = await dependencies.getBackendSrv().post('/api/orgs/', newOrg);
+    // `POST /api/orgs` returns the created org's id; downstream uses it to
+    // switch the user into the new org.
+    const result = await dependencies.getBackendSrv().post<{ orgId: number }>('/api/orgs/', newOrg);
 
     dispatch(setUserOrganization(result.orgId));
   };

@@ -1,4 +1,14 @@
-import { type FetchError, isFetchError } from '@grafana/runtime';
+import { type FetchError, type FetchErrorDataProps, isFetchError } from '@grafana/runtime';
+
+/**
+ * Backend fetch errors generally carry `FetchErrorDataProps` in `data`. The
+ * Grafana API surfaces an additional `messageId` field on some responses that
+ * the OSS `getMessageIdFromError` helper reads — we extend the canonical shape
+ * with that optional field here so callers don't need to narrow again.
+ */
+interface BackendErrorData extends FetchErrorDataProps {
+  messageId?: string;
+}
 
 export function getMessageFromError(err: unknown): string {
   if (typeof err === 'string') {
@@ -8,7 +18,7 @@ export function getMessageFromError(err: unknown): string {
   if (err) {
     if (err instanceof Error) {
       return err.message;
-    } else if (isFetchError(err)) {
+    } else if (isFetchError<BackendErrorData>(err)) {
       if (err.data && err.data.message) {
         return err.data.message;
       } else if (err.statusText) {
@@ -50,7 +60,7 @@ export function getMessageIdFromError(err: unknown): string | undefined {
   if (err) {
     if (err instanceof Error) {
       return undefined;
-    } else if (isFetchError(err)) {
+    } else if (isFetchError<BackendErrorData>(err)) {
       return err.data?.messageId;
     } else if (err.hasOwnProperty('messageId')) {
       // @ts-expect-error

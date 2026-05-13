@@ -373,7 +373,7 @@ class DataSourceWithBackend<
         ...options,
         method: 'POST',
         headers: options?.headers ? { ...options.headers, ...headers } : headers,
-        data: data ?? { ...data },
+        data: data ?? {},
         url: this.buildResourcesDatasourceUrl(path),
       })
     );

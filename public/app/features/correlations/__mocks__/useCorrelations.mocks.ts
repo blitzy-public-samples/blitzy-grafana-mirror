@@ -12,7 +12,10 @@ import {
   type UpdateCorrelationResponse,
 } from '../types';
 
-export function createFetchCorrelationsResponse<T>(overrides?: DeepPartial<FetchResponse>): FetchResponse<T> {
+export function createFetchCorrelationsResponse<T>(overrides?: DeepPartial<FetchResponse<T>>): FetchResponse<T> {
+  // `FetchResponse` is now generic-defaulted to `FetchResponse<unknown>`
+  // after the runtime-package `any -> unknown` refactor. `merge` can't
+  // express the return type for arbitrary `T`, so cast at the boundary.
   return merge(
     {
       data: undefined,
@@ -29,7 +32,7 @@ export function createFetchCorrelationsResponse<T>(overrides?: DeepPartial<Fetch
       ok: true,
     },
     overrides
-  );
+  ) as FetchResponse<T>;
 }
 
 export function createFetchCorrelationsError(overrides?: DeepPartial<FetchError>): FetchError {

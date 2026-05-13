@@ -106,7 +106,9 @@ describe('interpolateActionVariables', () => {
       action,
       genReplaceActionVars((str) => str, action, actionVars)
     );
-    expect(JSON.parse(request.data)).toEqual({
+    // BackendSrvRequest.data is typed `unknown`; for the Fetch action shape it
+    // is the JSON-stringified body, so we narrow at the assertion boundary.
+    expect(JSON.parse(request.data as string)).toEqual({
       primary: 'Device-T-001',
       data: {
         secondary: 'Room-T-002',
@@ -165,7 +167,8 @@ describe('interpolateActionVariables', () => {
     expect(request.url).toBe(
       'http://test.com/api/thermostats/T-001/sync/$thermostat2?primary=Device-T-001&secondary=Room-%24thermostat2&mode=sync'
     );
-    expect(JSON.parse(request.data).data.secondary).toBe('Room-$thermostat2');
+    // BackendSrvRequest.data is typed `unknown`; see note above.
+    expect(JSON.parse(request.data as string).data.secondary).toBe('Room-$thermostat2');
   });
 });
 
@@ -247,8 +250,16 @@ describe('Infinity request', () => {
 
       const request = buildActionProxyRequest(action, mockReplaceVariables);
 
-      expect(request.data.queries[0].url_options.method).toBe(HttpRequestMethod.GET);
-      expect(request.data.queries[0].url_options.data).toBeUndefined();
+      // BackendSrvRequest.data is typed `unknown`; the Infinity proxy request
+      // shape is a structured `{ queries, from, to }` envelope built locally in
+      // `buildActionProxyRequest`, so we narrow at the assertion boundary.
+      const requestData = request.data as {
+        queries: Array<{
+          url_options: { method: HttpRequestMethod; data?: string };
+        }>;
+      };
+      expect(requestData.queries[0].url_options.method).toBe(HttpRequestMethod.GET);
+      expect(requestData.queries[0].url_options.data).toBeUndefined();
     });
 
     it('should throw error for missing datasource UID', () => {

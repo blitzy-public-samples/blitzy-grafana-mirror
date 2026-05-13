@@ -34,8 +34,19 @@ export const geomapSuggestionsSupplier: VisualizationSuggestionsSupplier<Options
           };
           // FIXME: this doesn't work. I want to disable legends in the preview.
           s.options?.layers?.forEach((layer) => {
-            layer.config = layer.config || {};
-            layer.config.showLegend = false;
+            // `layer.config` is `unknown` after the schema veneer's
+            // `any -> unknown` change to `MapLayerOptions<TConfig>`. Build a
+            // fresh `Record<string, unknown>` (preserving existing entries
+            // when `layer.config` is a plain object) so we can attach
+            // `showLegend` without a type assertion.
+            let cfg: Record<string, unknown>;
+            if (layer.config && typeof layer.config === 'object') {
+              cfg = Object.fromEntries(Object.entries(layer.config));
+            } else {
+              cfg = {};
+            }
+            cfg.showLegend = false;
+            layer.config = cfg;
           });
         },
       },

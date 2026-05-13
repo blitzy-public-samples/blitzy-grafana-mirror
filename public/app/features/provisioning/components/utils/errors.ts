@@ -1,5 +1,5 @@
 import { t } from '@grafana/i18n';
-import { isFetchError } from '@grafana/runtime';
+import { type FetchErrorDataProps, isFetchError } from '@grafana/runtime';
 import { extractErrorMessage } from 'app/api/utils';
 
 type ResourceType = 'dashboard' | 'folder';
@@ -11,7 +11,8 @@ export function getProvisionedRequestError(
   resourceType: ResourceType,
   fallbackMessage: string
 ): string {
-  if (isFetchError(error) && error.status === 404) {
+  // Narrow to the canonical fetch-error body so `error.data.message` is typed.
+  if (isFetchError<FetchErrorDataProps>(error) && error.status === 404) {
     const apiMessage = typeof error.data?.message === 'string' ? error.data.message : '';
 
     if (apiMessage === API_FILE_NOT_FOUND) {

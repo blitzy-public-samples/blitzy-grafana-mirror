@@ -21,6 +21,15 @@ interface FormModel {
   orgName?: string;
 }
 
+// Shape of the response from GET /api/user/invite/:code, used to seed the form.
+interface InviteResponse {
+  email: string;
+  name?: string;
+  username?: string;
+  orgName?: string;
+  invitedBy?: string;
+}
+
 const navModel = {
   main: {
     icon: 'grafana' as const,
@@ -41,7 +50,7 @@ export const SignupInvitedPage = () => {
   const styles = useStyles2(getStyles);
 
   useAsync(async () => {
-    const invite = await getBackendSrv().get(`/api/user/invite/${code}`);
+    const invite = await getBackendSrv().get<InviteResponse>(`/api/user/invite/${code}`);
 
     setInitFormModel({
       email: invite.email,

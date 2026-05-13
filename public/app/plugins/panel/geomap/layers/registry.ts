@@ -13,7 +13,7 @@ import { config } from '@grafana/runtime';
 import { hasAlphaPanels } from 'app/core/config';
 
 import { basemapLayers } from './basemaps';
-import { carto } from './basemaps/carto';
+import { type CartoConfig, carto } from './basemaps/carto';
 import { dataLayers } from './data';
 
 export const DEFAULT_BASEMAP_CONFIG: MapLayerOptions = {
@@ -22,13 +22,17 @@ export const DEFAULT_BASEMAP_CONFIG: MapLayerOptions = {
   config: {},
 };
 
-// Default base layer depending on the server setting
-export const defaultBaseLayer: MapLayerRegistryItem = {
+// Default base layer depending on the server setting. The default always
+// falls back to the carto basemap, so we type the registry item with
+// `CartoConfig` — this makes the `options` parameter typed as
+// `MapLayerOptions<CartoConfig>` and avoids a type assertion when
+// forwarding to `carto.create()`.
+export const defaultBaseLayer: MapLayerRegistryItem<CartoConfig> = {
   id: DEFAULT_BASEMAP_CONFIG.type,
   name: 'Default base layer',
   isBaseMap: true,
 
-  create: (map: OpenLayersMap, options: MapLayerOptions, eventBus: EventBus, theme: GrafanaTheme2) => {
+  create: (map: OpenLayersMap, options: MapLayerOptions<CartoConfig>, eventBus: EventBus, theme: GrafanaTheme2) => {
     const serverLayerType = config?.geomapDefaultBaseLayerConfig?.type;
     if (serverLayerType) {
       const layer = geomapLayerRegistry.getIfExists(serverLayerType);
@@ -38,7 +42,9 @@ export const defaultBaseLayer: MapLayerRegistryItem = {
       return layer.create(map, config.geomapDefaultBaseLayerConfig!, eventBus, theme);
     }
 
-    // For now use carto as our default basemap
+    // For now use carto as our default basemap. `options` is already
+    // `MapLayerOptions<CartoConfig>` because of the registry item's
+    // generic parameter above, so no type assertion is required.
     return carto.create(map, options, eventBus, theme);
   },
 };

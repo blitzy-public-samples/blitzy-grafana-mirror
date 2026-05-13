@@ -37,11 +37,13 @@ export const normalizeError = (e: unknown): string => {
       if (e.error instanceof Error) {
         return e.error.message;
       } else if (isFetchError(e.error)) {
-        if (e.error.data && typeof e.error.data === 'object' && 'message' in e.error.data) {
-          return String(e.error.data.message);
-        }
-        if (Array.isArray(e.error.data.errors) && e.error.data.errors.length) {
-          return e.error.data.errors.join('\n');
+        if (e.error.data && typeof e.error.data === 'object') {
+          if ('message' in e.error.data) {
+            return String(e.error.data.message);
+          }
+          if ('errors' in e.error.data && Array.isArray(e.error.data.errors) && e.error.data.errors.length) {
+            return e.error.data.errors.join('\n');
+          }
         }
       }
     }

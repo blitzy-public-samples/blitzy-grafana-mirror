@@ -1,7 +1,7 @@
 // Legacy Redux actions - will be removed when kubernetesDashboards feature is removed
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { type DataSourceInstanceSettings } from '@grafana/data';
-import { getBackendSrv, getDataSourceSrv, isFetchError } from '@grafana/runtime';
+import { type FetchErrorDataProps, getBackendSrv, getDataSourceSrv, isFetchError } from '@grafana/runtime';
 import {
   type Spec as DashboardV2Spec,
   type QueryVariableKind,
@@ -44,14 +44,24 @@ export function fetchGcomDashboard(id: string): ThunkResult<void> {
   return async (dispatch) => {
     try {
       dispatch(fetchDashboard());
-      const dashboard = await getBackendSrv().get(`/api/gnet/dashboards/${id}`);
+      // `/api/gnet/dashboards/:id` returns the full Grafana.com dashboard
+      // descriptor; only the `json` payload is consumed downstream by the
+      // import pipeline below.
+      const dashboard = await getBackendSrv().get<{ json: DashboardJson }>(
+        `/api/gnet/dashboards/${id}`
+      );
       await dispatch(processElements(dashboard.json));
       await dispatch(processGcomDashboard(dashboard));
       dispatch(processInputs());
     } catch (error) {
       dispatch(fetchFailed());
-      if (isFetchError(error)) {
-        dispatch(notifyApp(createErrorNotification(error.data.message || error)));
+      // Narrow the caught error to a fetch error carrying the standard
+      // `FetchErrorDataProps` shape so we can read `.data.message`. The fallback
+      // path stringifies the response payload because `createErrorNotification`
+      // requires a string title.
+      if (isFetchError<FetchErrorDataProps>(error)) {
+        const title = error.data.message || error.statusText || String(error.status);
+        dispatch(notifyApp(createErrorNotification(title)));
       }
     }
   };

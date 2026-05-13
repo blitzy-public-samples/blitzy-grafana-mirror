@@ -20,7 +20,7 @@ export const PluginDashboards = memo(function PluginDashboards({ plugin, datasou
   useEffect(() => {
     setLoading(true);
     getBackendSrv()
-      .get(`/api/plugins/${plugin.id}/dashboards`)
+      .get<PluginDashboard[]>(`/api/plugins/${plugin.id}/dashboards`)
       .then((dashboards) => {
         setDashboards(dashboards);
         setLoading(false);
@@ -46,8 +46,8 @@ export const PluginDashboards = memo(function PluginDashboards({ plugin, datasou
       };
 
       return getBackendSrv()
-        .post(`/api/dashboards/import`, installCmd)
-        .then((res: PluginDashboard) => {
+        .post<PluginDashboard>(`/api/dashboards/import`, installCmd)
+        .then((res) => {
           appEvents.emit(AppEvents.alertSuccess, ['Dashboard Imported', dash.title]);
           extend(dash, res);
           setDashboards((prev) => [...prev]);

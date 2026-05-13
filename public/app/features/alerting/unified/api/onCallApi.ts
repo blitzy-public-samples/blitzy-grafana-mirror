@@ -103,5 +103,8 @@ function isPaginatedResponse(
 export const { useGrafanaOnCallIntegrationsQuery } = onCallApi;
 
 export function isOnCallFetchError(error: unknown): error is FetchError<{ detail: string }> {
-  return isFetchError(error) && 'detail' in error.data;
+  // Narrow `error.data` to a non-primitive value so the `'detail' in` check
+  // is type-safe. After the runtime-package `any -> unknown` refactor,
+  // `error.data` is `unknown` by default.
+  return isFetchError(error) && typeof error.data === 'object' && error.data !== null && 'detail' in error.data;
 }

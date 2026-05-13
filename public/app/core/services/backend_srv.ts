@@ -274,8 +274,8 @@ export class BackendSrv implements BackendService {
     return parseUrlFromOptions(options).pipe(
       this.getFromFetchStream<T>(options),
       this.handleStreamResponse<T>(options),
-      this.handleStreamError(options),
-      this.handleStreamCancellation(options)
+      this.handleStreamError<T>(options),
+      this.handleStreamCancellation<T>(options)
     );
   }
 
@@ -402,8 +402,20 @@ export class BackendSrv implements BackendService {
       return;
     }
 
+    // err.data is normalized by processRequestError (the only internal caller) and the
+    // showErrorAlert public API contract into an object carrying message/error/traceID
+    // properties. After the `<T = unknown>` defaulting in @grafana/runtime, `err.data`
+    // is `unknown` and must be narrowed before structured access. Use `typeof` and `in`
+    // operator predicates to extract the expected fields without a type assertion.
+    const errData = err.data;
+    const errDataIsObject = errData != null && typeof errData === 'object';
+    const dataMessage =
+      errDataIsObject && 'message' in errData && typeof errData.message === 'string' ? errData.message : '';
+    const dataTraceID =
+      errDataIsObject && 'traceID' in errData && typeof errData.traceID === 'string' ? errData.traceID : undefined;
+
     let description = '';
-    let message = err.data.message;
+    let message = dataMessage;
 
     // Sometimes we have a better error message on err.message
     if (message === 'Unexpected error' && err.message) {
@@ -417,14 +429,14 @@ export class BackendSrv implements BackendService {
 
     // Validation
     if (err.status === 422) {
-      description = err.data.message;
+      description = dataMessage;
       message = 'Validation failed';
     }
 
     this.dependencies.appEvents.emit(err.status < 500 ? AppEvents.alertWarning : AppEvents.alertError, [
       message,
       description,
-      err.data.traceID,
+      dataTraceID,
     ]);
   }
 
@@ -433,25 +445,68 @@ export class BackendSrv implements BackendService {
    *
    * @see DataQueryError.data
    */
-  processRequestError(options: BackendSrvRequest, err: FetchError): FetchError<{ message: string; error?: string }> {
-    err.data = err.data ?? { message: 'Unexpected error' };
+  processRequestError(options: BackendSrvRequest, err: FetchError): FetchError {
+    // After the `<T = unknown>` defaulting in @grafana/runtime, inbound `err.data` is
+    // `unknown` and must be narrowed before structured access. Build a typed
+    // `normalizedData` payload from `err.data` via runtime checks (`typeof` + `in`
+    // operator predicates), then mutate `err.data` in place to preserve the prototype
+    // chain of the inbound error. Mutation (rather than constructing `{ ...err, ... }`)
+    // matters for non-FetchError errors such as `PathValidationError` whose
+    // `instanceof` semantics must survive normalization — downstream observable
+    // consumers and rejection handlers rely on those prototype checks.
+    //
+    // Returning the bare `FetchError` (rather than `FetchError<{ message, error? }>`)
+    // keeps the function free of type assertions: `err.data` is typed as `unknown`
+    // (from the `<T = unknown>` defaulting), so the mutation `err.data = normalizedData`
+    // type-checks without any cast. `processRequestError` is internal to this file —
+    // verified via a repository-wide grep — and its sole caller (`catchError` →
+    // `throwError`) does not consume the return type, so widening to `FetchError` is
+    // safe for the public API surface.
+    type NormalizedData = { message: string; error?: string; response?: string; traceID?: string };
+    const rawData = err.data;
 
-    if (typeof err.data === 'string') {
-      const message = isHtmlResponse(err.data) ? `${err.status} ${err.statusText ?? 'Error'}` : err.data;
-      err.data = {
+    let normalizedData: NormalizedData;
+    if (rawData == null) {
+      normalizedData = { message: 'Unexpected error' };
+    } else if (typeof rawData === 'string') {
+      const message = isHtmlResponse(rawData) ? `${err.status} ${err.statusText ?? 'Error'}` : rawData;
+      normalizedData = {
         message,
         error: err.statusText,
-        response: err.data,
+        response: rawData,
       };
+    } else if (typeof rawData === 'object') {
+      const dataMessage =
+        'message' in rawData && typeof rawData.message === 'string' ? rawData.message : undefined;
+      const dataError = 'error' in rawData && typeof rawData.error === 'string' ? rawData.error : undefined;
+      const dataResponse =
+        'response' in rawData && typeof rawData.response === 'string' ? rawData.response : undefined;
+      const dataTraceID =
+        'traceID' in rawData && typeof rawData.traceID === 'string' ? rawData.traceID : undefined;
+      // If no message but got error string, copy error to message (preserves original behavior).
+      // Default to '' for empty payloads so `if (normalizedData.message)` below stays falsy —
+      // matching the original behavior of skipping the alert for object payloads with neither
+      // message nor error fields.
+      const message = dataMessage ?? dataError ?? '';
+      normalizedData = {
+        message,
+        ...(dataError !== undefined ? { error: dataError } : {}),
+        ...(dataResponse !== undefined ? { response: dataResponse } : {}),
+        ...(dataTraceID !== undefined ? { traceID: dataTraceID } : {}),
+      };
+    } else {
+      // numbers, booleans, etc. — treat like null/undefined
+      normalizedData = { message: 'Unexpected error' };
     }
 
-    // If no message but got error string, copy to message prop
-    if (err.data && !err.data.message && typeof err.data.error === 'string') {
-      err.data.message = err.data.error;
-    }
+    // Mutate `err.data` in place. Since `err.data` is typed as `unknown`, this
+    // assignment is type-safe without a cast. Mutation preserves `err`'s prototype
+    // chain — critical for `instanceof` checks on custom error subclasses like
+    // `PathValidationError` that flow through this normalization path.
+    err.data = normalizedData;
 
     // check if we should show an error alert
-    if (err.data.message) {
+    if (normalizedData.message) {
       setTimeout(() => {
         if (!err.isHandled) {
           this.showErrorAlert(options, err);
@@ -538,7 +593,7 @@ export class BackendSrv implements BackendService {
       );
   }
 
-  private handleStreamCancellation(options: BackendSrvRequest): MonoTypeOperatorFunction<FetchResponse> {
+  private handleStreamCancellation<T>(options: BackendSrvRequest): MonoTypeOperatorFunction<FetchResponse<T>> {
     return (inputStream) =>
       inputStream.pipe(
         takeUntil(

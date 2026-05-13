@@ -1,5 +1,6 @@
 import { getBackendSrv, locationService } from '@grafana/runtime';
 import { accessControlQueryParam } from 'app/core/utils/accessControl';
+import { type ApiKey } from 'app/types/apiKeys';
 import { type ServiceAccountDTO } from 'app/types/serviceaccount';
 import { type ThunkResult } from 'app/types/store';
 
@@ -18,7 +19,10 @@ export function loadServiceAccount(saUid: string): ThunkResult<void> {
   return async (dispatch) => {
     dispatch(serviceAccountFetchBegin());
     try {
-      const response = await getBackendSrv().get(`${BASE_URL}/${saUid}`, accessControlQueryParam());
+      const response = await getBackendSrv().get<ServiceAccountDTO>(
+        `${BASE_URL}/${saUid}`,
+        accessControlQueryParam()
+      );
       dispatch(serviceAccountLoaded(response));
     } catch (error) {
       console.error(error);
@@ -50,7 +54,9 @@ export function createServiceAccountToken(
   onTokenCreated: (key: string) => void
 ): ThunkResult<void> {
   return async (dispatch) => {
-    const result = await getBackendSrv().post(`${BASE_URL}/${saUid}/tokens`, token);
+    // Service-account token creation returns the newly minted token shape;
+    // `key` is the only field consumed by the caller.
+    const result = await getBackendSrv().post<{ key: string }>(`${BASE_URL}/${saUid}/tokens`, token);
     onTokenCreated(result.key);
     dispatch(loadServiceAccountTokens(saUid));
   };
@@ -66,7 +72,7 @@ export function deleteServiceAccountToken(saUid: string, id: number): ThunkResul
 export function loadServiceAccountTokens(saUid: string): ThunkResult<void> {
   return async (dispatch) => {
     try {
-      const response = await getBackendSrv().get(`${BASE_URL}/${saUid}/tokens`);
+      const response = await getBackendSrv().get<ApiKey[]>(`${BASE_URL}/${saUid}/tokens`);
       dispatch(serviceAccountTokensLoaded(response));
     } catch (error) {
       console.error(error);

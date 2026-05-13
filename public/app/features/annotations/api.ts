@@ -14,20 +14,20 @@ export interface AnnotationServer {
 }
 
 class LegacyAnnotationServer implements AnnotationServer {
-  query(params: unknown, requestId: string): Promise<DataFrame> {
+  query(params: Record<string, unknown>, requestId: string): Promise<DataFrame> {
     return getBackendSrv()
       .get('/api/annotations', params, requestId)
       .then((v) => toDataFrame(v));
   }
 
-  forAlert(alertUID: string) {
-    return getBackendSrv().get('/api/annotations', {
+  forAlert(alertUID: string): Promise<StateHistoryItem[]> {
+    return getBackendSrv().get<StateHistoryItem[]>('/api/annotations', {
       alertUID,
     });
   }
 
-  save(annotation: AnnotationEvent) {
-    return getBackendSrv().post('/api/annotations', annotation);
+  save(annotation: AnnotationEvent): Promise<AnnotationEvent> {
+    return getBackendSrv().post<AnnotationEvent>('/api/annotations', annotation);
   }
 
   update(annotation: AnnotationEvent) {

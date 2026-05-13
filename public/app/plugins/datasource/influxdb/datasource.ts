@@ -574,15 +574,25 @@ export default class InfluxDatasource extends DataSourceWithBackend<InfluxQuery,
       req.headers['Content-type'] = 'application/x-www-form-urlencoded';
     }
 
+    // Response shape for InfluxDB query endpoints. The wire format is a wrapped
+    // results array; we mutate `data` in-place to attach the executed query
+    // string for downstream consumers.
+    interface InfluxQueryResultEntry {
+      error?: string;
+    }
+    interface InfluxQueryResponse {
+      executedQueryString?: string;
+      results?: InfluxQueryResultEntry[];
+    }
     return getBackendSrv()
-      .fetch(req)
+      .fetch<InfluxQueryResponse>(req)
       .pipe(
-        map((result: FetchResponse) => {
+        map((result: FetchResponse<InfluxQueryResponse>) => {
           const { data } = result;
           if (data) {
             data.executedQueryString = q;
             if (data.results) {
-              const errors = result.data.results.filter((elem: any) => elem.error);
+              const errors = data.results.filter((elem: InfluxQueryResultEntry) => elem.error);
 
               if (errors.length > 0) {
                 throw {

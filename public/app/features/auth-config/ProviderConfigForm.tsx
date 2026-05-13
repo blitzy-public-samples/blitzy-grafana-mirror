@@ -3,7 +3,14 @@ import { useForm } from 'react-hook-form';
 
 import { AppEvents } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
-import { getAppEvents, getBackendSrv, isFetchError, locationService, reportInteraction } from '@grafana/runtime';
+import {
+  type FetchErrorDataProps,
+  getAppEvents,
+  getBackendSrv,
+  isFetchError,
+  locationService,
+  reportInteraction,
+} from '@grafana/runtime';
 import {
   Box,
   Button,
@@ -100,8 +107,8 @@ export const ProviderConfigForm = ({ config, provider, isLoading }: ProviderConf
       }, 300);
     } catch (error) {
       let message = '';
-      if (isFetchError(error)) {
-        message = error.data.message;
+      if (isFetchError<FetchErrorDataProps>(error)) {
+        message = error.data.message ?? '';
       } else if (error instanceof Error) {
         message = error.message;
       }
@@ -130,8 +137,8 @@ export const ProviderConfigForm = ({ config, provider, isLoading }: ProviderConf
       });
     } catch (error) {
       let message = '';
-      if (isFetchError(error)) {
-        message = error.data.message;
+      if (isFetchError<FetchErrorDataProps>(error)) {
+        message = error.data.message ?? '';
       } else if (error instanceof Error) {
         message = error.message;
       }

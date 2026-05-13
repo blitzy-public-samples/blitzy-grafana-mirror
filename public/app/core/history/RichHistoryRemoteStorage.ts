@@ -40,7 +40,7 @@ export default class RichHistoryRemoteStorage implements RichHistoryStorage {
   async addToRichHistory(
     newRichHistoryQuery: Omit<RichHistoryQuery, 'id' | 'createdAt'>
   ): Promise<{ warning?: RichHistoryStorageWarningDetails; richHistoryQuery: RichHistoryQuery }> {
-    const { result } = await getBackendSrv().post(`/api/query-history`, {
+    const { result } = await getBackendSrv().post<RichHistoryRemoteStorageUpdatePayloadDTO>(`/api/query-history`, {
       dataSourceUid: newRichHistoryQuery.datasourceUid,
       queries: newRichHistoryQuery.queries,
     });

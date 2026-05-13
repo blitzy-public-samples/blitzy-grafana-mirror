@@ -4,7 +4,7 @@ import { Controller, FormProvider, useForm, useFormContext } from 'react-hook-fo
 import { Trans, t } from '@grafana/i18n';
 import { isFetchError } from '@grafana/runtime';
 import { Alert, Combobox, Field, RadioButtonGroup, Stack } from '@grafana/ui';
-import { type ConnectionSpec } from 'app/api/clients/provisioning/v0alpha1';
+import { type ConnectionSpec, type ErrorDetails, type Status } from 'app/api/clients/provisioning/v0alpha1';
 import { extractErrorMessage } from 'app/api/utils';
 
 import { ConnectionStatusBadge } from '../Connection/ConnectionStatusBadge';
@@ -89,7 +89,11 @@ export function GitHubAppFields({ onGitHubAppSubmit }: GitHubAppFieldsProps) {
 
     // Returns true if form errors were set (caller should return early)
     const handleFormErrors = (error: unknown): boolean => {
-      if (isFetchError(error)) {
+      // Narrow with the canonical provisioning error body shape so
+      // `error.data` is typed as `ErrorDetails[] | Status` rather than
+      // `unknown` (the default after the runtime-package `any -> unknown`
+      // refactor of `FetchError<T>`).
+      if (isFetchError<ErrorDetails[] | Status>(error)) {
         const formErrors = getConnectionFormErrors(error.data);
         if (formErrors.length > 0) {
           for (const [field, errorMessage] of formErrors) {

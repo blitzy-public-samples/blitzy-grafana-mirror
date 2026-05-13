@@ -19,7 +19,7 @@ import { OrgRolePicker } from '../admin/OrgRolePicker';
 export interface Props {}
 
 const createServiceAccount = async (sa: ServiceAccountDTO) => {
-  const result = await getBackendSrv().post('/api/serviceaccounts/', sa);
+  const result = await getBackendSrv().post<ServiceAccountCreateApiResponse>('/api/serviceaccounts/', sa);
   await contextSrv.fetchUserPermissions();
   return result;
 };

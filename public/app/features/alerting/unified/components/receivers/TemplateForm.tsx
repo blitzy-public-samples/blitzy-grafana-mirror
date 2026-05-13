@@ -8,7 +8,7 @@ import AutoSizer from 'react-virtualized-auto-sizer';
 
 import { type GrafanaTheme2 } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
-import { config, isFetchError, locationService } from '@grafana/runtime';
+import { type FetchErrorDataProps, config, isFetchError, locationService } from '@grafana/runtime';
 import {
   Alert,
   Box,
@@ -212,7 +212,11 @@ export const TemplateForm = ({ originalTemplate, prefill, alertmanager }: Props)
               severity="error"
               title={t('alerting.template-form.title-error-saving-template', 'Error saving template')}
             >
-              {error.message || (isFetchError(error) && error.data?.message) || String(error)}
+              {error.message ||
+                // Narrow with the canonical fetch-error body so
+                // `error.data?.message` is typed.
+                (isFetchError<FetchErrorDataProps>(error) && error.data?.message) ||
+                String(error)}
             </Alert>
           )}
           {/* warning about provisioned template */}

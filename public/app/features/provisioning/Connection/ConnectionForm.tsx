@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom-v5-compat';
 import { t } from '@grafana/i18n';
 import { isFetchError, reportInteraction } from '@grafana/runtime';
 import { Alert, Button, Combobox, Field, Stack } from '@grafana/ui';
-import { type Connection } from 'app/api/clients/provisioning/v0alpha1';
+import { type Connection, type ErrorDetails, type Status } from 'app/api/clients/provisioning/v0alpha1';
 import { extractErrorMessage } from 'app/api/utils';
 import { FormPrompt } from 'app/core/components/FormPrompt/FormPrompt';
 
@@ -91,7 +91,12 @@ export function ConnectionForm({ data }: ConnectionFormProps) {
 
       await submitData(spec, form.privateKey);
     } catch (err) {
-      if (isFetchError(err)) {
+      // Narrow the caught error to a fetch error whose body matches the
+      // shape expected by `getConnectionFormErrors`/`extractFormErrors`
+      // (`ErrorDetails[] | Status`). After the runtime-package `any -> unknown`
+      // refactor, `err.data` is `unknown` by default and must be narrowed before
+      // it can flow into helpers with a stricter parameter type.
+      if (isFetchError<ErrorDetails[] | Status>(err)) {
         const errors = getConnectionFormErrors(err.data);
 
         if (errors.length > 0) {

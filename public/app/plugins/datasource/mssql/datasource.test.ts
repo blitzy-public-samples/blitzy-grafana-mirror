@@ -357,10 +357,18 @@ describe('MSSQLDatasource', () => {
 
     it('should pass timerange to datasourceRequest', () => {
       expect(fetchMock).toBeCalledTimes(1);
-      expect(fetchMock.mock.calls[0][0].data.from).toBe(time.from.valueOf().toString());
-      expect(fetchMock.mock.calls[0][0].data.to).toBe(time.to.valueOf().toString());
-      expect(fetchMock.mock.calls[0][0].data.queries.length).toBe(1);
-      expect(fetchMock.mock.calls[0][0].data.queries[0].rawSql).toBe(query);
+      // BackendSrvRequest.data is typed `unknown`; the mssql datasource always
+      // sends a `{ from, to, queries }` envelope through `datasourceRequest`,
+      // so narrow at the assertion boundary.
+      const requestData = fetchMock.mock.calls[0][0].data as {
+        from: string;
+        to: string;
+        queries: Array<{ rawSql: string }>;
+      };
+      expect(requestData.from).toBe(time.from.valueOf().toString());
+      expect(requestData.to).toBe(time.to.valueOf().toString());
+      expect(requestData.queries.length).toBe(1);
+      expect(requestData.queries[0].rawSql).toBe(query);
     });
   });
 

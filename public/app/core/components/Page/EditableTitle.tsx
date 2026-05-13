@@ -4,7 +4,7 @@ import * as React from 'react';
 
 import { type GrafanaTheme2 } from '@grafana/data';
 import { t } from '@grafana/i18n';
-import { isFetchError } from '@grafana/runtime';
+import { type FetchErrorDataProps, isFetchError } from '@grafana/runtime';
 import { Field, IconButton, Input, useStyles2, Text } from '@grafana/ui';
 
 export interface Props {
@@ -42,7 +42,8 @@ export const EditableTitle = ({ value, onEdit }: Props) => {
           setErrorMessage(undefined);
           setIsEditing(false);
         } catch (error) {
-          if (isFetchError(error)) {
+          // Narrow with the canonical fetch-error body so `error.data.message` is typed.
+          if (isFetchError<FetchErrorDataProps>(error)) {
             setErrorMessage(error.data.message);
           } else if (error instanceof Error) {
             setErrorMessage(error.message);

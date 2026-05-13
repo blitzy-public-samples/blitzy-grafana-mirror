@@ -37,7 +37,13 @@ export function LivePublish({ height, mode, body, addr, onSave }: Props) {
         alert('expected stream scope!');
         return;
       }
-      return getBackendSrv().post(`api/live/push/${addr.stream}`, body);
+      // Await rather than `return` so the function's inferred return
+      // type stays consistent (`Promise<void>`). After the runtime
+      // `any -> unknown` refactor, `.post()` returns `Promise<unknown>`,
+      // and mixing it with the implicit `undefined` fall-through paths
+      // would trigger TS7030 ("Not all code paths return a value").
+      await getBackendSrv().post(`api/live/push/${addr.stream}`, body);
+      return;
     }
 
     if (!isValidLiveChannelAddress(addr)) {

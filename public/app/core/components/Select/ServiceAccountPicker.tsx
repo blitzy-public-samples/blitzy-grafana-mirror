@@ -28,8 +28,8 @@ export const ServiceAccountPicker = ({ className, onSelected, inputId }: Props) 
           }
 
           return getBackendSrv()
-            .get(`/api/serviceaccounts/search?query=${query}&perpage=100`)
-            .then((result: ServiceAccountsState) => {
+            .get<ServiceAccountsState>(`/api/serviceaccounts/search?query=${query}&perpage=100`)
+            .then((result) => {
               return result.serviceAccounts.map((sa) => ({
                 id: sa.id,
                 uid: sa.uid,

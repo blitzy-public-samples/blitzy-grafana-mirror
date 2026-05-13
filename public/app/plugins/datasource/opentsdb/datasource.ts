@@ -39,6 +39,32 @@ import { AnnotationEditor } from './components/AnnotationEditor';
 import { prepareAnnotation } from './migrations';
 import { type OpenTsdbFilter, type OpenTsdbOptions, type OpenTsdbQuery } from './types';
 
+// Shape of an individual OpenTSDB metric data point returned by the /api/query endpoint.
+// The OpenTSDB API contract permits heterogeneous tag values and aggregateTags, so several
+// properties remain typed as `any` with a per-field eslint-disable for the upstream-untyped
+// portions; the structural keys themselves are stable.
+interface OpenTsdbMetricData {
+  metric: string | number;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- upstream OpenTSDB tag value shape is dynamic per metric
+  tags: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- upstream OpenTSDB aggregateTags shape is dynamic
+  aggregateTags: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- upstream OpenTSDB dps shape is a sparse time-indexed numeric map
+  dps: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- annotation payload shape varies per OpenTSDB version
+  annotations?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- global annotation payload shape varies per OpenTSDB version
+  globalAnnotations?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- per-target query echo only present in TSDB v3
+  query?: any;
+}
+
+// Shape of OpenTSDB /api/search/lookup endpoint response.
+interface OpenTsdbLookupResponse {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- upstream OpenTSDB lookup results are heterogeneous
+  results: any;
+}
+
 export default class OpenTsDatasource extends DataSourceWithBackend<OpenTsdbQuery, OpenTsdbOptions> {
   type: 'opentsdb';
   url: string;
@@ -279,7 +305,8 @@ export default class OpenTsDatasource extends DataSourceWithBackend<OpenTsdbQuer
     return false;
   }
 
-  performTimeSeriesQuery(queries: any[], start: number | null, end: number | null): Observable<FetchResponse> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- upstream OpenTSDB metric data shape is heterogeneous and untyped at the API contract level
+  performTimeSeriesQuery(queries: any[], start: number | null, end: number | null): Observable<FetchResponse<OpenTsdbMetricData[]>> {
     let msResolution = false;
     if (this.tsdbResolution === 2) {
       msResolution = true;
@@ -365,9 +392,9 @@ export default class OpenTsDatasource extends DataSourceWithBackend<OpenTsdbQuer
 
     const m = metric + '{' + keysQuery + '}';
 
-    return this._get('/api/search/lookup', { m: m, limit: this.lookupLimit }).pipe(
-      map((result) => {
-        result = result.data.results;
+    return this._get<OpenTsdbLookupResponse>('/api/search/lookup', { m: m, limit: this.lookupLimit }).pipe(
+      map((response) => {
+        const result = response.data.results;
         const tagvs: any[] = [];
         each(result, (r) => {
           if (tagvs.indexOf(r.tags[key]) === -1) {
@@ -388,12 +415,12 @@ export default class OpenTsDatasource extends DataSourceWithBackend<OpenTsdbQuer
       return from(this.getResource('api/search/lookup', { type: 'key', metric }));
     }
 
-    return this._get('/api/search/lookup', { m: metric, limit: 1000 }).pipe(
-      map((result) => {
-        result = result.data.results;
+    return this._get<OpenTsdbLookupResponse>('/api/search/lookup', { m: metric, limit: 1000 }).pipe(
+      map((response) => {
+        const result = response.data.results;
         const tagks: any[] = [];
         each(result, (r) => {
-          each(r.tags, (tagv, tagk) => {
+          each(r.tags, (tagv: unknown, tagk: string) => {
             if (tagks.indexOf(tagk) === -1) {
               tagks.push(tagk);
             }
@@ -404,10 +431,10 @@ export default class OpenTsDatasource extends DataSourceWithBackend<OpenTsdbQuer
     );
   }
 
-  _get(
+  _get<T = unknown>(
     relativeUrl: string,
     params?: { type?: string; q?: string; max?: number; m?: string; limit?: number }
-  ): Observable<FetchResponse> {
+  ): Observable<FetchResponse<T>> {
     const options = {
       method: 'GET',
       url: this.url + relativeUrl,

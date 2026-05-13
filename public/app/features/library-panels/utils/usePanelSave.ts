@@ -1,7 +1,7 @@
 import useAsyncFn from 'react-use/lib/useAsyncFn';
 
 import { t } from '@grafana/i18n';
-import { isFetchError } from '@grafana/runtime';
+import { type FetchErrorDataProps, isFetchError } from '@grafana/runtime';
 import { useAppNotification } from 'app/core/copy/appNotification';
 import { type PanelModel } from 'app/features/dashboard/state/PanelModel';
 
@@ -16,7 +16,8 @@ export const usePanelSave = () => {
       notifyApp.success(t('library-panels.save.success', 'Library panel saved'));
       return libEl;
     } catch (err) {
-      if (isFetchError(err)) {
+      // Narrow with the canonical fetch-error body so `err.data.message` is typed.
+      if (isFetchError<FetchErrorDataProps>(err)) {
         err.isHandled = true;
         notifyApp.error(
           t('library-panels.save.error', 'Error saving library panel: "{{errorMsg}}"', {

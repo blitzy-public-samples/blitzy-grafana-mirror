@@ -11,7 +11,7 @@ interface Props {
 
 export function PluginHelp({ pluginId }: Props) {
   const { value, loading, error } = useAsync(async () => {
-    return getBackendSrv().get(`/api/plugins/${pluginId}/markdown/query_help`);
+    return getBackendSrv().get<string>(`/api/plugins/${pluginId}/markdown/query_help`);
   }, []);
 
   const renderedMarkdown = renderMarkdown(value);

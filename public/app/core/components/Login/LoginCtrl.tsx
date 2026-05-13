@@ -116,7 +116,11 @@ export const LoginCtrl = memo(({ resetCode, children }: Props) => {
           }
         })
         .catch((err) => {
-          const fetchErrorMessage = isFetchError(err) ? getErrorMessage(err) : undefined;
+          // Narrow with the same body shape `getErrorMessage` expects so the
+          // `err` reference can flow into it without a cast.
+          const fetchErrorMessage = isFetchError<undefined | { messageId?: string; message?: string }>(err)
+            ? getErrorMessage(err)
+            : undefined;
           setIsLoggingIn(false);
           setLoginErrorMessage(fetchErrorMessage || t('login.error.unknown', 'Unknown error occurred'));
         });

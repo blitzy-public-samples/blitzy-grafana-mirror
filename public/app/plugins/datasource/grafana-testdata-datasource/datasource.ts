@@ -491,8 +491,12 @@ function runGrafanaAPI(
 ): Observable<DataQueryResponse> {
   const url = `/api/${target.stringInput}`;
   return from(
+    // `getBackendSrv().get<T>()` returns `Promise<T>`. After the
+    // runtime-package `any -> unknown` refactor, the default is
+    // `Promise<unknown>`. `ArrayDataFrame`'s constructor expects
+    // `unknown[]`, so type the request explicitly.
     getBackendSrv()
-      .get(url)
+      .get<unknown[]>(url)
       .then((res) => {
         const frame = new ArrayDataFrame(res);
         return {

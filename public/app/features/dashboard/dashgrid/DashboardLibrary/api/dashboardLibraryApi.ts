@@ -79,17 +79,22 @@ export async function fetchCommunityDashboards(
     searchParams.append('filter', params.filter);
   }
 
-  const result = await getBackendSrv().get(`/api/gnet/dashboards?${searchParams}`, undefined, undefined, {
-    showErrorAlert: false,
-  });
+  const result = await getBackendSrv().get<GnetDashboardsResponse>(
+    `/api/gnet/dashboards?${searchParams}`,
+    undefined,
+    undefined,
+    {
+      showErrorAlert: false,
+    }
+  );
 
   if (result && Array.isArray(result.items)) {
     logInfo('Fetched community dashboards', {
       searchParams: searchParams.toString(),
       dataSourceType: params.dataSourceSlugIn ?? '',
-      total: result.items.length,
-      page: result.page,
-      pages: result.pages,
+      total: String(result.items.length),
+      page: String(result.page),
+      pages: String(result.pages),
     });
 
     const dashboards = filterNonSafeDashboards(result.items, params.dataSourceSlugIn);

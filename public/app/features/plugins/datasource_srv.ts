@@ -369,7 +369,14 @@ export class DatasourceSrv implements DataSourceService {
   }
 
   async reload() {
-    const settings = await getBackendSrv().get('/api/frontend/settings');
+    // Server response shape for GET /api/frontend/settings. Only the two fields
+    // consumed below are typed; the endpoint returns a much larger document
+    // but the reload path only needs the datasource registry.
+    interface FrontendSettingsResponse {
+      datasources: { [name: string]: DataSourceInstanceSettings };
+      defaultDatasource: string;
+    }
+    const settings = await getBackendSrv().get<FrontendSettingsResponse>('/api/frontend/settings');
     config.datasources = settings.datasources;
     config.defaultDatasource = settings.defaultDatasource;
     this.init(settings.datasources, settings.defaultDatasource);

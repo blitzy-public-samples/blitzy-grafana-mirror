@@ -290,7 +290,10 @@ describe('graphiteDatasource', () => {
     });
 
     it('should query correctly', () => {
-      const params = requestOptions.data.split('&');
+      // BackendSrvRequest.data is typed `unknown`; the graphite datasource sends
+      // a URL-encoded form body (a string) through the render endpoint, so we
+      // narrow at the assertion boundary.
+      const params = (requestOptions.data as string).split('&');
       expect(params).toContain(`target=${encodeURIComponent(`aliasSub(prod1.count, "(^.*$)", "\\1 A")`)}`);
       expect(params).toContain(`target=${encodeURIComponent(`aliasSub(prod2.count, "(^.*$)", "\\1 B")`)}`);
       expect(params).toContain('from=1648789200');
@@ -298,7 +301,8 @@ describe('graphiteDatasource', () => {
     });
 
     it('should exclude undefined params', () => {
-      const params = requestOptions.data.split('&');
+      // See note above on BackendSrvRequest.data narrowing.
+      const params = (requestOptions.data as string).split('&');
       expect(params).not.toContain('cacheTimeout=undefined');
     });
 

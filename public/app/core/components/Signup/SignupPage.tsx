@@ -44,7 +44,7 @@ export const SignupPage = ({ queryParams }: Props) => {
     delete formData.confirm;
 
     const response = await getBackendSrv()
-      .post('/api/user/signup/step2', {
+      .post<{ code?: string }>('/api/user/signup/step2', {
         email: formData.email,
         code: formData.code,
         username: formData.email,
@@ -57,7 +57,7 @@ export const SignupPage = ({ queryParams }: Props) => {
         notifyApp.warning(msg);
       });
 
-    if (response.code === 'redirect-to-select-org') {
+    if (response?.code === 'redirect-to-select-org') {
       window.location.assign(getConfig().appSubUrl + '/profile/select-org?signup=1');
     }
     window.location.assign(getConfig().appSubUrl + '/');
