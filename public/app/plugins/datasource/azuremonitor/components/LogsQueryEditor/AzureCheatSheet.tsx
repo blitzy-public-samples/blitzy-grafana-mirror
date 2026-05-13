@@ -68,9 +68,11 @@ const AzureCheatSheet = (props: AzureCheatSheetProps) => {
       });
       const alphabetizedQueries = result.categories.reduce(
         (queriesByCategory: CheatsheetQueries, category: Category) => {
-          const categoryQueries = category.related.queries.map((queryId: string) => {
-            return result.queries.find((query: CheatsheetQuery) => query.id === queryId);
-          });
+          const categoryQueries = category.related.queries
+            .map((queryId: string) => {
+              return result.queries.find((query: CheatsheetQuery) => query.id === queryId);
+            })
+            .filter((query): query is CheatsheetQuery => query !== undefined);
           queriesByCategory[category.displayName] = categoryQueries;
           setAreDropdownsOpen({ ...areDropdownsOpen, [category.id]: false });
           return queriesByCategory;

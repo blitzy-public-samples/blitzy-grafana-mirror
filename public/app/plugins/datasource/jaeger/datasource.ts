@@ -38,8 +38,8 @@ export class JaegerDatasource extends DataSourceWithBackend<JaegerQuery, JaegerJ
     this.traceIdTimeParams = instanceSettings.jsonData.traceIdTimeParams;
   }
 
-  async metadataRequest(url: string, params?: Record<string, unknown>) {
-    return await this.getResource(url, params);
+  async metadataRequest<T = unknown>(url: string, params?: Record<string, unknown>): Promise<T> {
+    return await this.getResource<T>(url, params);
   }
 
   query(options: DataQueryRequest<JaegerQuery>): Observable<DataQueryResponse> {

@@ -47,14 +47,15 @@ export function TraceToProfilesSettings({ options, onOptionsChange }: Props) {
     return await getDataSourceSrv().get(options.jsonData.tracesToProfiles?.datasourceUid);
   }, [options.jsonData.tracesToProfiles?.datasourceUid]);
 
-  const { value: pTypes } = useAsync(async () => {
+  const { value: pTypes } = useAsync(async (): Promise<ProfileTypeMessage[]> => {
     if (
       dataSource instanceof DataSourceWithBackend &&
       supportedDataSourceTypes.includes(dataSource.type) &&
       dataSource.uid === options.jsonData.tracesToProfiles?.datasourceUid
     ) {
-      return await dataSource?.getResource('profileTypes');
+      return await dataSource?.getResource<ProfileTypeMessage[]>('profileTypes');
     }
+    return [];
   }, [dataSource]);
 
   useEffect(() => {

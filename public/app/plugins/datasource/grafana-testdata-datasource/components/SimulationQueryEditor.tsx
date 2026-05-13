@@ -54,7 +54,7 @@ export const SimulationQueryEditor = ({ onChange, query, ds }: EditorProps) => {
     if (simKey.uid) {
       path += '/' + simKey.uid;
     }
-    let config = (await ds.getResource('sim/' + path))?.config;
+    let config = (await ds.getResource<{ config: { value: Config } }>('sim/' + path))?.config;
     setCfgValue(config.value);
     return config;
   }, [simKey.type, simKey.tick, simKey.uid]);

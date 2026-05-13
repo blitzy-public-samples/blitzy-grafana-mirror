@@ -263,11 +263,6 @@
       "count": 1
     }
   },
-  "packages/grafana-runtime/src/utils/DataSourceWithBackend.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "packages/grafana-runtime/src/utils/queryResponse.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1

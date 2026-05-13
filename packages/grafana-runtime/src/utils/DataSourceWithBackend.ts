@@ -341,7 +341,7 @@ class DataSourceWithBackend<
   /**
    * Make a GET request to the datasource resource path
    */
-  async getResource<T = any>(
+  async getResource<T = unknown>(
     path: string,
     params?: BackendSrvRequest['params'],
     options?: Partial<BackendSrvRequest>

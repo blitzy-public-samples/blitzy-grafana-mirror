@@ -189,7 +189,7 @@ export default class AzureMonitorDatasource extends DataSourceWithBackend<
       this.templateSrv,
       region
     );
-    return this.getResource(url)
+    return this.getResource<AzureAPIResponse<MetricNamespace>>(url)
       .then((result: AzureAPIResponse<MetricNamespace>) => {
         if (custom) {
           result.value = result.value.filter((namespace) => namespace.classification === 'Custom');
@@ -234,7 +234,7 @@ export default class AzureMonitorDatasource extends DataSourceWithBackend<
       multipleResources,
       region
     );
-    return this.getResource(url).then((result: AzureAPIResponse<Metric>) => {
+    return this.getResource<AzureAPIResponse<Metric>>(url).then((result: AzureAPIResponse<Metric>) => {
       return ResponseParser.parseResponseValues(result, 'name.localizedValue', 'name.value');
     });
   }
@@ -251,9 +251,11 @@ export default class AzureMonitorDatasource extends DataSourceWithBackend<
       multipleResources,
       region
     );
-    return this.getResource(url).then((result: AzureMonitorMetricsMetadataResponse) => {
-      return ResponseParser.parseMetadata(result, this.templateSrv.replace(metricName));
-    });
+    return this.getResource<AzureMonitorMetricsMetadataResponse>(url).then(
+      (result: AzureMonitorMetricsMetadataResponse) => {
+        return ResponseParser.parseMetadata(result, this.templateSrv.replace(metricName));
+      }
+    );
   }
 
   private validateDatasource(): DatasourceValidationResult | undefined {

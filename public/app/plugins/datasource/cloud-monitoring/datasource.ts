@@ -171,7 +171,7 @@ export default class CloudMonitoringDatasource extends DataSourceWithBackend<
   }
 
   async getGCEDefaultProject() {
-    return this.getResource(`gceDefaultProject`);
+    return this.getResource<string>(`gceDefaultProject`);
   }
 
   getDefaultProject(): string {

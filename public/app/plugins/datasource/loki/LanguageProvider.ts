@@ -51,14 +51,14 @@ export default class LokiLanguageProvider extends LanguageProvider {
     this.labelKeys = [];
   }
 
-  request = async (
+  request = async <T = unknown>(
     url: string,
     params?: Record<string, string | number>,
     throwError?: boolean,
     requestOptions?: Partial<BackendSrvRequest>
-  ) => {
+  ): Promise<T | undefined> => {
     try {
-      return await this.datasource.metadataRequest(url, params, requestOptions);
+      return await this.datasource.metadataRequest<T>(url, params, requestOptions);
     } catch (error) {
       if (throwError) {
         throw error;
@@ -247,7 +247,7 @@ export default class LokiLanguageProvider extends LanguageProvider {
     const range = options?.timeRange ?? this.getDefaultTimeRange();
     const { start, end } = this.datasource.getTimeRangeParams(range);
     const params = { 'match[]': match, start, end };
-    return await this.request(url, params);
+    return (await this.request<Array<Record<string, string>>>(url, params)) ?? [];
   };
 
   // Cache key is a bit different here. We round up to a minute the intervals.
@@ -290,7 +290,11 @@ export default class LokiLanguageProvider extends LanguageProvider {
 
     return new Promise(async (resolve, reject) => {
       try {
-        const data = await this.request(url, params, true, requestOptions);
+        const data = await this.request<DetectedFieldsResult>(url, params, true, requestOptions);
+        if (data === undefined) {
+          reject(new Error('No data returned from detected_fields request'));
+          return;
+        }
         resolve(data);
       } catch (error) {
         console.error('error', error);
