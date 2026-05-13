@@ -87,11 +87,6 @@
       "count": 2
     }
   },
-  "packages/grafana-data/src/transformations/standardTransformersRegistry.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "packages/grafana-data/src/transformations/transformDataFrame.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 6
