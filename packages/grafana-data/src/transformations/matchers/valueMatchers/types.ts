@@ -8,7 +8,7 @@ export interface ValueMatcherOptions {}
  * Describes a basic value matcher option that has a single value.
  * @public
  */
-export interface BasicValueMatcherOptions<T = any> extends ValueMatcherOptions {
+export interface BasicValueMatcherOptions<T = unknown> extends ValueMatcherOptions {
   value: T;
 }
 
@@ -17,7 +17,7 @@ export interface BasicValueMatcherOptions<T = any> extends ValueMatcherOptions {
  * be able to match a range.
  * @public
  */
-export interface RangeValueMatcherOptions<T = any> extends ValueMatcherOptions {
+export interface RangeValueMatcherOptions<T = unknown> extends ValueMatcherOptions {
   from: T;
   to: T;
 }

@@ -71,7 +71,9 @@ export function rangeMatcherEditor<T = string | number>(
   };
 }
 
-export const getRangeValueMatchersUI = (): Array<ValueMatcherUIRegistryItem<RangeValueMatcherOptions>> => {
+export const getRangeValueMatchersUI = (): Array<
+  ValueMatcherUIRegistryItem<RangeValueMatcherOptions<string | number>>
+> => {
   return [
     {
       name: 'Is between',
