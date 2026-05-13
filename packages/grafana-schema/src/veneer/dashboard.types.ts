@@ -54,10 +54,12 @@ export interface FieldConfigSource<TOptions = Record<string, unknown>> extends O
   defaults: FieldConfig<TOptions>;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic default `TConfig = any` preserved for back-compat per AAP §0.8.7 (public API preservation): MatcherConfig is re-exported via @grafana/schema (packages/grafana-schema/src/index.ts → ./index.gen.ts) and consumed via @grafana/data (packages/grafana-data/src/types/transformations.ts); narrowing the default to `unknown` cascades to out-of-scope consumers (packages/grafana-data/src/transformations/transformers/filter.ts, public/app/plugins/panel/timeseries/migrations.test.ts, etc.) that rely on implicit `any` property access on `options` and nested matcher options
 export interface MatcherConfig<TConfig = any> extends raw.MatcherConfig {
   options?: TConfig;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic default `TOptions = any` preserved for back-compat per AAP §0.8.7 (public API preservation): DataTransformerConfig is re-exported via @grafana/schema (packages/grafana-schema/src/index.ts → ./index.gen.ts) and consumed via @grafana/data (packages/grafana-data/src/types/transformations.ts); narrowing the default to `unknown` cascades to out-of-scope consumers (packages/grafana-data/src/transformations/transformDataFrame.ts, public/app/features/dashboard/state/DashboardMigrator.ts, public/app/plugins/panel/table/migrations.ts, etc.) that spread or directly access `config.options` without prior type narrowing
 export interface DataTransformerConfig<TOptions = any> extends raw.DataTransformerConfig {
   options: TOptions;
   topic?: DataTopic;
