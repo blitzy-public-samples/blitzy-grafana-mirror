@@ -162,11 +162,6 @@
       "count": 1
     }
   },
-  "packages/grafana-data/src/types/graph.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 3
-    }
-  },
   "packages/grafana-data/src/types/live.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1
