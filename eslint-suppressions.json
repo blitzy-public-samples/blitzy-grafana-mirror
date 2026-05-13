@@ -177,11 +177,6 @@
       "count": 1
     }
   },
-  "packages/grafana-data/src/types/fieldOverrides.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 9
-    }
-  },
   "packages/grafana-data/src/types/flot.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1
