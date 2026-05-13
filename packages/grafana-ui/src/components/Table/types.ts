@@ -59,6 +59,14 @@ export interface TableCellProps extends CellProps<any> {
   frame: DataFrame;
   actions?: ActionModel[]; // unused in NG
   setInspectCell?: TableInspectCellCallback;
+  // Optional props injected at runtime by TableCell.tsx via cell.render('Cell', {...}). Declaring them here
+  // gives cell renderers concrete types rather than relying on the react-table-config.d.ts index signature.
+  timeRange?: TimeRange;
+  userProps?: object;
+  rowStyled?: boolean;
+  rowExpanded?: boolean;
+  textWrapped?: boolean;
+  height?: number;
 }
 
 export type CellComponent = FC<TableCellProps>;

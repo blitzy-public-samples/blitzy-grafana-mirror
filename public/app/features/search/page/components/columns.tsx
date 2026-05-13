@@ -1,5 +1,6 @@
 import { cx } from '@emotion/css';
 import { intervalToDuration } from 'date-fns';
+import type { DetailedHTMLProps, HTMLAttributes, MouseEvent } from 'react';
 import Skeleton from 'react-loading-skeleton';
 
 import {
@@ -25,6 +26,34 @@ import { type SelectionChecker, type SelectionToggle } from '../selection';
 
 import { ExplainScorePopup } from './ExplainScorePopup';
 import { type TableColumn } from './SearchResultsTable';
+
+// HTML attributes injected by react-table at runtime via `cell.getCellProps()` and forwarded through
+// `cell.render('Cell', { cellProps, ... })` in TableCell.tsx. The TableCellProps index signature in
+// react-table-config.d.ts types this as `unknown`, so we narrow via a type predicate at the use site
+// rather than relying on a wide index-signature value type.
+type CellHtmlProps = DetailedHTMLProps<HTMLAttributes<HTMLDivElement>, HTMLDivElement>;
+// Shape of the `userProps` value forwarded by SearchResultsTable.tsx to each Cell renderer (see the
+// `userProps={userProps}` prop in TableCell rendering — { href, onClick }).
+type SearchUserProps = { href?: string; onClick?: (event: MouseEvent<HTMLElement>) => void };
+
+// Type predicates that narrow the `unknown` values which flow through react-table's TableCellProps
+// index signature. The runtime values are guaranteed to be plain objects (react-table populates
+// cellProps via `cell.getCellProps()` and userProps is passed through TableCell as an object), so
+// the empty-object fallbacks below are unreachable in practice. They exist solely so that callers
+// receive concretely-typed values without using `as` type assertions (which are banned by
+// `@typescript-eslint/consistent-type-assertions: ['error', { assertionStyle: 'never' }]`).
+function isCellHtmlProps(value: unknown): value is CellHtmlProps {
+  return value !== null && typeof value === 'object';
+}
+function isSearchUserProps(value: unknown): value is SearchUserProps {
+  return value !== null && typeof value === 'object';
+}
+function getCellHtmlProps(value: unknown): CellHtmlProps {
+  return isCellHtmlProps(value) ? value : {};
+}
+function getSearchUserProps(value: unknown): SearchUserProps {
+  return isSearchUserProps(value) ? value : {};
+}
 
 const TYPE_COLUMN_WIDTH = 175;
 const DURATION_COLUMN_WIDTH = 200;
@@ -93,7 +122,7 @@ export const generateColumns = (
         const kind = kindField ? kindField.values[p.row.index] : 'dashboard'; // HACK for now
         const selected = selection(kind, uid);
         const hasUID = uid != null; // Panels don't have UID! Likely should not be shown on pages with manage options
-        const { key, ...cellProps } = p.cellProps;
+        const { key, ...cellProps } = getCellHtmlProps(p.cellProps);
         return (
           <div key={key} {...cellProps} className={styles.cell}>
             <Checkbox
@@ -124,16 +153,17 @@ export const generateColumns = (
         name = loading ? 'Loading...' : 'Missing title'; // normal for panels
         classNames += ' ' + styles.missingTitleText;
       }
-      const { key, ...cellProps } = p.cellProps;
+      const { key, ...cellProps } = getCellHtmlProps(p.cellProps);
+      const userProps = getSearchUserProps(p.userProps);
 
       return (
         <div key={key} className={styles.cell} {...cellProps}>
           {!response.isItemLoaded(p.row.index) ? (
             <Skeleton width={200} />
-          ) : isDeleted || !p.userProps.href ? (
+          ) : isDeleted || !userProps.href ? (
             <span className={classNames}>{name}</span>
           ) : (
-            <a href={p.userProps.href} onClick={p.userProps.onClick} className={classNames} title={name}>
+            <a href={userProps.href} onClick={userProps.onClick} className={classNames} title={name}>
               {name}
             </a>
           )}
@@ -184,7 +214,7 @@ export const generateColumns = (
     columns.push({
       Cell: (p) => {
         const parts = (access.location?.values[p.row.index] ?? '').split('/');
-        const { key, ...cellProps } = p.cellProps;
+        const { key, ...cellProps } = getCellHtmlProps(p.cellProps);
         return (
           <div key={key} {...cellProps} className={styles.cell}>
             {!response.isItemLoaded(p.row.index) ? (
@@ -247,7 +277,7 @@ export const generateColumns = (
     columns.push({
       Header: getFieldDisplayName(sortField),
       Cell: (p) => {
-        const { key, ...cellProps } = p.cellProps;
+        const { key, ...cellProps } = getCellHtmlProps(p.cellProps);
         return (
           <div key={key} {...cellProps} className={styles.cell}>
             {getDisplayValue({
@@ -288,7 +318,7 @@ export const generateColumns = (
         </div>
       ),
       Cell: (p) => {
-        const { key, ...cellProps } = p.cellProps;
+        const { key, ...cellProps } = getCellHtmlProps(p.cellProps);
         return (
           // TODO: fix keyboard a11y
           // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
@@ -338,7 +368,7 @@ function makeDataSourceColumn(
       if (!dslist?.length) {
         return null;
       }
-      const { key, ...cellProps } = p.cellProps;
+      const { key, ...cellProps } = getCellHtmlProps(p.cellProps);
       return (
         <div key={key} {...cellProps} className={cx(datasourceItemClass)}>
           {dslist.map((v, i) => {
@@ -388,7 +418,7 @@ function makeDeletedRemainingColumn(
     Cell: (p) => {
       const i = p.row.index;
       const deletedDate = deletedField.values[i];
-      const { key, ...cellProps } = p.cellProps;
+      const { key, ...cellProps } = getCellHtmlProps(p.cellProps);
 
       if (!deletedDate || !response.isItemLoaded(p.row.index)) {
         return (
@@ -469,7 +499,7 @@ function makeTypeColumn(
             break;
         }
       }
-      const { key, ...cellProps } = p.cellProps;
+      const { key, ...cellProps } = getCellHtmlProps(p.cellProps);
       return (
         <div key={key} {...cellProps} className={cx(styles.cell, styles.typeCell)}>
           {!response.isItemLoaded(p.row.index) ? (
@@ -497,7 +527,7 @@ function makeTagsColumn(
   return {
     Cell: (p) => {
       const tags = field.values[p.row.index];
-      const { key, ...cellProps } = p.cellProps;
+      const { key, ...cellProps } = getCellHtmlProps(p.cellProps);
       return (
         <div key={key} {...cellProps} className={styles.cell}>
           {!response.isItemLoaded(p.row.index) ? (
