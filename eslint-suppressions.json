@@ -147,11 +147,6 @@
       "count": 2
     }
   },
-  "packages/grafana-data/src/types/OptionsUIRegistryBuilder.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 4
-    }
-  },
   "packages/grafana-data/src/types/action.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 3

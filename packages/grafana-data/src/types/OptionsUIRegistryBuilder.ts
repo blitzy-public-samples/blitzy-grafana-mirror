@@ -33,6 +33,7 @@ export interface OptionsEditorItem<TOptions, TSettings, TEditorProps, TValue>
 interface OptionsUIRegistryBuilderAPI<
   TOptions,
   TEditorProps,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- `any` placeholders for TSettings and TValue allow the registry to hold heterogeneous editor items; `unknown` would be over-restrictive due to TypeScript bivariance in generic constraints
   T extends OptionsEditorItem<TOptions, any, TEditorProps, any>,
 > {
   addNumberInput?<TSettings extends NumberFieldConfigSettings = NumberFieldConfigSettings>(
@@ -80,6 +81,7 @@ interface OptionsUIRegistryBuilderAPI<
 export abstract class OptionsUIRegistryBuilder<
   TOptions,
   TEditorProps,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- `any` placeholders for TSettings and TValue allow heterogeneous editor items in the registry; matches the API interface above
   T extends OptionsEditorItem<TOptions, any, TEditorProps, any>,
 > implements OptionsUIRegistryBuilderAPI<TOptions, TEditorProps, T>
 {
