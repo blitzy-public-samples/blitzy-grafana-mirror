@@ -1,15 +1,17 @@
 // Node.closest() polyfill
 if (typeof window !== 'undefined' && 'Element' in window && !Element.prototype.closest) {
-  Element.prototype.closest = function (this: any, s: string) {
-    const matches = (this.document || this.ownerDocument).querySelectorAll(s);
-    let el = this;
-    let i;
+  Element.prototype.closest = function (this: Element & { document?: Document }, s: string) {
+    // Some legacy environments expose a non-standard `document` property; fall back to ownerDocument.
+    const root = this.document || this.ownerDocument;
+    const matches = root.querySelectorAll(s);
+    let el: Element | null = this;
+    let i: number;
     // eslint-disable-next-line
     do {
       i = matches.length;
       // eslint-disable-next-line
       while (--i >= 0 && matches.item(i) !== el) {}
-      el = el.parentElement;
+      el = el!.parentElement;
     } while (i < 0 && el);
     return el;
   };
