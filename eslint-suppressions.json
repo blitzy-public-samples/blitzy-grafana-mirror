@@ -251,9 +251,6 @@
   "packages/grafana-runtime/src/services/LocationService.tsx": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1
-    },
-    "@typescript-eslint/no-explicit-any": {
-      "count": 5
     }
   },
   "packages/grafana-runtime/src/services/pluginExtensions/usePluginComponent.ts": {

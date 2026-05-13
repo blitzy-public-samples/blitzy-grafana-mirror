@@ -14,9 +14,9 @@ import { type LocationUpdate } from './LocationSrv';
  * A wrapper to help work with browser location and history
  */
 export interface LocationService {
-  partial: (query: Record<string, any>, replace?: boolean) => void;
-  push: (location: H.Path | H.LocationDescriptor<any>) => void;
-  replace: (location: H.Path | H.LocationDescriptor<any>) => void;
+  partial: (query: Record<string, unknown>, replace?: boolean) => void;
+  push: (location: H.Path | H.LocationDescriptor<unknown>) => void;
+  replace: (location: H.Path | H.LocationDescriptor<unknown>) => void;
   reload: () => void;
   getLocation: () => H.Location;
   getHistory: () => H.History;
@@ -69,7 +69,7 @@ export class HistoryWrapper implements LocationService {
     return new URLSearchParams(this.history.location.search);
   }
 
-  partial(query: Record<string, any>, replace?: boolean) {
+  partial(query: Record<string, unknown>, replace?: boolean) {
     const currentLocation = this.history.location;
     const newQuery = this.getSearchObject();
 
@@ -78,7 +78,12 @@ export class HistoryWrapper implements LocationService {
       if (query[key] === null || query[key] === undefined) {
         delete newQuery[key];
       } else {
-        newQuery[key] = query[key];
+        // Narrow `unknown` to UrlQueryValue at the assignment boundary; the public interface
+        // accepts heterogeneous values (`Record<string, unknown>`) but the underlying URL map
+        // is typed `UrlQueryMap`. Preserves the original `Record<string, any>` implicit-cast
+        // runtime semantics without altering behavior for callers.
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+        newQuery[key] = query[key] as UrlQueryMap[string];
       }
     }
 
@@ -100,7 +105,7 @@ export class HistoryWrapper implements LocationService {
   }
 
   reload() {
-    const prevState = (this.history.location.state as any)?.routeReloadCounter;
+    const prevState = (this.history.location.state as { routeReloadCounter?: number } | undefined)?.routeReloadCounter;
     this.history.replace({
       ...this.history.location,
       state: { routeReloadCounter: prevState ? prevState + 1 : 1 },
