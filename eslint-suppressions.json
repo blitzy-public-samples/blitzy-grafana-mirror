@@ -96,11 +96,6 @@
       "count": 5
     }
   },
-  "packages/grafana-data/src/themes/colorManipulator.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 3
-    }
-  },
   "packages/grafana-data/src/themes/createColors.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1

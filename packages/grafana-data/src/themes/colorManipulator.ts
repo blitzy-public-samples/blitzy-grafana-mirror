@@ -151,25 +151,26 @@ export function decomposeColor(color: string | DecomposeColor): DecomposeColor {
     );
   }
 
-  let values: any = color.substring(marker + 1, color.length - 1);
-  let colorSpace;
+  const inner = color.substring(marker + 1, color.length - 1);
+  let stringValues: string[];
+  let colorSpace: string | undefined;
 
   if (type === 'color') {
-    values = values.split(' ');
-    colorSpace = values.shift();
-    if (values.length === 4 && values[3].charAt(0) === '/') {
-      values[3] = values[3].slice(1);
+    stringValues = inner.split(' ');
+    colorSpace = stringValues.shift();
+    if (stringValues.length === 4 && stringValues[3].charAt(0) === '/') {
+      stringValues[3] = stringValues[3].slice(1);
     }
-    if (['srgb', 'display-p3', 'a98-rgb', 'prophoto-rgb', 'rec-2020'].indexOf(colorSpace) === -1) {
+    if (!colorSpace || ['srgb', 'display-p3', 'a98-rgb', 'prophoto-rgb', 'rec-2020'].indexOf(colorSpace) === -1) {
       throw new Error(
         `Unsupported ${colorSpace} color space. The following color spaces are supported: srgb, display-p3, a98-rgb, prophoto-rgb, rec-2020.`
       );
     }
   } else {
-    values = values.split(',');
+    stringValues = inner.split(',');
   }
 
-  values = values.map((value: string) => parseFloat(value));
+  const values = stringValues.map((value: string) => parseFloat(value));
   return { type, values, colorSpace };
 }
 
@@ -182,23 +183,31 @@ export function decomposeColor(color: string | DecomposeColor): DecomposeColor {
  * @beta
  */
 export function recomposeColor(color: DecomposeColor) {
-  const { type, colorSpace } = color;
-  let values = color.values;
+  const { type, values, colorSpace } = color;
 
+  let valueStrings: string[];
   if (type.indexOf('rgb') !== -1) {
     // Only convert the first 3 values to int (i.e. not alpha)
-    values = values.map((n: string, i: number) => (i < 3 ? parseInt(n, 10) : n));
+    valueStrings = values.map((n, i) => (i < 3 ? `${parseInt(String(n), 10)}` : `${n}`));
   } else if (type.indexOf('hsl') !== -1) {
-    values[1] = `${values[1]}%`;
-    values[2] = `${values[2]}%`;
-  }
-  if (type.indexOf('color') !== -1) {
-    values = `${colorSpace} ${values.join(' ')}`;
+    valueStrings = values.map((v, i) => (i === 1 || i === 2 ? `${v}%` : `${v}`));
   } else {
-    values = `${values.join(', ')}`;
+    valueStrings = values.map((v) => `${v}`);
   }
 
-  return `${type}(${values})`;
+  let valuesText: string;
+  if (type.indexOf('color') !== -1) {
+    if (values.length === 4) {
+      // CSS color() functional notation: alpha is preceded by '/'
+      valuesText = `${colorSpace} ${valueStrings[0]} ${valueStrings[1]} ${valueStrings[2]} /${valueStrings[3]}`;
+    } else {
+      valuesText = `${colorSpace} ${valueStrings.join(' ')}`;
+    }
+  } else {
+    valuesText = valueStrings.join(', ');
+  }
+
+  return `${type}(${valuesText})`;
 }
 
 /**
@@ -240,7 +249,7 @@ export function getLuminance(color: string, background?: string) {
     rgb[2] = rgb[2] * alpha + backgroundParts.values[2] * (1 - alpha);
   }
 
-  const rgbNumbers = rgb.map((val: any) => {
+  const rgbNumbers = rgb.map((val: number) => {
     if (parts.type !== 'color') {
       val /= 255; // normalized
     }
@@ -308,14 +317,9 @@ export function alpha(color: string, value: number) {
     return color.substring(0, color.lastIndexOf(',')) + `, ${value})`;
   }
 
+  // color() functional notation; recomposeColor handles the '/' alpha separator
   const parts = decomposeColor(color);
-
-  if (parts.type === 'color') {
-    parts.values[3] = `/${value}`;
-  } else {
-    parts.values[3] = value;
-  }
-
+  parts.values[3] = value;
   return recomposeColor(parts);
 }
 
@@ -394,7 +398,7 @@ export const onBackground = (
 
 interface DecomposeColor {
   type: string;
-  values: any;
+  values: number[];
   colorSpace?: string;
 }
 
