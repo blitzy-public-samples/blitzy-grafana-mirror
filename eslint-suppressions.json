@@ -177,11 +177,6 @@
       "count": 3
     }
   },
-  "packages/grafana-data/src/types/data.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 4
-    }
-  },
   "packages/grafana-data/src/types/dataLink.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 7
