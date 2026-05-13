@@ -11,7 +11,7 @@ import { type ValueMatcherEditorConfig, type ValueMatcherUIProps, type ValueMatc
 
 export function basicMatcherEditor(
   config: ValueMatcherEditorConfig
-): React.FC<ValueMatcherUIProps<BasicValueMatcherOptions<string | number>>> {
+): React.FC<ValueMatcherUIProps<BasicValueMatcherOptions>> {
   return function Render({ options, onChange }) {
     const { validator } = config;
     const { value } = options;
@@ -41,9 +41,7 @@ export function basicMatcherEditor(
   };
 }
 
-export const getBasicValueMatchersUI = (): Array<
-  ValueMatcherUIRegistryItem<BasicValueMatcherOptions<string | number>>
-> => {
+export const getBasicValueMatchersUI = (): Array<ValueMatcherUIRegistryItem<BasicValueMatcherOptions>> => {
   return [
     {
       name: 'Is greater',

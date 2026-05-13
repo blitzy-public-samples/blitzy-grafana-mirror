@@ -45,5 +45,6 @@ export interface PanelModel<TOptions = any, TCustomFieldConfig = any> {
   transformations?: DataTransformerConfig[];
 
   /** alerting v1 object */
-  alert?: unknown;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- alerting v1 object structure is heterogeneous and read by external out-of-scope consumers (public/app/features/dashboard/state/DashboardModel.ts, dashboard-scene/serialization, dashboardLoaders); narrowing to `unknown` breaks downstream code per AAP §0.8.7 (public API preservation) and §0.9.2.3 IMMUTABLE plugin API surface
+  alert?: any;
 }

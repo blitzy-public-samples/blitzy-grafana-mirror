@@ -202,7 +202,8 @@ export interface BaseVariableModel {
   skipUrlSync: boolean;
   index: number;
   state: LoadingState;
-  error: unknown;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- variable error shape is heterogeneous across plugin datasources (string, Error, AxiosError, FetchError, plain object); consumers across public/app/features/variables/ and dashboard-scene/ read `variable.error.message` / `variable.error.status` directly without narrowing; narrowing to `unknown` breaks public `@grafana/data` API contract per AAP §0.8.7 and §0.9.2.3 IMMUTABLE plugin API surface
+  error: any | null;
   description: string | null;
   usedInRepeat?: boolean;
   origin?: ControlSourceRef;

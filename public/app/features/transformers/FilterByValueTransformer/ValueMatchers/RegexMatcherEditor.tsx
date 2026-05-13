@@ -53,7 +53,7 @@ export function regexMatcherEditor(
   };
 }
 
-export const getRegexValueMatchersUI = (): Array<ValueMatcherUIRegistryItem<BasicValueMatcherOptions<string>>> => {
+export const getRegexValueMatchersUI = (): Array<ValueMatcherUIRegistryItem<BasicValueMatcherOptions>> => {
   return [
     {
       name: 'Regex',

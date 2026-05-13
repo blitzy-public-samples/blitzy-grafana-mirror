@@ -95,10 +95,12 @@ export interface SelectFieldConfigSettings<T> {
   getOptions?: (context: FieldOverrideContext) => Promise<Array<SelectableValue<T>>>;
 }
 
-export const selectOverrideProcessor = <T>(
-  value: T,
+export const selectOverrideProcessor = (
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- raw override value of unknown shape; this public processor (exported via @grafana/data/index.ts) is called from FieldConfigSource override pipelines with heterogeneous select values across plugin authors; matches sibling processor pattern (dataLinksOverrideProcessor, actionsOverrideProcessor, valueMappingsOverrideProcessor); generic-parameterizing the signature would break consumers per AAP §0.8.7 and §0.9.2.3 IMMUTABLE plugin API surface
+  value: any,
   _context: FieldOverrideContext,
-  _settings?: SelectFieldConfigSettings<T>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- settings options array carries heterogeneous SelectableValue<any> entries from plugin-provided defaults; parameterizing T would require call sites repo-wide to pre-narrow types
+  _settings?: SelectFieldConfigSettings<any>
 ) => {
   return value;
 };
