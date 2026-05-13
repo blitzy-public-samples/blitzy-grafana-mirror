@@ -51,10 +51,10 @@ export function sortValues(sort: SortOrder.Ascending | SortOrder.Descending) {
       return 1;
     }
 
-    let compareFn: (a: any, b: any) => number = collator.compare;
+    let compareFn: (a: unknown, b: unknown) => number = (x, y) => collator.compare(String(x), String(y));
 
     if (typeof a === 'number' && typeof b === 'number') {
-      compareFn = numericCompare;
+      compareFn = (x, y) => numericCompare(Number(x), Number(y));
     }
 
     if (sort === SortOrder.Descending) {

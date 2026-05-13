@@ -127,11 +127,6 @@
       "count": 1
     }
   },
-  "packages/grafana-data/src/utils/arrayUtils.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    }
-  },
   "packages/grafana-data/src/utils/csv.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 2
