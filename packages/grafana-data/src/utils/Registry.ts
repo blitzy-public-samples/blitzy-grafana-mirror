@@ -19,6 +19,7 @@ export interface RegistryItem {
   state?: PluginState;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- TOptions generic default preserved as any for backward compatibility with all 4+ extending types in transformations.ts (DataTransformerInfo, SynchronousDataTransformerInfo, FieldMatcherInfo, FrameMatcherInfo, ValueMatcherInfo) and MapLayerRegistryItem in geo/layer.ts; tightening would break every existing transformation/matcher registration that omits the type parameter
 export interface RegistryItemWithOptions<TOptions = any> extends RegistryItem {
   /**
    * Convert the options to a string

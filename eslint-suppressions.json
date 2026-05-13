@@ -132,11 +132,6 @@
       "count": 11
     }
   },
-  "packages/grafana-data/src/utils/Registry.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "packages/grafana-data/src/utils/arrayUtils.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 2
