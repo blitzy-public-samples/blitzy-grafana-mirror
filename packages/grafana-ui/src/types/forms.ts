@@ -14,7 +14,7 @@ type FieldArrayValue = Partial<FieldValues> | Array<Partial<FieldValues>>;
  * @deprecated use the types from react-hook-form instead
  */
 export interface FieldArrayApi {
-  fields: Array<Record<string, any>>;
+  fields: Array<Record<string, unknown>>;
   append: (value: FieldArrayValue, options?: FieldArrayMethodProps) => void;
   prepend: (value: FieldArrayValue) => void;
   remove: (index?: number | number[]) => void;
