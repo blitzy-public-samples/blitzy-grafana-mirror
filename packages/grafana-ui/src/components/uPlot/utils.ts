@@ -407,6 +407,7 @@ export const getDisplayValuesForCalcs = (calcs: string[], field: Field, theme: G
     return [];
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- tightening to (v: number | null | undefined) makes defaultFormatter return string after the v == null narrowing, which then fails TS2698 'Spread types may only be created from object types' at the ...formatter(fieldCalcs[reducerId]) spread below; refactoring the spread/return shape to fix the latent issue is out of scope per AAP §0.9.2.12 minimal-change mandate
   const defaultFormatter = (v: any) => (v == null ? '-' : v.toFixed(1));
   const fmt = field.display ?? defaultFormatter;
   let countFormatter: DisplayProcessor | null = null;
