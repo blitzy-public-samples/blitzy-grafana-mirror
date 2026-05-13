@@ -13,6 +13,7 @@ import { FunctionalVector } from '../vector/FunctionalVector';
  * @typeParam T - Type of object stored in the DataFrame.
  * @beta
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic default `T extends object = any` preserved for back-compat: heavy callers (tempo/graphTransform.ts, fieldDisplay.ts, search/service/dummy.ts) instantiate `new DataFrameView(frame)` without explicit T and read row.someField directly in template literals which require `string | number | boolean | undefined | null`; `Record<string, unknown>` would force compilation regressions across downstream consumers
 export class DataFrameView<T extends object = any> extends FunctionalVector<T> {
   private index = 0;
   private obj: T;
@@ -23,6 +24,7 @@ export class DataFrameView<T extends object = any> extends FunctionalVector<T> {
   constructor(private data: DataFrame) {
     super();
     const obj = {} as T;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- scaffolding `any` retained for internal cache build-up: `Record<string, Field>` is not structurally assignable to the readonly mapped type `{ readonly [Property in keyof T]: Field<T[Property]> }` on `this.fields = fields` (TS2322), and adding an `as` cast would violate `@typescript-eslint/consistent-type-assertions: ['error', { assertionStyle: 'never' }]` (no new lint suppressions permitted per AAP §0.8.5)
     const fields: any = {};
 
     for (let i = 0; i < data.fields.length; i++) {
