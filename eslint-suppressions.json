@@ -147,11 +147,6 @@
       "count": 2
     }
   },
-  "packages/grafana-data/src/types/action.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 3
-    }
-  },
   "packages/grafana-data/src/types/annotations.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 6
