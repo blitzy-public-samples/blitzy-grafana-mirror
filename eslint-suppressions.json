@@ -152,11 +152,6 @@
       "count": 4
     }
   },
-  "packages/grafana-data/src/types/ScopedVars.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    }
-  },
   "packages/grafana-data/src/types/action.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 3
