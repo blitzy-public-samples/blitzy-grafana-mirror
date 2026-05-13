@@ -86,11 +86,6 @@
       "count": 7
     }
   },
-  "packages/grafana-data/src/geo/layer.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "packages/grafana-data/src/panel/PanelPlugin.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1
