@@ -223,11 +223,6 @@
       "count": 3
     }
   },
-  "packages/grafana-data/src/vector/FunctionalVector.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 9
-    }
-  },
   "packages/grafana-e2e-selectors/src/resolver.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1
