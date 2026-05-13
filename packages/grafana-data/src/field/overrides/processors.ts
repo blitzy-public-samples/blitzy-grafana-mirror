@@ -55,6 +55,7 @@ export interface DataLinksFieldConfigSettings {
 }
 
 export const dataLinksOverrideProcessor = (
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- raw override value of unknown shape; processor casts to typed return value
   value: any,
   _context: FieldOverrideContext,
   _settings?: DataLinksFieldConfigSettings
@@ -63,7 +64,7 @@ export const dataLinksOverrideProcessor = (
 };
 
 export const actionsOverrideProcessor = (
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- raw override value of unknown shape; processor casts to typed return value
   value: any,
   _context: FieldOverrideContext,
   _settings?: DataLinksFieldConfigSettings
@@ -74,6 +75,7 @@ export const actionsOverrideProcessor = (
 export interface ValueMappingFieldConfigSettings {}
 
 export const valueMappingsOverrideProcessor = (
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- raw override value of unknown shape; processor casts to typed return value
   value: any,
   _context: FieldOverrideContext,
   _settings?: ValueMappingFieldConfigSettings
@@ -93,10 +95,10 @@ export interface SelectFieldConfigSettings<T> {
   getOptions?: (context: FieldOverrideContext) => Promise<Array<SelectableValue<T>>>;
 }
 
-export const selectOverrideProcessor = (
-  value: any,
+export const selectOverrideProcessor = <T>(
+  value: T,
   _context: FieldOverrideContext,
-  _settings?: SelectFieldConfigSettings<any>
+  _settings?: SelectFieldConfigSettings<T>
 ) => {
   return value;
 };
@@ -128,6 +130,7 @@ export interface ThresholdsFieldConfigSettings {
 }
 
 export const thresholdsOverrideProcessor = (
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- raw override value of unknown shape; processor casts to typed return value
   value: any,
   _context: FieldOverrideContext,
   _settings?: ThresholdsFieldConfigSettings

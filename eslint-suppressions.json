@@ -57,11 +57,6 @@
       "count": 3
     }
   },
-  "packages/grafana-data/src/field/overrides/processors.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 5
-    }
-  },
   "packages/grafana-data/src/panel/PanelPlugin.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1
