@@ -37,6 +37,7 @@ export enum TransformationApplicabilityLevels {
  *
  * @public
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- `TOptions = any` preserved for back-compat: transformations register without specifying TOptions and access `options.someField` directly; `unknown` would force narrowing in 50+ transformer implementations
 export interface DataTransformerInfo<TOptions = any> extends RegistryItemWithOptions {
   /**
    * Function that configures transformation and returns a transformer
@@ -70,6 +71,7 @@ export type CustomTransformOperator = (context: DataTransformContext) => MonoTyp
  *
  * @public
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- `TOptions = any` preserved to match parent DataTransformerInfo's default
 export interface SynchronousDataTransformerInfo<TOptions = any> extends DataTransformerInfo<TOptions> {
   transformer: (options: TOptions, context: DataTransformContext) => (frames: DataFrame[]) => DataFrame[];
 }
@@ -88,10 +90,12 @@ export type FieldMatcher = (field: Field, frame: DataFrame, allFrames: DataFrame
  */
 export type ValueMatcher = (valueIndex: number, field: Field, frame: DataFrame, allFrames: DataFrame[]) => boolean;
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- `TOptions = any` preserved for back-compat: matchers register without TOptions and access options directly; `unknown` would break 30+ matcher implementations
 export interface FieldMatcherInfo<TOptions = any> extends RegistryItemWithOptions<TOptions> {
   get: (options: TOptions) => FieldMatcher;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- `TOptions = any` preserved to match FieldMatcherInfo's default
 export interface FrameMatcherInfo<TOptions = any> extends RegistryItemWithOptions<TOptions> {
   get: (options: TOptions) => FrameMatcher;
 }
@@ -101,6 +105,7 @@ export interface FrameMatcherInfo<TOptions = any> extends RegistryItemWithOption
  * in the Grafana platform.
  * @public
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- `TOptions = any` preserved to match other matcher interfaces' defaults
 export interface ValueMatcherInfo<TOptions = any> extends RegistryItemWithOptions<TOptions> {
   get: (options: TOptions) => ValueMatcher;
   isApplicable: (field: Field) => boolean;

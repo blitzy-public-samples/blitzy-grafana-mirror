@@ -223,11 +223,6 @@
       "count": 1
     }
   },
-  "packages/grafana-data/src/types/transformations.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 5
-    }
-  },
   "packages/grafana-data/src/types/variables.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1
