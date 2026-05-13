@@ -230,11 +230,6 @@
       "count": 2
     }
   },
-  "packages/grafana-data/src/types/panel.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 11
-    }
-  },
   "packages/grafana-data/src/types/plugin.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1

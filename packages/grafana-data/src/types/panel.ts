@@ -71,6 +71,7 @@ export interface PanelData {
   traceIds?: string[];
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic default `T = any` preserved for back-compat: PanelProps is the props type for every panel plugin; consumers default to `any` for options when not parameterizing
 export interface PanelProps<T = any> {
   /** Unique ID of the panel within the current dashboard */
   id: number;
@@ -121,6 +122,7 @@ export interface PanelProps<T = any> {
   onChangeTimeRange: (timeRange: AbsoluteTimeRange) => void;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic default `T = any` preserved to match parent PanelProps<T> default for back-compat
 export interface PanelEditorProps<T = any> {
   /** Panel options */
   options: T;
@@ -143,7 +145,7 @@ export interface PanelEditorProps<T = any> {
  *
  * TOptions must be any to follow the same pattern as PanelModel<TOptions>
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- TOptions must be `any` to follow the same pattern as PanelModel<TOptions> default; preserved for migration handler back-compat
 export interface PanelMigrationModel<TOptions = any> {
   id: number;
   type: string;
@@ -158,6 +160,7 @@ export interface PanelMigrationModel<TOptions = any> {
  * Called when a panel is first loaded with current panel model to migrate panel options if needed.
  * Can return panel options, or a Promise that resolves to panel options for async migrations
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic default `TOptions = any` preserved to match PanelModel<TOptions> for migration handler back-compat
 export type PanelMigrationHandler<TOptions = any> = (
   panel: PanelMigrationModel<TOptions>
 ) => Partial<TOptions> | Promise<Partial<TOptions>>;
@@ -165,9 +168,11 @@ export type PanelMigrationHandler<TOptions = any> = (
 /**
  * Called before a panel is initialized. Allows panel inspection for any updates before changing the panel type.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic default `TOptions = any` preserved for back-compat with panel-type-change handlers
 export type PanelTypeChangedHandler<TOptions = any> = (
   panel: PanelModel<TOptions>,
   prevPluginId: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- `prevOptions: Record<string, any>` preserved because downstream panel migration code in datasource plugins accesses heterogeneous nested properties (e.g., `prevOptions.angular.gauge`) without narrowing — tightening to `unknown` would require breaking changes across migration handlers outside this file's scope
   prevOptions: Record<string, any>,
   prevFieldConfig: FieldConfigSource
 ) => Partial<TOptions>;
@@ -176,9 +181,11 @@ export type PanelOptionEditorsRegistry = Registry<PanelOptionsEditorItem>;
 
 export interface PanelOptionsEditorProps<TValue> extends StandardEditorProps<TValue> {}
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic defaults preserved for back-compat: PanelOptionsEditorItem is registered with 3 type parameters often omitted by callers in panel option builder registries
 export interface PanelOptionsEditorItem<TOptions = any, TValue = any, TSettings = any>
   extends OptionsEditorItem<TOptions, TSettings, PanelOptionsEditorProps<TValue>, TValue> {}
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic defaults preserved to match parent OptionEditorConfig<TOptions, TSettings = any, TValue = any> for back-compat
 export interface PanelOptionsEditorConfig<TOptions, TSettings = any, TValue = any>
   extends OptionEditorConfig<TOptions, TSettings, TValue> {}
 
@@ -206,7 +213,7 @@ export interface AngularPanelMenuItem {
   divider: boolean;
   text: string;
   shortcut: string;
-  submenu: any[];
+  submenu: AngularPanelMenuItem[];
 }
 
 export enum VizOrientation {
