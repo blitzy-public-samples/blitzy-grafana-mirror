@@ -105,7 +105,7 @@ export type PageviewEchoEvent = EchoEvent<EchoEventType.Pageview, PageviewEchoEv
  */
 export interface InteractionEchoEventPayload {
   interactionName: string;
-  properties?: Record<string, any>;
+  properties?: Record<string, unknown>;
 }
 
 /**

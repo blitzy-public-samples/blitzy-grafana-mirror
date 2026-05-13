@@ -37,7 +37,7 @@ interface Rudderstack {
     }
   ) => void;
   page: () => void;
-  track: (eventName: string, properties?: Properties) => void;
+  track: (eventName: string, properties?: Record<string, unknown>) => void;
 }
 
 declare global {

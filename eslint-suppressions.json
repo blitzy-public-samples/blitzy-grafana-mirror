@@ -230,11 +230,6 @@
       "count": 3
     }
   },
-  "packages/grafana-runtime/src/analytics/types.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "packages/grafana-runtime/src/components/DataSourcePicker.tsx": {
     "react-prefer-function-component/react-prefer-function-component": {
       "count": 1
