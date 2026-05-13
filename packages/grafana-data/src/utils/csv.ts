@@ -115,7 +115,12 @@ export class CSVReader {
                   if (!fields[j].config) {
                     fields[j].config = {};
                   }
-                  const disp: any = fields[j].config; // any lets name lookup
+                  // FieldConfig has no index signature, so dynamic CSV-header property
+                  // writeback requires a cast to access by computed string keys. The cast
+                  // preserves the original runtime semantics (a property is set on the
+                  // config object) without altering behavior.
+                  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+                  const disp = fields[j].config as Record<string, unknown>;
                   disp[k] = j === 0 ? v : line[j];
                 }
               }
@@ -232,13 +237,13 @@ function getHeaderLine(key: string, fields: Field[], config: CSVConfig): string 
           line = line + config.delimiter;
         }
 
-        let v = fields[i].name;
+        let v: unknown = fields[i].name;
         if (isType) {
           v = fields[i].type;
         } else if (isName) {
           // already name
         } else {
-          v = (fields[i].config as any)[key];
+          v = (fields[i].config as Record<string, unknown>)[key];
         }
         if (v) {
           line = line + writeValue(v, config);
