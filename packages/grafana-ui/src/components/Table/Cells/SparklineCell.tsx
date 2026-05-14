@@ -96,6 +96,7 @@ export const SparklineCell = (props: TableCellProps) => {
 
     valueElement = (
       <FormattedValueDisplay
+        // Design system gap: dynamic width driven by virtualization measurement (valueWidth) and dynamic theme spacing
         style={{
           width: `${valueWidth - theme.spacing.gridSize}px`,
           textAlign: 'right',
