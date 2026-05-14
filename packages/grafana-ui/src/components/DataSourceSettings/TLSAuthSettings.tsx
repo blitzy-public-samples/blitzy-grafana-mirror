@@ -1,8 +1,10 @@
+import { css } from '@emotion/css';
 import * as React from 'react';
 
-import { type KeyValue } from '@grafana/data';
+import { type GrafanaTheme2, type KeyValue } from '@grafana/data';
 import { t, Trans } from '@grafana/i18n';
 
+import { useStyles2 } from '../../themes/ThemeContext';
 import { FormField } from '../FormField/FormField';
 import { Icon } from '../Icon/Icon';
 import { Box } from '../Layout/Box/Box';
@@ -13,6 +15,7 @@ import { CertificationKey } from './CertificationKey';
 import { type HttpSettingsBaseProps } from './types';
 
 export const TLSAuthSettings = ({ dataSourceConfig, onChange }: HttpSettingsBaseProps) => {
+  const styles = useStyles2(getStyles);
   const hasTLSCACert = dataSourceConfig.secureJsonFields && dataSourceConfig.secureJsonFields.tlsCACert;
   const hasTLSClientCert = dataSourceConfig.secureJsonFields && dataSourceConfig.secureJsonFields.tlsClientCert;
   const hasTLSClientKey = dataSourceConfig.secureJsonFields && dataSourceConfig.secureJsonFields.tlsClientKey;
@@ -68,7 +71,7 @@ export const TLSAuthSettings = ({ dataSourceConfig, onChange }: HttpSettingsBase
             )}
             theme="info"
           >
-            <Icon name="info-circle" size="xs" style={{ marginLeft: '10px' }} />
+            <Icon name="info-circle" size="xs" className={styles.infoIcon} />
           </Tooltip>
         </Stack>
       </Box>
@@ -131,3 +134,9 @@ export const TLSAuthSettings = ({ dataSourceConfig, onChange }: HttpSettingsBase
     </Box>
   );
 };
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  infoIcon: css({
+    marginLeft: theme.spacing(1.25),
+  }),
+});
