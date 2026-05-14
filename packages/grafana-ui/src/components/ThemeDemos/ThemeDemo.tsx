@@ -162,6 +162,7 @@ export const ThemeDemo = () => {
         </CollapsableSection>
         <CollapsableSection label="Rich colors" isOpen={true}>
           <DemoBox bg="primary" scrollable>
+            {/* Design system gap: theme-color demo retains raw <table> for documentation purposes; the structured token-listing layout is intentional and would not benefit from InteractiveTable's interaction features. */}
             <table className={colorsTableStyle(t)}>
               <thead>
                 <tr>
@@ -182,6 +183,7 @@ export const ThemeDemo = () => {
         </CollapsableSection>
         <CollapsableSection label="Viz hues" isOpen={true}>
           <DemoBox bg="primary" scrollable>
+            {/* Design system gap: theme-color demo retains raw <table> for documentation purposes; the structured token-listing layout is intentional and would not benefit from InteractiveTable's interaction features. */}
             <table className={colorsTableStyle(t)}>
               <thead>
                 <tr>
@@ -206,13 +208,17 @@ export const ThemeDemo = () => {
             <Stack direction="column">
               <Stack gap={0}>
                 {classicPalette.map((color) => {
-                  return <div style={{ backgroundColor: color, height: '40px', flex: 1 }} key={color} />;
+                  return <div className={css({ backgroundColor: color, height: '40px', flex: 1 })} key={color} />;
                 })}
               </Stack>
               {continuousPalettes.map((palette, index) => (
                 <Stack key={index} gap={0}>
                   <div
-                    style={{ background: `linear-gradient(90deg, ${palette.join(', ')} )`, height: '40px', flex: 1 }}
+                    className={css({
+                      background: `linear-gradient(90deg, ${palette.join(', ')} )`,
+                      height: '40px',
+                      flex: 1,
+                    })}
                   />
                 </Stack>
               ))}
