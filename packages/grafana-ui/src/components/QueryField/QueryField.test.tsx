@@ -1,29 +1,19 @@
 import { render, screen } from '@testing-library/react';
 
-import { createTheme } from '@grafana/data';
-
-import { UnThemedQueryField } from './QueryField';
+import { QueryField } from './QueryField';
 
 describe('<QueryField />', () => {
   it('should render with null initial value', () => {
-    expect(() =>
-      render(
-        <UnThemedQueryField theme={createTheme()} query={null} onTypeahead={jest.fn()} portalOrigin="mock-origin" />
-      )
-    ).not.toThrow();
+    expect(() => render(<QueryField query={null} onTypeahead={jest.fn()} portalOrigin="mock-origin" />)).not.toThrow();
   });
 
   it('should render with empty initial value', () => {
-    expect(() =>
-      render(<UnThemedQueryField theme={createTheme()} query="" onTypeahead={jest.fn()} portalOrigin="mock-origin" />)
-    ).not.toThrow();
+    expect(() => render(<QueryField query="" onTypeahead={jest.fn()} portalOrigin="mock-origin" />)).not.toThrow();
   });
 
   it('should render with initial value', () => {
     expect(() =>
-      render(
-        <UnThemedQueryField theme={createTheme()} query="my query" onTypeahead={jest.fn()} portalOrigin="mock-origin" />
-      )
+      render(<QueryField query="my query" onTypeahead={jest.fn()} portalOrigin="mock-origin" />)
     ).not.toThrow();
   });
 
@@ -31,16 +21,10 @@ describe('<QueryField />', () => {
     it('should re-render the editor after syntax has fully loaded', async () => {
       const mockOnRichValueChange = jest.fn();
       const { rerender } = render(
-        <UnThemedQueryField
-          theme={createTheme()}
-          query="my query"
-          onRichValueChange={mockOnRichValueChange}
-          portalOrigin="mock-origin"
-        />
+        <QueryField query="my query" onRichValueChange={mockOnRichValueChange} portalOrigin="mock-origin" />
       );
       rerender(
-        <UnThemedQueryField
-          theme={createTheme()}
+        <QueryField
           query="my query"
           syntaxLoaded
           onRichValueChange={mockOnRichValueChange}
@@ -56,8 +40,7 @@ describe('<QueryField />', () => {
     it('should not re-render the editor if syntax is already loaded', async () => {
       const mockOnRichValueChange = jest.fn();
       const { rerender } = render(
-        <UnThemedQueryField
-          theme={createTheme()}
+        <QueryField
           query="my query"
           onRichValueChange={mockOnRichValueChange}
           syntaxLoaded
@@ -65,8 +48,7 @@ describe('<QueryField />', () => {
         />
       );
       rerender(
-        <UnThemedQueryField
-          theme={createTheme()}
+        <QueryField
           query="my query"
           onRichValueChange={mockOnRichValueChange}
           syntaxLoaded
@@ -82,16 +64,10 @@ describe('<QueryField />', () => {
     it('should not re-render the editor twice once syntax is fully loaded', async () => {
       const mockOnRichValueChange = jest.fn();
       const { rerender } = render(
-        <UnThemedQueryField
-          theme={createTheme()}
-          onRichValueChange={mockOnRichValueChange}
-          query="my query"
-          portalOrigin="mock-origin"
-        />
+        <QueryField onRichValueChange={mockOnRichValueChange} query="my query" portalOrigin="mock-origin" />
       );
       rerender(
-        <UnThemedQueryField
-          theme={createTheme()}
+        <QueryField
           syntaxLoaded
           onRichValueChange={mockOnRichValueChange}
           query="my query"
@@ -99,8 +75,7 @@ describe('<QueryField />', () => {
         />
       );
       rerender(
-        <UnThemedQueryField
-          theme={createTheme()}
+        <QueryField
           syntaxLoaded
           onRichValueChange={mockOnRichValueChange}
           query="my query"
