@@ -91,20 +91,24 @@ export const VizTooltipContainer = ({
   return (
     <div
       ref={tooltipRef}
+      // Dynamic transform required: tooltip placement is computed per-render from runtime
+      // coordinates by calculateTooltipPosition and cannot be expressed via useStyles2
+      // (Emotion generates static class names). Static positioning, transition, and the
+      // pointer-events toggle are handled by the styles.wrapper / styles.pointerEvents*
+      // classes composed in className below.
       style={{
-        position: 'fixed',
-        left: 0,
-        // disabling pointer-events is to prevent the tooltip from flickering when moving left to right
-        // see e.g. https://github.com/grafana/grafana/pull/33609
-        pointerEvents: allowPointerEvents ? 'auto' : 'none',
-        top: 0,
         transform: `translate(${placement.x}px, ${placement.y}px)`,
-        transition: 'transform ease-out 0.1s',
       }}
       aria-live="polite"
       aria-atomic="true"
       {...otherProps}
-      className={cx(styles.wrapper, className)}
+      className={cx(
+        styles.wrapper,
+        // disabling pointer-events is to prevent the tooltip from flickering when moving left to right
+        // see e.g. https://github.com/grafana/grafana/pull/33609
+        allowPointerEvents ? styles.pointerEventsAuto : styles.pointerEventsNone,
+        className
+      )}
     >
       {children}
     </div>
@@ -114,5 +118,23 @@ export const VizTooltipContainer = ({
 VizTooltipContainer.displayName = 'VizTooltipContainer';
 
 const getStyles = (theme: GrafanaTheme2) => ({
-  wrapper: css(getTooltipContainerStyles(theme)),
+  wrapper: css({
+    ...getTooltipContainerStyles(theme),
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    // The `transition` property must live inside `theme.transitions.handleMotion`
+    // to satisfy `@grafana/no-unreduced-motion`. Using ('no-preference', 'reduce')
+    // preserves the original behavior: the transition applies in both motion
+    // preferences (matching the pre-migration inline style that ran unconditionally).
+    [theme.transitions.handleMotion('no-preference', 'reduce')]: {
+      transition: 'transform ease-out 0.1s',
+    },
+  }),
+  pointerEventsAuto: css({
+    pointerEvents: 'auto',
+  }),
+  pointerEventsNone: css({
+    pointerEvents: 'none',
+  }),
 });
