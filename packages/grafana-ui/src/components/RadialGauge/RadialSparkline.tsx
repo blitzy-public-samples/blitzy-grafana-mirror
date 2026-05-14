@@ -1,8 +1,10 @@
+import { css } from '@emotion/css';
 import { memo, useMemo } from 'react';
 
 import { type FieldDisplay, type GrafanaTheme2, type FieldConfig } from '@grafana/data';
 import { type GraphFieldConfig, GraphGradientMode, LineInterpolation } from '@grafana/schema';
 
+import { useStyles2 } from '../../themes/ThemeContext';
 import { Sparkline } from '../Sparkline/Sparkline';
 
 import { type RadialShape, type RadialTextMode, type RadialGaugeDimensions } from './types';
@@ -46,6 +48,8 @@ export const RadialSparkline = memo(
         ? dimensions.gaugeBottomY - height - SPARKLINE_SPACING
         : `calc(50% + ${radius / (showNameAndValue ? SPARKLINE_TOP_OFFSET_DIVISOR_CIRCLE_NAME_AND_VALUE : SPARKLINE_TOP_OFFSET_DIVISOR_CIRCLE)}px)`;
 
+    const styles = useStyles2(getStyles, topPos);
+
     const config: FieldConfig<GraphFieldConfig> = useMemo(
       () => ({
         color: {
@@ -66,7 +70,7 @@ export const RadialSparkline = memo(
     }
 
     return (
-      <div style={{ position: 'absolute', top: topPos }}>
+      <div className={styles.wrapper}>
         <Sparkline height={height} width={width} sparkline={sparkline} theme={theme} config={config} showHighlights />
       </div>
     );
@@ -74,3 +78,10 @@ export const RadialSparkline = memo(
 );
 
 RadialSparkline.displayName = 'RadialSparkline';
+
+const getStyles = (theme: GrafanaTheme2, topPos: number | string) => ({
+  wrapper: css({
+    position: 'absolute',
+    top: topPos,
+  }),
+});
