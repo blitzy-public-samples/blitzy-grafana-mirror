@@ -43,6 +43,7 @@ export const HeaderRow = (props: HeaderRowProps) => {
   );
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- react-table HeaderGroup with mixed UseSortByColumnProps/UseResizeColumnsColumnProps/UseFiltersColumnProps/useAbsoluteLayout/GrafanaTableColumn extensions not narrowable without breaking call-site signature compatibility
 function renderHeaderCell(column: any, tableStyles: TableStyles, showTypeIcons?: boolean) {
   const { key, ...headerProps } = column.getHeaderProps();
   const field: Field = column.field ?? null;
