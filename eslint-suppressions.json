@@ -401,11 +401,6 @@
       "count": 1
     }
   },
-  "packages/grafana-ui/src/components/PanelChrome/PanelContext.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    }
-  },
   "packages/grafana-ui/src/components/PanelChrome/index.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1

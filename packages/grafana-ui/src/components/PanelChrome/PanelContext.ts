@@ -86,10 +86,11 @@ export interface PanelContext {
   onThresholdsChange?: (thresholds: ThresholdsConfig) => void;
 
   /** For instance state that can be shared between panel & options UI  */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- instanceState is per-plugin and cannot be globally typed; plugins must narrow at use site
   instanceState?: any;
 
   /** Update instance state, this is only supported in dashboard panel context currently */
-  onInstanceStateChange?: (state: any) => void;
+  onInstanceStateChange?: (state: unknown) => void;
 
   /**
    * Called when a panel is changing the sort order of the legends.
