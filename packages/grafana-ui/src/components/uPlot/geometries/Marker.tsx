@@ -1,3 +1,4 @@
+import { css } from '@emotion/css';
 import * as React from 'react';
 
 interface MarkerProps {
@@ -7,13 +8,18 @@ interface MarkerProps {
   y: number;
 }
 
+const markerStyle = css({
+  position: 'absolute',
+});
+
 // An abstraction over a component rendered within a chart canvas.
 // Marker is rendered with DOM coords of the chart bounding box.
 export const Marker = ({ x, y, children }: React.PropsWithChildren<MarkerProps>) => {
   return (
     <div
+      className={markerStyle}
+      // Design system gap: inline style required by uPlot overlay positioning at runtime-computed coordinates
       style={{
-        position: 'absolute',
         top: `${y}px`,
         left: `${x}px`,
       }}
