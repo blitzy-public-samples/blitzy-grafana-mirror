@@ -62,8 +62,18 @@ export function InlineToast({ referenceElement, children, suffixIcon, placement 
 
   return (
     <Portal>
-      <div style={{ display: 'inline-block', ...floatingStyles }} ref={refs.setFloating} aria-live="polite">
-        <span className={cx(styles.root)} style={placementStyles}>
+      <div
+        className={styles.floating}
+        // Design system gap: inline style required by react-transition-group transition lifecycle (@floating-ui/react useFloating returns floatingStyles that dynamically compute top/left/transform/position for anchoring)
+        style={floatingStyles}
+        ref={refs.setFloating}
+        aria-live="polite"
+      >
+        <span
+          className={cx(styles.root)}
+          // Design system gap: inline style required by react-transition-group transition lifecycle (@floating-ui/react useTransitionStyles returns placementStyles that dynamically compute opacity/transform during animation)
+          style={placementStyles}
+        >
           {children && <span>{children}</span>}
           {suffixIcon && <Icon name={suffixIcon} />}
         </span>
@@ -74,6 +84,9 @@ export function InlineToast({ referenceElement, children, suffixIcon, placement 
 
 const getStyles = (theme: GrafanaTheme2) => {
   return {
+    floating: css({
+      display: 'inline-block',
+    }),
     root: css({
       ...theme.typography.bodySmall,
       willChange: 'transform',
