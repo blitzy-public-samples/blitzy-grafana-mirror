@@ -31,10 +31,10 @@ export {
 } from '@grafana/schema';
 
 export interface TableRow {
-  [x: string]: any;
+  [x: string]: unknown;
 }
 
-export type InspectCell = { value: any; mode: TableCellInspectorMode };
+export type InspectCell = { value: unknown; mode: TableCellInspectorMode };
 
 export const FILTER_FOR_OPERATOR = '=';
 export const FILTER_OUT_OPERATOR = '!=';
@@ -50,7 +50,7 @@ export interface TableSortByFieldState {
   desc?: boolean;
 }
 
-export interface TableCellProps extends CellProps<any> {
+export interface TableCellProps extends CellProps<TableRow> {
   tableStyles: TableStyles;
   cellProps: React.DetailedHTMLProps<React.HTMLAttributes<HTMLDivElement>, HTMLDivElement>;
   field: Field;

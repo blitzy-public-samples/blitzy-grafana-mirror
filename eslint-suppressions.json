@@ -524,11 +524,6 @@
       "count": 1
     }
   },
-  "packages/grafana-ui/src/components/Table/types.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 3
-    }
-  },
   "packages/grafana-ui/src/components/Table/utils.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 6
