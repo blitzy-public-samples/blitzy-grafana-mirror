@@ -1,5 +1,6 @@
 import { css, cx } from '@emotion/css';
 import { useCallback, useMemo, useRef, useState } from 'react';
+import { type Column, type UseFiltersColumnProps } from 'react-table';
 
 import { type Field, type GrafanaTheme2, type SelectableValue } from '@grafana/data';
 
@@ -12,7 +13,7 @@ import { FilterPopup } from './FilterPopup';
 import { type TableStyles } from './styles';
 
 interface Props {
-  column: any;
+  column: Column<{}> & UseFiltersColumnProps<{}>;
   tableStyles: TableStyles;
   field?: Field;
 }
@@ -31,6 +32,7 @@ export const Filter = ({ column, field, tableStyles }: Props) => {
     return null;
   }
   return (
+    // Design system gap: filter trigger is a primitive button surface
     <button
       className={cx(tableStyles.headerFilter, filterEnabled ? styles.filterIconEnabled : styles.filterIconDisabled)}
       ref={ref}
