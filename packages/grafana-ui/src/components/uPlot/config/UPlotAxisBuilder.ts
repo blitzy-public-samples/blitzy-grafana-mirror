@@ -30,7 +30,7 @@ export interface AxisProps {
   ticks?: Axis.Ticks;
   filter?: Axis.Filter;
   space?: Axis.Space;
-  formatValue?: (v: any, decimals?: DecimalCount) => string;
+  formatValue?: (v: unknown, decimals?: DecimalCount) => string;
   incrs?: Axis.Incrs;
   splits?: Axis.Splits;
   values?: Axis.Values;
@@ -179,7 +179,7 @@ export class UPlotAxisBuilder extends PlotConfigBuilder<AxisProps, Axis> {
     }
 
     // store timezone
-    (config as any).timeZone = timeZone;
+    (config as Axis & { timeZone?: TimeZone }).timeZone = timeZone;
 
     return config;
   }
