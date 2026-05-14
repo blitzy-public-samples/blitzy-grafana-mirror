@@ -131,6 +131,7 @@ export function ResultsTable(props: ResultsTableProps) {
   }
 
   return (
+    // Design system gap: complex table with sticky header, click-to-select rows, react-highlight-words integration, and inline tooltip-augmented type cells is not expressible in <InteractiveTable> without UX/visual regression. Kept as raw HTML per AAP §0.4.4 Gaps Inventory.
     <table className={styles.table}>
       <thead className={styles.stickyHeader}>
         <tr>
