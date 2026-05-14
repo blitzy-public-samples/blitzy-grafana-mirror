@@ -198,30 +198,31 @@ export interface TestingStatus {
  * @returns {TestingStatus}
  */
 export function toTestingStatus(err: FetchError): TestingStatus {
-  // After the runtime-package `any -> unknown` refactor, `FetchError.data` is
-  // `unknown` and cannot be passed directly to `toDataQueryResponse` (whose
-  // union expects `data: BackendDataSourceResponse | undefined`). Build a
-  // `DataQueryError`-shaped wrapper that preserves the fields downstream
-  // consumers read (`status`, `statusText`, `traceId`, `data.message`,
-  // `data.error`) — this is the same information path that the previous
-  // assertion-based implementation produced via `toDataQueryError(res)` inside
-  // `toDataQueryResponse`. Narrowing `err.data` with `typeof === 'object'` and
-  // `'message'/'error' in` predicates avoids any type assertions.
-  const errData = err.data;
-  const errDataIsObject = errData != null && typeof errData === 'object';
-  const errDataMessage =
-    errDataIsObject && 'message' in errData && typeof errData.message === 'string' ? errData.message : undefined;
-  const errDataError =
-    errDataIsObject && 'error' in errData && typeof errData.error === 'string' ? errData.error : undefined;
-  const wrappedError: DataQueryError = {
-    status: err.status,
-    statusText: err.statusText,
-    traceId: err.traceId,
-    data: errDataMessage !== undefined || errDataError !== undefined
-      ? { message: errDataMessage, error: errDataError }
-      : undefined,
-  };
-  const queryResponse = toDataQueryResponse(wrappedError);
+  // After the foundational `any -> unknown` refactor (commit 088f3c7da2),
+  // `FetchError<T = unknown>.data` is `unknown`. The receiving `toDataQueryResponse`
+  // signature expects `{ data: BackendDataSourceResponse | undefined }` but
+  // internally re-narrows via `res as FetchResponse<BackendDataSourceResponse | undefined>`
+  // at line 76 and tolerates arbitrary err-shaped inputs at runtime.
+  //
+  // Two distinct error-traversal paths exercised by queryResponse.test.ts must
+  // both be preserved:
+  //   (1) `data.results.{refId}.error` — per-refId result error iteration produced
+  //       by `toDataQueryResponse`'s `fetchResponse.data?.results` loop; covered by
+  //       test "from api/ds/query result errors" with input
+  //       `{ status: 400, data: { results: { A: { error: 'error' } } } }`.
+  //   (2) `data.message` / `data.error` — top-level error wrapper produced by the
+  //       `toDataQueryError(res)` fallback path; covered by test "from api/ds/query
+  //       generic errors" with input `{ status: 500, data: { message, error } }`.
+  //
+  // Re-shaping `err` at this boundary (e.g., into a synthesized `DataQueryError`
+  // that copies only top-level `data.message`/`data.error` strings) drops path (1)
+  // and causes a runtime regression in datasource testing flows. Forwarding `err`
+  // verbatim preserves both paths; this is the original (pre-refactor) behavior
+  // and is the minimum-impact resolution per the AAP §0.9.2.12 minimal-change
+  // mandate and the QA report's explicit guidance for this site.
+  //
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- AAP §0.8.6 Step 7 LAST RESORT: see comment above. The cast is scoped to this single boundary; `toDataQueryResponse` internally re-narrows and is documented to accept err-shaped inputs.
+  const queryResponse = toDataQueryResponse(err as FetchResponse<BackendDataSourceResponse | undefined>);
   // POST api/ds/query errors returned as { message: string, error: string } objects
   if (queryResponse.error?.data?.message) {
     return {
