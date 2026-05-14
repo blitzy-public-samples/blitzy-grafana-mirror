@@ -2,7 +2,9 @@ import { useCallback, useMemo, useState } from 'react';
 import * as React from 'react';
 
 export interface ModalsContextState {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- modal slot accepts heterogeneous component types; type cannot be unified across consumers
   component: React.ComponentType<any> | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- modal props are heterogeneous and depend on the registered component; type cannot be unified across consumers
   props: any;
   showModal: <T>(component: React.ComponentType<T>, props: T) => void;
   hideModal: () => void;
