@@ -6,7 +6,7 @@ import AutoSizer from 'react-virtualized-auto-sizer';
 import { type GrafanaTheme2 } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
 import { reportInteraction } from '@grafana/runtime';
-import { Modal, useStyles2, useTheme2 } from '@grafana/ui';
+import { Modal, useStyles2 } from '@grafana/ui';
 
 import { type SQLQuery, type QueryEditorProps } from '../../types';
 
@@ -21,11 +21,10 @@ interface RawEditorProps extends Omit<QueryEditorProps, 'onChange'> {
 }
 
 export function RawEditor({ db, query, onChange, onRunQuery, onValidate, queryToValidate, range }: RawEditorProps) {
-  const theme = useTheme2();
-  const styles = useStyles2(getStyles);
   const [isExpanded, setIsExpanded] = useState(false);
   const [toolboxRef, toolboxMeasure] = useMeasure<HTMLDivElement>();
   const [editorRef, editorMeasure] = useMeasure<HTMLDivElement>();
+  const styles = useStyles2(getStyles, editorMeasure.width, editorMeasure.height);
 
   const editorLanguageDefinition = useMemo(() => db.getEditorLanguageDefinition(), [db]);
 
@@ -72,16 +71,7 @@ export function RawEditor({ db, query, onChange, onRunQuery, onValidate, queryTo
 
   const renderPlaceholder = () => {
     return (
-      <div
-        style={{
-          width: editorMeasure.width,
-          height: editorMeasure.height,
-          background: theme.colors.background.primary,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
+      <div className={styles.placeholder}>
         <Trans i18nKey="grafana-sql.components.raw-editor.render-placeholder.editing-in-expanded-code-editor">
           Editing in expanded code editor
         </Trans>
@@ -117,7 +107,7 @@ export function RawEditor({ db, query, onChange, onRunQuery, onValidate, queryTo
   );
 }
 
-function getStyles(theme: GrafanaTheme2) {
+function getStyles(theme: GrafanaTheme2, width: number, height: number) {
   return {
     modal: css({
       width: '95vw',
@@ -126,6 +116,14 @@ function getStyles(theme: GrafanaTheme2) {
     modalContent: css({
       height: '100%',
       paddingTop: 0,
+    }),
+    placeholder: css({
+      width,
+      height,
+      background: theme.colors.background.primary,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
     }),
   };
 }
