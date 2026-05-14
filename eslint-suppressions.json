@@ -205,11 +205,6 @@
       "count": 1
     }
   },
-  "packages/grafana-prometheus/src/querybuilder/shared/OperationEditor.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "packages/grafana-prometheus/src/querybuilder/shared/OperationParamEditorRegistry.tsx": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 3
