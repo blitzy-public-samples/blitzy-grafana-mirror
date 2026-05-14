@@ -525,9 +525,6 @@
     }
   },
   "packages/grafana-ui/src/components/Table/utils.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 6
-    },
     "no-restricted-syntax": {
       "count": 1
     }
