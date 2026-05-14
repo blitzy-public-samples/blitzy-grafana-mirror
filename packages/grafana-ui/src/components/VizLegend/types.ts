@@ -38,11 +38,11 @@ export interface VizLegendTableProps<T> extends VizLegendBaseProps<T> {
   isSortable?: boolean;
 }
 
-export interface LegendProps<T = any> extends VizLegendBaseProps<T>, VizLegendTableProps<T> {
+export interface LegendProps<T = unknown> extends VizLegendBaseProps<T>, VizLegendTableProps<T> {
   displayMode: LegendDisplayMode;
 }
 
-export interface VizLegendItem<T = any> {
+export interface VizLegendItem<T = unknown> {
   getItemKey?: () => string;
   label: string;
   color?: string;
