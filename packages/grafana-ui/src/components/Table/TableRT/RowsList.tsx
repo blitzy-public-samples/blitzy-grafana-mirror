@@ -433,6 +433,7 @@ export const RowsList = (props: RowsListProps) => {
 
   return (
     <CustomScrollbar onScroll={handleScroll} hideHorizontalTrack={true} scrollTop={scrollTop}>
+      {/* Design system gap: react-window VariableSizeList outer-container overflow override required for CustomScrollbar interop */}
       <VariableSizeList
         key={`${rowHeight}${pageIndex}`}
         height={listHeight}
