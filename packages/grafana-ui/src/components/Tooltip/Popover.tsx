@@ -72,6 +72,7 @@ export function Popover({
     <Portal>
       <div
         ref={refs.setFloating}
+        // Design system gap: inline style required by floating-ui positioning engine
         style={{
           ...floatingStyles,
           ...placementStyles,
