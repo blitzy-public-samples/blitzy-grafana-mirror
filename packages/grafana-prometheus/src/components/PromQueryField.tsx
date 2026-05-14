@@ -1,10 +1,11 @@
 // Core Grafana history https://github.com/grafana/grafana/blob/v11.0.0-preview/public/app/plugins/datasource/prometheus/components/PromQueryField.tsx
-import { css, cx } from '@emotion/css';
+import { css } from '@emotion/css';
 import { type ReactNode, useCallback, useEffect, useState } from 'react';
 
 import {
   type DataFrame,
   getDefaultTimeRange,
+  type GrafanaTheme2,
   isDataFrame,
   type QueryEditorProps,
   type QueryHint,
@@ -13,7 +14,7 @@ import {
 import { selectors } from '@grafana/e2e-selectors';
 import { t, Trans } from '@grafana/i18n';
 import { reportInteraction } from '@grafana/runtime';
-import { clearButtonStyles, Icon, useTheme2 } from '@grafana/ui';
+import { Button, Icon, useStyles2 } from '@grafana/ui';
 
 import { type PrometheusDatasource } from '../datasource';
 import { getInitHints } from '../query_hints';
@@ -44,7 +45,7 @@ export const PromQueryField = (props: PromQueryFieldProps) => {
     hideMetricsBrowser = false,
   } = props;
 
-  const theme = useTheme2();
+  const styles = useStyles2(getStyles);
 
   const [hint, setHint] = useState<QueryHint | null>(null);
   const [labelBrowserVisible, setLabelBrowserVisible] = useState(false);
@@ -164,16 +165,12 @@ export const PromQueryField = (props: PromQueryFieldProps) => {
             flexBasis: '100%',
           })}
         >
-          <div className="text-warning">
+          <div className={styles.warning}>
             {hint.label}{' '}
             {hint.fix ? (
-              <button
-                type="button"
-                className={cx(clearButtonStyles(theme), 'text-link', 'muted')}
-                onClick={onClickHintFix}
-              >
+              <Button variant="secondary" fill="text" onClick={onClickHintFix}>
                 {hint.fix.label}
-              </button>
+              </Button>
             ) : null}
           </div>
         </div>
@@ -181,3 +178,9 @@ export const PromQueryField = (props: PromQueryFieldProps) => {
     </>
   );
 };
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  warning: css({
+    color: theme.colors.warning.text,
+  }),
+});
