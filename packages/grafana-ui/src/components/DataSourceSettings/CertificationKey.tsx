@@ -1,7 +1,10 @@
+import { css } from '@emotion/css';
 import { type ChangeEvent, type MouseEvent } from 'react';
 
+import { type GrafanaTheme2 } from '@grafana/data';
 import { Trans } from '@grafana/i18n';
 
+import { useStyles2 } from '../../themes/ThemeContext';
 import { Button } from '../Button/Button';
 import { InlineField } from '../Forms/InlineField';
 import { InlineFieldRow } from '../Forms/InlineFieldRow';
@@ -19,6 +22,8 @@ interface Props {
 }
 
 export const CertificationKey = ({ hasCert, label, onChange, onClick, placeholder, useGrow }: Props) => {
+  const styles = useStyles2(getStyles);
+
   return (
     <InlineFieldRow>
       <InlineField label={label} labelWidth={14} disabled={hasCert} grow={useGrow}>
@@ -29,10 +34,16 @@ export const CertificationKey = ({ hasCert, label, onChange, onClick, placeholde
         )}
       </InlineField>
       {hasCert && (
-        <Button variant="secondary" onClick={onClick} style={{ marginLeft: 4 }}>
+        <Button variant="secondary" onClick={onClick} className={styles.resetButton}>
           <Trans i18nKey="grafana-ui.data-source-settings.cert-key-reset">Reset</Trans>
         </Button>
       )}
     </InlineFieldRow>
   );
 };
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  resetButton: css({
+    marginLeft: theme.spacing(0.5),
+  }),
+});
