@@ -59,6 +59,7 @@ export const SubMenu = memo(({ parentItemRef, items, isOpen, close, customStyle 
           ref={refs.setFloating}
           className={styles.subMenu}
           data-testid={selectors.components.Menu.SubMenu.container}
+          // Design system gap: inline style required by floating-ui positioning engine
           style={{
             ...floatingStyles,
             ...customStyle,
