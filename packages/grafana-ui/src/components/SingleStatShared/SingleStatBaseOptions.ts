@@ -23,14 +23,16 @@ export interface SingleStatBaseOptions extends OptionsWithTextFormatting {
   orientation: VizOrientation;
 }
 
-const optionsToKeep = ['reduceOptions', 'orientation'];
+const optionsToKeep: Array<keyof SingleStatBaseOptions> = ['reduceOptions', 'orientation'];
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Public migration handler returns SingleStatBaseOptions-shaped data; downstream call sites in stat/gauge/bargauge panel plugins assign the result to plugin-specific Options interfaces that extend SingleStatBaseOptions with additional required fields (colorMode, graphMode, etc.). Tightening the return type to Partial<SingleStatBaseOptions> | SingleStatBaseOptions would break those callers and the SingleStatBaseOptions.test.ts assertions on `newOptions.reduceOptions.*` (TS18048). The function's three return paths (early panel.options pass-through, migrateFromAngularSinglestat, migrateFromGraphPanel) produce structurally different shapes that don't share a common typed supertype suitable for plugin-side assignment (per AAP §0.8.6 last-resort retention and §0.8.7 public API surface preservation).
 export function sharedSingleStatPanelChangedHandler(
-  panel: PanelModel<Partial<SingleStatBaseOptions>> | any,
+  panel: PanelModel<Partial<SingleStatBaseOptions>>,
   prevPluginId: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- prevOptions is a heterogeneous JSON blob from a prior panel plugin's options snapshot; the body accesses prevOptions.angular, prevOptions.hasOwnProperty(k), and prevOptions[k] for arbitrary keys; narrowing to Record<string, unknown> forces inline `as` casts that would introduce new @typescript-eslint/consistent-type-assertions violations beyond the baseline (per AAP §0.8.5/§0.8.6 last-resort retention).
   prevOptions: any
-) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- see return-type justification above
+): any {
   let options = panel.options;
 
   panel.fieldConfig = panel.fieldConfig || {
@@ -55,8 +57,11 @@ export function sharedSingleStatPanelChangedHandler(
   return options;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function migrateFromGraphPanel(panel: PanelModel<Partial<SingleStatBaseOptions>> | any, prevOptions: any) {
+function migrateFromGraphPanel(
+  panel: PanelModel<Partial<SingleStatBaseOptions>>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- prevOptions is a legacy graph-panel options snapshot whose `angular` sub-object is then cast to the local GraphOptions interface on the next line; narrowing the parameter to Record<string, unknown> would force inline `as` casts that introduce new @typescript-eslint/consistent-type-assertions violations beyond the baseline (per AAP §0.8.5/§0.8.6 last-resort retention).
+  prevOptions: any
+) {
   const graphOptions: GraphOptions = prevOptions.angular;
 
   const options: SingleStatBaseOptions & OptionsWithLegend = {
@@ -114,7 +119,11 @@ function migrateFromGraphPanel(panel: PanelModel<Partial<SingleStatBaseOptions>>
   return options;
 }
 
-function migrateFromAngularSinglestat(panel: PanelModel<Partial<SingleStatBaseOptions>> | any, prevOptions: any) {
+function migrateFromAngularSinglestat(
+  panel: PanelModel<Partial<SingleStatBaseOptions>>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- prevOptions is a legacy Angular Singlestat panel options snapshot whose `angular` sub-object is read for the legacy fields (valueName, format, tableColumn, nullPointMode, decimals, thresholds, colors, gauge, mappingType, valueMaps, rangeMaps); narrowing to Record<string, unknown> forces inline `as` casts that introduce new @typescript-eslint/consistent-type-assertions violations beyond the baseline (per AAP §0.8.5/§0.8.6 last-resort retention).
+  prevOptions: any
+) {
   const prevPanel = prevOptions.angular;
   const reducer = fieldReducers.getIfExists(prevPanel.valueName);
   const options: SingleStatBaseOptions = {
@@ -197,6 +206,7 @@ export function sharedSingleStatMigrationHandler(panel: PanelModel<SingleStatBas
   }
 
   const previousVersion = parseFloat(panel.pluginVersion || '6.1');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- `options` is progressively reshaped across legacy-version migration steps (migrateFromValueOptions, moveThresholdsAndMappingsToField, fieldOptions thresholds/color/defaults/overrides reshuffling, reduceOptions reconstruction, fieldOptions deletion) — these intermediate shapes are migration-only legacy blobs that don't conform to SingleStatBaseOptions until the final return; narrowing to Record<string, unknown> forces inline `as` casts on every property access that would introduce new @typescript-eslint/consistent-type-assertions violations beyond the baseline (per AAP §0.8.5/§0.8.6 last-resort retention).
   let options: any = panel.options;
 
   if (previousVersion < 6.2) {
@@ -276,9 +286,11 @@ export function sharedSingleStatMigrationHandler(panel: PanelModel<SingleStatBas
 
   if (previousVersion < 7.1) {
     // move title to displayName
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/consistent-type-assertions -- `title` is a legacy Angular field on panel.fieldConfig.defaults that was renamed to `displayName` in 7.1; the modern FieldConfig type no longer declares `title`, so a runtime read requires asserting through `any`. Narrowing to Record<string, unknown> would change the assertion style but still require an `as` cast that triggers @typescript-eslint/consistent-type-assertions; the `as any` form preserves the assignment of `oldTitle` to `displayName: string` without further narrowing (per AAP §0.8.5/§0.8.6 last-resort retention; this consolidates both lines' suppressions inline so baseline entries can be removed).
     const oldTitle = (panel.fieldConfig.defaults as any).title;
     if (oldTitle !== undefined && oldTitle !== null) {
       panel.fieldConfig.defaults.displayName = oldTitle;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/consistent-type-assertions -- `title` is a legacy Angular field on panel.fieldConfig.defaults that must be deleted after rename to `displayName`; the modern FieldConfig type doesn't declare it, so the delete requires an `as any` assertion (see justification for the `oldTitle` read above).
       delete (panel.fieldConfig.defaults as any).title;
     }
   }
@@ -307,6 +319,7 @@ export function sharedSingleStatMigrationHandler(panel: PanelModel<SingleStatBas
   return options;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- `old` is a legacy panel options blob whose `fieldOptions`, `thresholds`, and `mappings` fields are restructured into the modern `fieldOptions.defaults` shape; the function spreads `old.fieldOptions.defaults` and re-emits the heterogeneous blob unchanged. Narrowing to Record<string, unknown> forces inline `as` casts on every property access that would introduce new @typescript-eslint/consistent-type-assertions violations beyond the baseline (per AAP §0.8.5/§0.8.6 last-resort retention).
 export function moveThresholdsAndMappingsToField(old: any) {
   const { fieldOptions } = old;
 
@@ -341,13 +354,16 @@ export function moveThresholdsAndMappingsToField(old: any) {
  * Moves valueMappings and thresholds from root to new fieldOptions object
  * Renames valueOptions to to defaults and moves it under fieldOptions
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- `old` is a legacy panel options blob whose `valueOptions`, `valueMappings`, `thresholds`, `minValue`, `maxValue` fields are read and restructured; `omit` then strips those legacy keys to produce the modern options shape. Narrowing to Record<string, unknown> forces inline `as` casts on every property access that would introduce new @typescript-eslint/consistent-type-assertions violations beyond the baseline (per AAP §0.8.5/§0.8.6 last-resort retention).
 export function migrateFromValueOptions(old: any) {
   const { valueOptions } = old;
   if (!valueOptions) {
     return old;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- `fieldOptions` accumulates heterogeneous migration outputs (mappings, thresholds, calcs, defaults) before being merged into the returned options blob; typing as Record<string, unknown> would force inline `as` casts on the property assignments that would introduce new @typescript-eslint/consistent-type-assertions violations beyond the baseline (per AAP §0.8.5/§0.8.6 last-resort retention).
   const fieldOptions: any = {};
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- `fieldDefaults` accumulates heterogeneous migration outputs (unit, decimals, min, max) before being attached to `fieldOptions.defaults`; typing as Record<string, unknown> would force inline `as` casts on the property assignments that would introduce new @typescript-eslint/consistent-type-assertions violations beyond the baseline (per AAP §0.8.5/§0.8.6 last-resort retention).
   const fieldDefaults: any = {};
 
   fieldOptions.mappings = old.valueMappings;
@@ -376,6 +392,7 @@ export function migrateFromValueOptions(old: any) {
   return omit(newOptions, 'valueMappings', 'thresholds', 'valueOptions', 'minValue', 'maxValue');
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- `thresholds` is a legacy Angular-era thresholds array whose elements have unstable shape (some have `index`, some have nullable `value`); the body reads `t.value` and `t.color` on each element. Narrowing the array element type to a shared interface or `unknown` forces inline `as` casts inside the map callback that introduce new @typescript-eslint/consistent-type-assertions violations beyond the baseline (per AAP §0.8.5/§0.8.6 last-resort retention).
 export function migrateOldThresholds(thresholds?: any[]): Threshold[] | undefined {
   if (!thresholds || !thresholds.length) {
     return undefined;
@@ -396,6 +413,7 @@ export function migrateOldThresholds(thresholds?: any[]): Threshold[] | undefine
  * @deprecated use convertOldAngularValueMappings instead
  * Convert the angular single stat mapping to new react style
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- `panel` is forwarded as-is to the upstream `convertOldAngularValueMappings(panel: any, ...)` helper in @grafana/data; narrowing here would diverge from the upstream signature and require either changing that out-of-scope upstream function or inserting an `as` cast that introduces a new @typescript-eslint/consistent-type-assertions violation beyond the baseline (per AAP §0.8.5/§0.8.6 last-resort retention).
 export function convertOldAngularValueMapping(panel: any): ValueMapping[] {
   return convertOldAngularValueMappings(panel);
 }
