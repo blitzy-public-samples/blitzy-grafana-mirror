@@ -78,6 +78,7 @@ export const ComboboxList = <T extends string | number>({
 
   return (
     <ScrollContainer showScrollIndicators maxHeight="inherit" ref={scrollRef} padding={0.5}>
+      {/* Design system gap: inline style required by @tanstack/react-virtual; cannot migrate without breaking virtualization */}
       <div style={{ height: rowVirtualizer.getTotalSize() }} className={styles.menuUlContainer}>
         {rowVirtualizer.getVirtualItems().map((virtualRow, index, allVirtualRows) => {
           const item = options[virtualRow.index];
@@ -98,6 +99,7 @@ export const ComboboxList = <T extends string | number>({
           return (
             // Wrapping div should have no styling other than virtual list positioning.
             // It's children (header and option) should appear as flat list items.
+            // Design system gap: inline style required by @tanstack/react-virtual; cannot migrate without breaking virtualization
             <div
               key={item.value}
               className={styles.listItem}
