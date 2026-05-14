@@ -35,11 +35,25 @@ export interface SelectCommonProps<T> {
   captureMenuScroll?: boolean;
   className?: string;
   closeMenuOnSelect?: boolean;
-  /** Used for custom components. For more information, see `react-select` */
+  /**
+   * Used for custom components. For more information, see `react-select`.
+   *
+   * Note: This is intentionally typed as `any` because `react-select`'s
+   * `SelectComponentsConfig<Option, IsMulti, Group>` is contravariant in
+   * `Option` (component slots are `ComponentType<OptionProps<Option, ...>>` and
+   * similar). Callers commonly pass component overrides whose props are typed
+   * for a narrower `Option` than `SelectableValue<T>` (e.g., bespoke option
+   * shapes such as `OptionProps<TagSelectOption>`, custom `SelectMenuOptionProps`,
+   * or HOC-wrapped components from `withTheme2`). Contravariance prevents any
+   * concrete instantiation of `SelectComponentsConfig` from accepting all such
+   * narrower component types simultaneously, so a sound concrete type is
+   * unrepresentable here without forcing breaking changes on every consumer.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- See JSDoc above: react-select component slots are contravariant in Option, making a sound concrete type unrepresentable for the public `components` API.
   components?: any;
   /** Sets the position of the createOption element in your options list. Defaults to 'last' */
   createOptionPosition?: 'first' | 'last';
-  defaultValue?: any;
+  defaultValue?: SelectableValue<T> | T | null;
   disabled?: boolean;
   filterOption?: (option: SelectableValue<T>, searchQuery: string) => boolean;
   formatOptionLabel?: (item: SelectableValue<T>, formatOptionMeta: FormatOptionLabelMeta<T>) => React.ReactNode;
@@ -157,7 +171,7 @@ export interface SelectBaseProps<T> extends SelectCommonProps<T>, SelectAsyncPro
 
 // This is used for the `renderControl` prop on *our* SelectBase component
 export interface CustomControlProps<T> {
-  ref: React.Ref<any>;
+  ref: React.Ref<HTMLElement>;
   isOpen: boolean;
   /** Currently selected value */
   value?: SelectableValue<T>;
@@ -171,14 +185,14 @@ export interface CustomControlProps<T> {
 
 export type ControlComponent<T> = React.ComponentType<CustomControlProps<T>>;
 
-export interface SelectableOptGroup<T = any> {
+export interface SelectableOptGroup<T = unknown> {
   label: string;
   options: Array<SelectableValue<T>>;
 
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
-export type SelectOptions<T = any> =
+export type SelectOptions<T = unknown> =
   | SelectableValue<T>
   | Array<SelectableValue<T> | SelectableOptGroup<T> | Array<SelectableOptGroup<T>>>;
 

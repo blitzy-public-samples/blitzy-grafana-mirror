@@ -26,7 +26,10 @@ import { SelectOptionGroup } from './SelectOptionGroup';
  * - noOptionsMessage & loadingMessage is of string type
  * - isDisabled is renamed to disabled
  */
-type LegacyCommonProps<T> = Omit<SelectCommonProps<T>, 'noOptionsMessage' | 'disabled' | 'value' | 'loadingMessage'>;
+type LegacyCommonProps<T> = Omit<
+  SelectCommonProps<T>,
+  'noOptionsMessage' | 'disabled' | 'value' | 'loadingMessage' | 'defaultValue'
+>;
 
 interface AsyncProps<T> extends LegacyCommonProps<T>, Omit<SelectAsyncProps<T>, 'loadingMessage'> {
   loadingMessage?: () => string;
@@ -34,6 +37,7 @@ interface AsyncProps<T> extends LegacyCommonProps<T>, Omit<SelectAsyncProps<T>, 
   tooltipContent?: PopoverContent;
   isDisabled?: boolean;
   value?: SelectableValue<T>;
+  defaultValue?: SelectableValue<T>;
 }
 
 export interface LegacySelectProps<T> extends LegacyCommonProps<T> {
@@ -41,6 +45,7 @@ export interface LegacySelectProps<T> extends LegacyCommonProps<T> {
   noOptionsMessage?: () => string;
   isDisabled?: boolean;
   value?: SelectableValue<T>;
+  defaultValue?: SelectableValue<T>;
 }
 
 export const MenuList = (props: MenuListProps) => {
