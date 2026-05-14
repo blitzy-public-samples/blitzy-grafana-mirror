@@ -313,11 +313,6 @@
       "count": 2
     }
   },
-  "packages/grafana-ui/src/components/DataSourceSettings/types.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    }
-  },
   "packages/grafana-ui/src/components/ElementSelectionContext/ElementSelectionContext.tsx": {
     "react-hooks/rules-of-hooks": {
       "count": 3

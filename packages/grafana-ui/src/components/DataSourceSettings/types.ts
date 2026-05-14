@@ -16,7 +16,7 @@ export interface AzureAuthSettings {
   readonly azureSettingsUI?: React.ComponentType<HttpSettingsBaseProps>;
 }
 
-export interface HttpSettingsBaseProps<JSONData extends DataSourceJsonData = any, SecureJSONData = any> {
+export interface HttpSettingsBaseProps<JSONData extends DataSourceJsonData = DataSourceJsonData, SecureJSONData = {}> {
   /** The configuration object of the data source */
   dataSourceConfig: DataSourceSettings<JSONData, SecureJSONData>;
   /** Callback for handling changes to the configuration object */
