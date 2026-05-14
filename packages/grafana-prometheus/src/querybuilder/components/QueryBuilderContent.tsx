@@ -1,9 +1,10 @@
 import { css } from '@emotion/css';
 import { memo, useState } from 'react';
 
-import { type DataSourceApi, getDefaultTimeRange, type PanelData } from '@grafana/data';
+import { type DataSourceApi, getDefaultTimeRange, type GrafanaTheme2, type PanelData } from '@grafana/data';
 import { selectors } from '@grafana/e2e-selectors';
 import { EditorRow } from '@grafana/plugin-ui';
+import { Button, useStyles2 } from '@grafana/ui';
 
 import { type PrometheusDatasource } from '../../datasource';
 import { promqlGrammar } from '../../promql';
@@ -37,6 +38,7 @@ export const QueryBuilderContent = memo<QueryBuilderContentProps>((props) => {
 
   const lang = { grammar: promqlGrammar, name: 'promql' };
   const initHints = getInitHints(datasource);
+  const styles = useStyles2(getStyles);
 
   return (
     <>
@@ -54,12 +56,12 @@ export const QueryBuilderContent = memo<QueryBuilderContentProps>((props) => {
             flexBasis: '100%',
           })}
         >
-          <div className="text-warning">
+          <div className={styles.warning}>
             {initHints[0].label}{' '}
             {initHints[0].fix ? (
-              <button type="button" className={'text-warning'}>
+              <Button variant="secondary" fill="text" className={styles.warningButton}>
                 {initHints[0].fix.label}
-              </button>
+              </Button>
             ) : null}
           </div>
         </div>
@@ -109,3 +111,12 @@ export const QueryBuilderContent = memo<QueryBuilderContentProps>((props) => {
 });
 
 QueryBuilderContent.displayName = 'QueryBuilderContent';
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  warning: css({
+    color: theme.colors.warning.text,
+  }),
+  warningButton: css({
+    color: theme.colors.warning.text,
+  }),
+});
