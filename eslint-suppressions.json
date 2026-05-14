@@ -519,9 +519,6 @@
   "packages/grafana-ui/src/components/Table/reducer.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1
-    },
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
     }
   },
   "packages/grafana-ui/src/components/Table/utils.ts": {
@@ -595,11 +592,6 @@
       "count": 2
     }
   },
-  "packages/grafana-ui/src/slate-plugins/slate-prism/options.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    }
-  },
   "packages/grafana-ui/src/slate-plugins/suggestions.tsx": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 2
@@ -620,23 +612,8 @@
       "count": 3
     }
   },
-  "packages/grafana-ui/src/themes/stylesFactory.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
-  "packages/grafana-ui/src/utils/debug.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "packages/grafana-ui/src/utils/logger.ts": {
     "no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "packages/grafana-ui/src/utils/useAsyncDependency.ts": {
-    "@typescript-eslint/no-explicit-any": {
       "count": 1
     }
   },
