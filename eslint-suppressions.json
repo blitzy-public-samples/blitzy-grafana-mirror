@@ -149,7 +149,7 @@
   },
   "packages/grafana-prometheus/src/components/PromExploreExtraField.tsx": {
     "no-restricted-syntax": {
-      "count": 4
+      "count": 1
     }
   },
   "packages/grafana-prometheus/src/components/PromQueryField.tsx": {
