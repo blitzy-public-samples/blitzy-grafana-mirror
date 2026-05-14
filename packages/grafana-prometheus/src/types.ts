@@ -65,7 +65,7 @@ export interface PromQueryRequest extends PromQuery {
   requestId?: string;
   start: number;
   end: number;
-  headers?: any;
+  headers?: Record<string, unknown>;
 }
 
 export interface PromMetricsMetadataItem {
@@ -78,11 +78,12 @@ export interface PromMetricsMetadata {
   [metric: string]: PromMetricsMetadataItem;
 }
 
-export type PromValue = [number, any];
+export type PromValue = [number, string];
 
 export interface PromMetric {
   __name__?: string;
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Index signature must remain `any` because TypeScript requires optional named properties (here `__name__?: string` with effective type `string | undefined`) to be subtypes of the index signature; tightening to `string`, `string | undefined`, or `unknown` produces downstream TypeScript errors in src/result_transformer.ts (getLabelValue function) which is OUT OF SCOPE per AAP §0.3.2 (Files Remaining UNCHANGED). Prometheus label values are always strings per the HTTP API contract; expressing this type-correctly requires updating consumers of PromMetric.
   [index: string]: any;
 }
 

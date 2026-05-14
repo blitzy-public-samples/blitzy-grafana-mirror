@@ -1228,8 +1228,8 @@ describe('When querying prometheus via check headers X-Dashboard-Id X-Panel-Id a
 
   it('with proxy access tracing headers should be added', () => {
     ds._addTracingHeaders(httpOptions, options);
-    expect(httpOptions.headers['X-Panel-Id']).toBe(options.panelId);
-    expect(httpOptions.headers['X-Dashboard-UID']).toBe(options.dashboardUID);
+    expect(httpOptions.headers!['X-Panel-Id']).toBe(options.panelId);
+    expect(httpOptions.headers!['X-Dashboard-UID']).toBe(options.dashboardUID);
   });
 
   it('with direct access tracing headers should not be added', () => {
@@ -1243,9 +1243,9 @@ describe('When querying prometheus via check headers X-Dashboard-Id X-Panel-Id a
 
     const mockDs = new PrometheusDatasource({ ...instanceSettings, url: 'http://127.0.0.1:8000' }, templateSrvStub);
     mockDs._addTracingHeaders(httpOptions, options);
-    expect(httpOptions.headers['X-Dashboard-Id']).toBe(undefined);
-    expect(httpOptions.headers['X-Panel-Id']).toBe(undefined);
-    expect(httpOptions.headers['X-Dashboard-UID']).toBe(undefined);
+    expect(httpOptions.headers!['X-Dashboard-Id']).toBe(undefined);
+    expect(httpOptions.headers!['X-Panel-Id']).toBe(undefined);
+    expect(httpOptions.headers!['X-Dashboard-UID']).toBe(undefined);
   });
 });
 
