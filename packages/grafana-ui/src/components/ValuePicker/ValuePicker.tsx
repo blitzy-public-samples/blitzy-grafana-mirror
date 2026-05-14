@@ -1,9 +1,10 @@
+import { css } from '@emotion/css';
 import { useState } from 'react';
 
-import { type SelectableValue } from '@grafana/data';
+import { type GrafanaTheme2, type SelectableValue } from '@grafana/data';
 import { selectors } from '@grafana/e2e-selectors';
 
-import { useTheme2 } from '../../themes/ThemeContext';
+import { useStyles2 } from '../../themes/ThemeContext';
 import { type IconName } from '../../types/icon';
 import { type ComponentSize } from '../../types/size';
 import { Button, type ButtonFill, type ButtonVariant } from '../Button/Button';
@@ -57,7 +58,7 @@ export function ValuePicker<T>({
   buttonCss,
 }: ValuePickerProps<T>) {
   const [isPicking, setIsPicking] = useState(false);
-  const theme = useTheme2();
+  const styles = useStyles2(getStyles, minWidth, isFullWidth);
 
   return (
     <>
@@ -77,7 +78,7 @@ export function ValuePicker<T>({
       )}
 
       {isPicking && (
-        <span style={{ minWidth: theme.spacing(minWidth), flexGrow: isFullWidth ? 1 : undefined }}>
+        <span className={styles.selectWrapper}>
           <Select
             placeholder={label}
             options={options}
@@ -96,3 +97,10 @@ export function ValuePicker<T>({
     </>
   );
 }
+
+const getStyles = (theme: GrafanaTheme2, minWidth: number, isFullWidth: boolean) => ({
+  selectWrapper: css({
+    minWidth: theme.spacing(minWidth),
+    flexGrow: isFullWidth ? 1 : undefined,
+  }),
+});
