@@ -2,7 +2,7 @@ import { css } from '@emotion/css';
 import { uniqueId } from 'lodash';
 import { memo, useState } from 'react';
 
-import { type DataSourceSettings } from '@grafana/data';
+import { type DataSourceJsonData, type DataSourceSettings } from '@grafana/data';
 import { t, Trans } from '@grafana/i18n';
 
 import { useStyles2 } from '../../themes/ThemeContext';
@@ -22,9 +22,9 @@ export interface CustomHeader {
 
 export type CustomHeaders = CustomHeader[];
 
-export interface Props {
-  dataSourceConfig: DataSourceSettings<any, any>;
-  onChange: (config: DataSourceSettings) => void;
+export interface Props<JSONData extends DataSourceJsonData = DataSourceJsonData, SecureJSONData = {}> {
+  dataSourceConfig: DataSourceSettings<JSONData, SecureJSONData>;
+  onChange: (config: DataSourceSettings<JSONData, SecureJSONData>) => void;
 }
 
 interface CustomHeaderRowProps {
@@ -97,14 +97,16 @@ CustomHeaderRow.displayName = 'CustomHeaderRow';
 export const CustomHeadersSettings = memo<Props>(({ dataSourceConfig, onChange }) => {
   const [headers, setHeaders] = useState<CustomHeaders>(() => {
     const { jsonData, secureJsonData, secureJsonFields } = dataSourceConfig;
-    return Object.keys(jsonData)
-      .sort()
-      .filter((key) => key.startsWith('httpHeaderName'))
-      .map((key, index) => {
+    const secureJsonEntries = secureJsonData !== undefined ? Object.entries(secureJsonData) : undefined;
+    return Object.entries(jsonData)
+      .filter(([key]) => key.startsWith('httpHeaderName'))
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+      .map(([key, rawName], index) => {
+        const rawValue = secureJsonEntries !== undefined ? secureJsonEntries.find(([k]) => k === key)?.[1] : '';
         return {
           id: uniqueId(),
-          name: jsonData[key],
-          value: secureJsonData !== undefined ? secureJsonData[key] : '',
+          name: typeof rawName === 'string' ? rawName : '',
+          value: typeof rawValue === 'string' ? rawValue : '',
           configured: (secureJsonFields && secureJsonFields[`httpHeaderValue${index + 1}`]) || false,
         };
       });
