@@ -22,7 +22,24 @@ export interface CustomHeader {
 
 export type CustomHeaders = CustomHeader[];
 
-export interface Props<JSONData extends DataSourceJsonData = DataSourceJsonData, SecureJSONData = {}> {
+/**
+ * Public SDK type consumed by CustomHeadersSettings (exported from the
+ * `@grafana/ui` barrel and consumed by external datasource plugins, including
+ * `public/app/plugins/datasource/influxdb/components/editor/config-v2/AdvancedHttpSettings.tsx`).
+ *
+ * Generic defaults are intentionally `any` to mirror the public `HttpSettingsBaseProps`
+ * shape — see `./types.ts` for the long-form justification. Narrowing breaks
+ * datasource-plugin config editors that read plugin-specific `jsonData` fields
+ * (`timeInterval`, `httpMode`, `tlsAuth`, ...) without threading explicit
+ * generic arguments through every consumer site (AAP §0.8.7 public API
+ * preservation; AAP §0.8.6 step 7 last-resort retained `any`).
+ */
+export interface Props<
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Props is a public SDK type re-exported via @grafana/ui; default must remain `any` for backwards-compatible plugin authoring (AAP §0.8.7).
+  JSONData extends DataSourceJsonData = any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Props is a public SDK type re-exported via @grafana/ui; default must remain `any` for backwards-compatible plugin authoring (AAP §0.8.7).
+  SecureJSONData = any,
+> {
   dataSourceConfig: DataSourceSettings<JSONData, SecureJSONData>;
   onChange: (config: DataSourceSettings<JSONData, SecureJSONData>) => void;
 }

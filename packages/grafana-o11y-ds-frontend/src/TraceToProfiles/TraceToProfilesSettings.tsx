@@ -73,7 +73,7 @@ export function TraceToProfilesSettings({ options, onOptionsChange }: Props) {
           <DataSourcePicker
             inputId="trace-to-profiles-data-source-picker"
             filter={(ds) => supportedDataSourceTypes.includes(ds.type)}
-            current={options.jsonData.tracesToProfiles?.datasourceUid}
+            current={options.jsonData.tracesToProfiles?.datasourceUid ?? null}
             noDefault={true}
             width={40}
             onChange={(ds: DataSourceInstanceSettings) => {

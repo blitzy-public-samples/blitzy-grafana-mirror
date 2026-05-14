@@ -53,7 +53,17 @@ export interface SelectCommonProps<T> {
   components?: any;
   /** Sets the position of the createOption element in your options list. Defaults to 'last' */
   createOptionPosition?: 'first' | 'last';
-  defaultValue?: SelectableValue<T> | T | null;
+  /**
+   * The pre-populated value passed through to react-select. Intentionally typed
+   * as `any` because callers historically pass three incompatible shapes —
+   * raw `T` (from public/app/core/components/OptionsUI/select), `null` (from
+   * TemplateSelector), and `SelectableValue<T>` (from Forms/Legacy/Select) —
+   * and narrowing the public surface to a union breaks existing call sites
+   * downstream of `@grafana/ui` (AAP §0.8.7 public API preservation; §0.8.6
+   * step 7 last-resort retained `any`).
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- SelectCommonProps is a public SDK type; `defaultValue` historically accepts three incompatible shapes from downstream callers, narrowing would break the public API (AAP §0.8.7).
+  defaultValue?: any;
   disabled?: boolean;
   filterOption?: (option: SelectableValue<T>, searchQuery: string) => boolean;
   formatOptionLabel?: (item: SelectableValue<T>, formatOptionMeta: FormatOptionLabelMeta<T>) => React.ReactNode;
@@ -171,7 +181,16 @@ export interface SelectBaseProps<T> extends SelectCommonProps<T>, SelectAsyncPro
 
 // This is used for the `renderControl` prop on *our* SelectBase component
 export interface CustomControlProps<T> {
-  ref: React.Ref<HTMLElement>;
+  /**
+   * Forwarded ref from react-select to the rendered control element.
+   * Intentionally typed as `React.Ref<any>` because consumers of the public
+   * `renderControl` API pass refs targeting diverse element types (HTMLInputElement,
+   * HTMLDivElement, react-select internal component instances, etc.). Narrowing
+   * to `React.Ref<HTMLElement>` rejects valid existing usages and is therefore a
+   * breaking change to the public SDK surface (AAP §0.8.7 public API preservation).
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- CustomControlProps is a public SDK type; `ref` must accept refs of varying element types from external callers (AAP §0.8.7).
+  ref: React.Ref<any>;
   isOpen: boolean;
   /** Currently selected value */
   value?: SelectableValue<T>;
@@ -185,14 +204,29 @@ export interface CustomControlProps<T> {
 
 export type ControlComponent<T> = React.ComponentType<CustomControlProps<T>>;
 
-export interface SelectableOptGroup<T = unknown> {
+/**
+ * Public SDK type. Generic default `any` and index signature `any` are
+ * intentionally retained: plugin authors use `SelectableOptGroup` without
+ * specifying a generic argument and depend on the index signature to attach
+ * react-select-specific bag fields (`isFixed`, `isDisabled`, custom
+ * grouping metadata). Narrowing to `unknown` rejects existing call sites and
+ * breaks plugin authoring (AAP §0.8.7 public API preservation; §0.8.6 step 7).
+ */
+export interface SelectableOptGroup<
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- SelectableOptGroup is a public SDK type; default must remain `any` so plugin authors who omit the generic argument keep backwards-compatible typing (AAP §0.8.7).
+  T = any,
+> {
   label: string;
   options: Array<SelectableValue<T>>;
 
-  [key: string]: unknown;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Public SDK index signature; consumers attach react-select-specific bag fields of varying shape. Narrowing to `unknown` breaks downstream reads (AAP §0.8.7).
+  [key: string]: any;
 }
 
-export type SelectOptions<T = unknown> =
+export type SelectOptions<
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- SelectOptions is a public SDK type; default must remain `any` so plugin authors who omit the generic argument keep backwards-compatible typing (AAP §0.8.7).
+  T = any,
+> =
   | SelectableValue<T>
   | Array<SelectableValue<T> | SelectableOptGroup<T> | Array<SelectableOptGroup<T>>>;
 

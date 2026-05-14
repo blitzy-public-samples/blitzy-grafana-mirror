@@ -74,7 +74,7 @@ export function ExemplarSetting({ value, onChange, onDelete, disabled }: Props) 
                 : (ds) => ds.type !== 'grafana-azure-monitor-datasource'
             }
             tracing={true}
-            current={value.datasourceUid}
+            current={value.datasourceUid ?? null}
             noDefault={true}
             width={40}
             onChange={(ds: DataSourceInstanceSettings) =>

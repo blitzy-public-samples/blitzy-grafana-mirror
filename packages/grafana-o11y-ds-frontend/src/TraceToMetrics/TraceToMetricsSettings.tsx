@@ -51,7 +51,7 @@ export function TraceToMetricsSettings({ options, onOptionsChange }: Props) {
         >
           <DataSourcePicker
             inputId="trace-to-metrics-data-source-picker"
-            current={options.jsonData.tracesToMetrics?.datasourceUid}
+            current={options.jsonData.tracesToMetrics?.datasourceUid ?? null}
             noDefault={true}
             width={40}
             filter={(ds) => supportedDataSourceTypes.includes(ds.type)}

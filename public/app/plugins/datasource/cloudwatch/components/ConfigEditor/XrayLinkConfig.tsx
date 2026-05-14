@@ -46,7 +46,7 @@ export function XrayLinkConfig({ newFormStyling, datasourceUid, onChange }: Prop
         <DataSourcePicker
           pluginId={xRayDsId}
           onChange={(ds: DataSourceInstanceSettings) => onChange(ds.uid)}
-          current={datasourceUid}
+          current={datasourceUid ?? null}
           noDefault={true}
         />
       </Field>
@@ -79,7 +79,7 @@ export function XrayLinkConfig({ newFormStyling, datasourceUid, onChange }: Prop
           <DataSourcePicker
             pluginId={xRayDsId}
             onChange={(ds: DataSourceInstanceSettings) => onChange(ds.uid)}
-            current={datasourceUid}
+            current={datasourceUid ?? null}
             noDefault={true}
           />
         </InlineField>

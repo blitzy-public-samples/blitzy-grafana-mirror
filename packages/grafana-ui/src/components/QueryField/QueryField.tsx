@@ -1,7 +1,7 @@
 import { css, cx } from '@emotion/css';
 import classnames from 'classnames';
 import { debounce } from 'lodash';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as React from 'react';
 import { type Value } from 'slate';
 import Plain from 'slate-plain-serializer';
@@ -25,9 +25,24 @@ import {
   type TypeaheadInput,
   type TypeaheadOutput,
 } from '../../types/completion';
+import { type Themeable2 } from '../../types/theme';
 import { makeValue, SCHEMA } from '../../utils/slate';
 
-export interface QueryFieldProps {
+/**
+ * Public SDK type contract.
+ *
+ * `QueryFieldProps extends Themeable2` is preserved for backward compatibility with
+ * plugin authors who declare `interface MyProps extends QueryFieldProps`. The `theme`
+ * field originates from the historical class implementation that was wrapped with
+ * `withTheme2(UnThemedQueryField)`; that HOC injected `theme` from React context and
+ * exposed a component type of `Omit<QueryFieldProps, 'theme'>` to callers. The
+ * functional rewrite below preserves the SAME public surface: `QueryFieldProps`
+ * continues to extend `Themeable2`, the exported `QueryField` accepts
+ * `Omit<QueryFieldProps, keyof Themeable2>` so callers still do not have to pass
+ * `theme`, and styles are resolved internally via `useStyles2(getStyles)` — making
+ * the component theme-aware without consuming the `theme` field on its own props.
+ */
+export interface QueryFieldProps extends Themeable2 {
   additionalPlugins?: Plugin[];
   ['aria-labelledby']?: string;
   cleanText?: (text: string) => string;
@@ -48,6 +63,16 @@ export interface QueryFieldProps {
   syntax?: string;
   syntaxLoaded?: boolean;
 }
+
+/**
+ * Caller-facing props for the exported `QueryField` component.
+ *
+ * Mirrors the historical `withTheme2(UnThemedQueryField)` output type
+ * (`React.FunctionComponent<Subtract<QueryFieldProps, Themeable2>>`), so consumers
+ * never have to pass `theme` directly while the publicly-exported `QueryFieldProps`
+ * interface still satisfies `extends Themeable2` for type-inheritance scenarios.
+ */
+type QueryFieldComponentProps = Omit<QueryFieldProps, keyof Themeable2>;
 
 export interface QueryFieldState {
   suggestions: CompletionItemGroup[];
@@ -74,9 +99,16 @@ function cleanLocalText(text: string): string {
  *
  * https://developers.grafana.com/ui/latest/index.html?path=/docs/inputs-deprecated-queryfield--docs
  *
+ * `memo` wrap preserves the shallow-prop-equality skip behavior of the original
+ * `PureComponent` baseline (see AAP §0.5.3 / §0.9.2.5 lifecycle rule: "PureComponent
+ * shallow-equality optimization → wrap the functional component in React.memo only
+ * when referential-equality behavior is demonstrably intentional"). QueryField is a
+ * performance-sensitive query editor surface where the original `PureComponent`
+ * selection was demonstrably intentional.
+ *
  * @deprecated
  */
-export const QueryField = (props: QueryFieldProps) => {
+export const QueryField = memo(function QueryField(props: QueryFieldComponentProps) {
   // By default QueryField calls onChange if onBlur is not defined, this will trigger a rerender
   // And slate will claim the focus, making it impossible to leave the field.
   const {
@@ -321,7 +353,12 @@ export const QueryField = (props: QueryFieldProps) => {
       </div>
     </div>
   );
-};
+});
+
+// Preserve React DevTools introspection name across the `memo(...)` wrap and match
+// the historical class displayName behavior (where `class UnThemedQueryField` was
+// wrapped by `withTheme2()` which itself hoisted statics from the inner class).
+QueryField.displayName = 'QueryField';
 
 const getStyles = (theme: GrafanaTheme2) => {
   const focusStyles = getFocusStyles(theme);

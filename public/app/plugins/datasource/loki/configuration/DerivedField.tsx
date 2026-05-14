@@ -196,7 +196,7 @@ export const DerivedField = (props: Props) => {
                   datasourceUid: ds.uid,
                 })
               }
-              current={value.datasourceUid}
+              current={value.datasourceUid ?? null}
               noDefault
             />
           </Field>

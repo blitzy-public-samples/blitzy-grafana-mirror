@@ -123,7 +123,7 @@ export function TraceToLogsSettings({ options, onOptionsChange }: Props) {
           <DataSourcePicker
             inputId="trace-to-logs-data-source-picker"
             filter={(ds) => supportedDataSourceTypes.includes(ds.type)}
-            current={traceToLogs.datasourceUid}
+            current={traceToLogs.datasourceUid ?? null}
             noDefault={true}
             width={40}
             onChange={(ds: DataSourceInstanceSettings) =>

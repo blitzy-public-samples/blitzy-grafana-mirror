@@ -2,7 +2,8 @@ import * as raw from '../common/common.gen';
 
 import { type MatcherConfig } from './dashboard.types';
 
-export interface MapLayerOptions<TConfig = unknown> extends raw.MapLayerOptions {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- `MapLayerOptions` is a publicly-exported `@grafana/schema` veneer type consumed throughout the geomap ecosystem (in-tree under `public/app/plugins/panel/geomap/**` and by out-of-tree geomap-layer plugins). The historical generic default was `any`, allowing every layer's `config` field to accept arbitrary plugin-specific shapes (CartoConfig, MarkerLayerConfig, RouteLayerConfig, ImageOverlayConfig, etc.) without forcing every consumer to either pass an explicit `<TConfig>` argument or narrow `unknown` at every property access. Tightening to `unknown` is a public schema-API tightening that cascades into out-of-scope geomap files (registry.ts, suggestions.ts, utils/layers.ts, basemaps/osm.ts) which is forbidden under AAP §0.3.2 (geomap files are NOT in CP2 scope). Per AAP §0.9.1 ("Maintain all public API contracts") and §0.8.7 ("Public API Surface Preservation Analysis"), retain the historical `= any` default with this inline justification.
+export interface MapLayerOptions<TConfig = any> extends raw.MapLayerOptions {
   // Custom options depending on the type
   config?: TConfig;
   filterData?: MatcherConfig;

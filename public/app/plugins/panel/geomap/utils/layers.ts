@@ -127,21 +127,8 @@ export async function initLayer(
     return Promise.reject('unknown layer: ' + options.type);
   }
 
-  // `MapLayerOptions.config` is typed `unknown`. The layer-specific config
-  // shape is registry-driven, but every basemap layer in the registry that
-  // surfaces an attribution exposes it as a string here. Narrow before
-  // sanitizing.
-  if (
-    options.config &&
-    typeof options.config === 'object' &&
-    'attribution' in options.config &&
-    typeof options.config.attribution === 'string'
-  ) {
-    // Build a sanitized copy of the config and reassign — avoids a type
-    // assertion (the narrowing inside this `if` block only proves the
-    // shape, it does not permit in-place mutation of `unknown`).
-    const sanitized = textUtil.sanitizeTextPanelContent(options.config.attribution);
-    options.config = { ...options.config, attribution: sanitized };
+  if (options.config?.attribution) {
+    options.config.attribution = textUtil.sanitizeTextPanelContent(options.config.attribution);
   }
 
   const handler = await item.create(map, options, panel.props.eventBus, config.theme2);

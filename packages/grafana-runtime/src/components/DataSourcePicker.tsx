@@ -68,7 +68,7 @@ export interface DataSourcePickerState {
  */
 const DataSourcePickerComponent = ({
   onChange: onChangeProp,
-  current = null,
+  current,
   hideTextValue,
   onBlur,
   autoFocus = false,
@@ -92,7 +92,7 @@ const DataSourcePickerComponent = ({
   invalid,
   disabled = false,
   isLoading = false,
-}: Partial<DataSourcePickerProps>) => {
+}: DataSourcePickerProps) => {
   const [error, setError] = useState<string | undefined>(undefined);
 
   const dataSourceSrv = useMemo(() => getDataSourceSrv(), []);
@@ -115,7 +115,7 @@ const DataSourcePickerComponent = ({
       const dsSettings = dataSourceSrv.getInstanceSettings(item.value);
 
       if (dsSettings) {
-        onChangeProp?.(dsSettings);
+        onChangeProp(dsSettings);
         setError(undefined);
       }
     },

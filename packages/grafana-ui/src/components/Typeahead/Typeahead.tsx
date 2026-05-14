@@ -2,6 +2,7 @@ import { css } from '@emotion/css';
 import { isEqual } from 'lodash';
 import {
   forwardRef,
+  memo,
   type PropsWithChildren,
   useCallback,
   useEffect,
@@ -119,8 +120,17 @@ function computeMenuPosition(): string {
   return '';
 }
 
+// `memo(forwardRef(...))` preserves the shallow-prop-equality skip behavior of the
+// original `PureComponent` baseline (`export class Typeahead extends PureComponent<Props, State>`).
+// Per AAP §0.5.3 / §0.9.2.5 ("PureComponent shallow-equality optimization → wrap the
+// functional component in React.memo only when referential-equality behavior is
+// demonstrably intentional"): the original Typeahead was selected as `PureComponent`
+// to avoid re-rendering the (potentially large) FixedSizeList suggestion menu on
+// every parent keystroke, which is demonstrably intentional and performance-critical.
+//
 // eslint-disable-next-line @typescript-eslint/no-redeclare -- Intentional dual-namespace declaration: `export type Typeahead = TypeaheadHandle` (above) lives in the TYPE namespace and this `const Typeahead` lives in the VALUE namespace. TypeScript permits the merge so that `slate-plugins/suggestions.tsx`'s consumer pattern `let typeaheadRef: Typeahead;` and `(menu: Typeahead) => ...` keep type-checking after the class→functional conversion. The `@typescript-eslint/no-redeclare` rule's `ignoreDeclarationMerge` option does not cover TSTypeAliasDeclaration + VariableDeclarator merges, even though they are valid TypeScript.
-export const Typeahead = forwardRef<TypeaheadHandle, Props>(function Typeahead(props, ref) {
+export const Typeahead = memo(
+  forwardRef<TypeaheadHandle, Props>(function Typeahead(props, ref) {
   const { origin, groupedItems, prefix, menuRef, onSelectSuggestion, isOpen = false } = props;
 
   const theme = useTheme2();
@@ -311,7 +321,8 @@ export const Typeahead = forwardRef<TypeaheadHandle, Props>(function Typeahead(p
       {showDocumentation && <TypeaheadInfo height={listHeight} item={documentationItem} />}
     </Portal>
   );
-});
+  })
+);
 
 Typeahead.displayName = 'Typeahead';
 
