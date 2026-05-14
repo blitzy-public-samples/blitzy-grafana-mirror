@@ -154,6 +154,11 @@ export const TableCellTooltip = memo(
             placement={placement}
             wrapperClassName={classes.tooltipWrapper}
             className={className}
+            // Design system gap: width and height are dynamic per-cell measurements from the caller, and the
+            // spread `...style` is part of Popover's Floating-UI positioning contract (caller-provided
+            // positioning overrides). These values cannot be hoisted to a static Emotion class; the static
+            // portion of the tooltip styling lives in classes.tooltipWrapper / classes.tooltipCaret via
+            // getTooltipStyles in ../styles.
             style={{ ...style, width, ...(!dynamicHeight && { height }) }}
             referenceElement={cellElement}
             onMouseLeave={onMouseLeave}
