@@ -381,16 +381,6 @@
       "count": 2
     }
   },
-  "packages/grafana-ui/src/components/JSONFormatter/json_explorer/json_explorer.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    }
-  },
-  "packages/grafana-ui/src/components/MatchersUI/fieldMatchersUI.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "packages/grafana-ui/src/components/Monaco/CodeEditor.tsx": {
     "react-prefer-function-component/react-prefer-function-component": {
       "count": 1

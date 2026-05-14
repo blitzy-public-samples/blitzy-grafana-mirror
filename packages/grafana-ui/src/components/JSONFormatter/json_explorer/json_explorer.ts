@@ -75,6 +75,7 @@ export class JsonExplorer {
    * context
    */
   constructor(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- json explorer accepts arbitrary parsed JSON; the public `json` field is read back by JSONFormatter.tsx via `onDidRender(formatter.json)` whose parameter type is `{}`, so narrowing to `unknown` would break the consumer's compilation. The consumer is OUT OF SCOPE and cannot be modified.
     public json: any,
     private open = 1,
     private config: JsonExplorerConfig = _defaultConfig,
@@ -232,11 +233,11 @@ export class JsonExplorer {
 
     // some pretty handling of number arrays
     if (this.isNumberArray()) {
-      this.json.forEach((val: any, index: number) => {
+      this.json.forEach((val: unknown, index: number) => {
         if (index > 0) {
           arrayWrapperSpan.appendChild(createElement('span', 'array-comma', ','));
         }
-        arrayWrapperSpan.appendChild(createElement('span', 'number', val));
+        arrayWrapperSpan.appendChild(createElement('span', 'number', String(val)));
       });
       this.skipChildren = true;
     } else {
