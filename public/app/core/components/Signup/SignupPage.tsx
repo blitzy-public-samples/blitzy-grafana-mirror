@@ -1,8 +1,10 @@
+import { css } from '@emotion/css';
 import { useForm } from 'react-hook-form';
 
+import { type GrafanaTheme2 } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
 import { getBackendSrv } from '@grafana/runtime';
-import { Field, Input, Button, LinkButton, Stack } from '@grafana/ui';
+import { Field, Input, Button, LinkButton, Stack, useStyles2 } from '@grafana/ui';
 import { getConfig } from 'app/core/config';
 import { useAppNotification } from 'app/core/copy/appNotification';
 import { type GrafanaRouteComponentProps } from 'app/core/navigation/types';
@@ -29,6 +31,7 @@ interface QueryParams {
 interface Props extends GrafanaRouteComponentProps<{}, QueryParams> {}
 
 export const SignupPage = ({ queryParams }: Props) => {
+  const styles = useStyles2(getStyles);
   const notifyApp = useAppNotification();
   const {
     handleSubmit,
@@ -66,7 +69,7 @@ export const SignupPage = ({ queryParams }: Props) => {
   return (
     <LoginLayout>
       <InnerBox>
-        <form onSubmit={handleSubmit(onSubmit)} style={{ width: '100%' }}>
+        <form onSubmit={handleSubmit(onSubmit)} className={styles.form}>
           <Field label={t('sign-up.user-name-label', 'Your name')}>
             <Input
               id="user-name"
@@ -137,5 +140,11 @@ export const SignupPage = ({ queryParams }: Props) => {
     </LoginLayout>
   );
 };
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  form: css({
+    width: '100%',
+  }),
+});
 
 export default SignupPage;
