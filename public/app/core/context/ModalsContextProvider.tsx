@@ -13,11 +13,7 @@ export interface Props {
   children: React.ReactNode;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-interface StateType<TProps = any> {
-  component: React.ComponentType<TProps> | null;
-  props: TProps;
-}
+type StateType = Pick<ModalsContextState, 'component' | 'props'>;
 
 /**
  * Implements the ModalsContext state logic (not used that much, only needed in edge cases)
