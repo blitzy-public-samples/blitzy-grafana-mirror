@@ -58,6 +58,7 @@ export const ColorScale = ({ colorPalette, min, max, display, hoverValue, useSto
       <div className={styles.scaleGradient}>
         {display && (scaleHover.isShown || hoverValue !== undefined) && (
           <div className={styles.followerContainer}>
+            {/* Design system gap: dynamic position value driven by runtime mouse-tracking state. Inline style required because the value varies per-frame. */}
             <div className={styles.follower} style={{ left: `${percent}%` }} />
           </div>
         )}
@@ -69,6 +70,7 @@ export const ColorScale = ({ colorPalette, min, max, display, hoverValue, useSto
             <span className={styles.disabled}>{display(max)}</span>
           </div>
           {percent != null && (scaleHover.isShown || hoverValue !== undefined) && (
+            // Design system gap: dynamic position value driven by runtime mouse-tracking state. Inline style required because the value varies per-frame.
             <span className={styles.hoverValue} style={{ left: `${percent}%` }}>
               {display(hoverValue ?? scaleHover.value)}
             </span>
