@@ -1,6 +1,6 @@
 import { OrgRole, type SelectableValue } from '@grafana/data';
 import { Trans } from '@grafana/i18n';
-import { Icon, RadioButtonList, Tooltip, useStyles2, useTheme2, type PopoverContent } from '@grafana/ui';
+import { Box, Icon, RadioButtonList, Tooltip, useStyles2, type PopoverContent } from '@grafana/ui';
 import { contextSrv } from 'app/core/services/context_srv';
 
 import { getStyles } from './styles';
@@ -15,7 +15,6 @@ interface Props {
 
 export const BuiltinRoleSelector = ({ value, onChange, disabled, disabledMesssage, tooltipMessage }: Props) => {
   const styles = useStyles2(getStyles);
-  const theme = useTheme2();
 
   // Create options dynamically to filter out OrgRole.None when access control is not licensed
   const basicRoleOptions: Array<SelectableValue<OrgRole>> = Object.values(OrgRole)
@@ -34,9 +33,9 @@ export const BuiltinRoleSelector = ({ value, onChange, disabled, disabledMesssag
   return (
     <>
       <div className={styles.groupHeader}>
-        <span style={{ marginRight: theme.spacing(1) }}>
+        <Box element="span" marginRight={1}>
           <Trans i18nKey="role-picker.built-in.basic-roles">Basic roles</Trans>
-        </span>
+        </Box>
         {disabled && disabledMesssage && (
           <Tooltip placement="right-end" interactive={true} content={<div>{disabledMesssage}</div>}>
             <Icon name="question-circle" />
