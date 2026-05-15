@@ -262,7 +262,7 @@ export function addDataSource(
     } else {
       const result = await api.createDataSource(newInstance);
       uid = result.datasource.uid;
-      version = result.meta?.info?.version;
+      version = result.meta?.info?.version ?? '';
     }
 
     await getDatasourceSrv().reload();

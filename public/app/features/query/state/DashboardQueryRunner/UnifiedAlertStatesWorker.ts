@@ -73,7 +73,12 @@ export class UnifiedAlertStatesWorker implements DashboardQueryRunnerWorker {
           { forceRefetch: true }
         )
       );
-      return promRules.data;
+      // Pre-refactor behavior: when the dispatched RTK Query result has no `data` (e.g. error or
+      // not-yet-initialized), the worker returns an empty array. `ungroupRulesByFileName` already
+      // handles an empty input via its default parameter, so downstream emission yields
+      // { alertStates: [], annotations: [] }. The nullish-coalescing here preserves that exact
+      // behavior while satisfying the new tighter `Promise<RuleNamespace[]>` return type.
+      return promRules.data ?? [];
     };
 
     const res: Observable<PromRuleGroupDTO[]> = from(fetchData()).pipe(

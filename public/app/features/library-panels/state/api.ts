@@ -107,7 +107,7 @@ export async function addLibraryPanel(
   panelSaveModel: PanelModelWithLibraryPanel,
   folderUid: string
 ): Promise<LibraryElementDTO> {
-  const { result } = await getBackendSrv().post(`/api/library-elements`, {
+  const { result } = await getBackendSrv().post<{ result: LibraryElementDTO }>(`/api/library-elements`, {
     folderUid,
     name: panelSaveModel.libraryPanel.name,
     model: panelSaveModel,
@@ -120,7 +120,7 @@ export async function updateLibraryPanel(panelSaveModel: PanelModelWithLibraryPa
   const { libraryPanel, ...model } = panelSaveModel;
   const { uid, name, version, folderUid } = libraryPanel;
   const kind = LibraryElementKind.Panel;
-  const { result } = await getBackendSrv().patch(`/api/library-elements/${uid}`, {
+  const { result } = await getBackendSrv().patch<{ result: LibraryElementDTO }>(`/api/library-elements/${uid}`, {
     folderUid,
     name,
     model,
@@ -196,7 +196,7 @@ export function libraryVizPanelToSaveModel(vizPanel: VizPanel) {
 export async function updateLibraryVizPanel(vizPanel: VizPanel): Promise<LibraryPanel> {
   const { uid, folderUid, name, model, version, kind } = libraryVizPanelToSaveModel(vizPanel);
 
-  const { result } = await getBackendSrv().patch(`/api/library-elements/${uid}`, {
+  const { result } = await getBackendSrv().patch<{ result: LibraryElementDTO }>(`/api/library-elements/${uid}`, {
     folderUid,
     name,
     model,

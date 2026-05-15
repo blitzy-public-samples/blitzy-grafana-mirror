@@ -284,6 +284,10 @@ abstract class DashboardScenePageStateManagerBase<T>
         throw result.error;
       }
 
+      if (!result.data) {
+        return Promise.reject('no data returned from provisioned dashboard request');
+      }
+
       const v: GetRepositoryFilesWithPathApiResponse = structuredClone(result.data);
       // Load the results from dryRun
       const dryRun = v.resource.dryRun;

@@ -84,7 +84,12 @@ export class AlertStatesDataLayer
       if (promRules.error) {
         throw new Error(`Unexpected alert rules response.`);
       }
-      return promRules.data;
+      // Pre-refactor behavior: when the dispatched RTK Query result has no `data` (e.g. early
+      // dispatch return before `fulfilled`), the layer treats the response as an empty set.
+      // `ungroupRulesByFileName` already handles an empty input via its default parameter.
+      // The nullish-coalescing here preserves that behavior while satisfying the new tighter
+      // `Promise<RuleNamespace[]>` return type.
+      return promRules.data ?? [];
     };
     const res: Observable<PromRuleGroupDTO[]> = from(fetchData()).pipe(
       map((namespaces: RuleNamespace[]) => ungroupRulesByFileName(namespaces))

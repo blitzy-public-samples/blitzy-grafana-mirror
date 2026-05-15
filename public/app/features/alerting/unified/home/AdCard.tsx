@@ -25,10 +25,12 @@ export default function AdCard({ title, description, href, logoUrl, items, helpF
   const [isDismissed, setDismissed] = useState<boolean>(Boolean(helpFlags & helpFlag));
 
   const onDismiss = () => {
-    backendSrv.put(`/api/user/helpflags/${helpFlag}`, undefined, { showSuccessAlert: false }).then((res) => {
-      contextSrv.user.helpFlags1 = res.helpFlags1;
-      setDismissed(true);
-    });
+    backendSrv
+      .put<{ helpFlags1: number }>(`/api/user/helpflags/${helpFlag}`, undefined, { showSuccessAlert: false })
+      .then((res) => {
+        contextSrv.user.helpFlags1 = res.helpFlags1;
+        setDismissed(true);
+      });
   };
 
   if (isDismissed || !isOpenSourceBuildOrUnlicenced()) {
