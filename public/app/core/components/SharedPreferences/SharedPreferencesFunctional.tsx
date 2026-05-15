@@ -169,6 +169,10 @@ export const SharedPreferencesFunctional = memo((props: Props) => {
   const currentThemeOption = themeOptions.find((x) => x.value === state.theme) ?? themeOptions[0];
 
   return (
+    // Design system gap: this form manages state imperatively via useState rather than the
+    // deprecated react-hook-form-based @grafana/ui <Form> wrapper. Raw <form> with internal
+    // FieldSet+Field composition is the documented design system pattern for forms with
+    // custom submit logic (see @grafana/ui Form.tsx JSDoc and AAP §0.4.2).
     <form onSubmit={handleSubmitForm} className={styles.form}>
       <FieldSet label={<Trans i18nKey="shared-preferences.title">Preferences</Trans>} disabled={props.disabled}>
         <Stack direction="column" gap={2}>
