@@ -1,4 +1,4 @@
-import { type Store } from 'redux';
+import { type Store, type UnknownAction } from 'redux';
 
 import { initialKeyedVariablesState } from 'app/features/variables/state/keyedVariablesReducer';
 import { type StoreState } from 'app/types/store';
@@ -17,7 +17,7 @@ export function getState(): StoreState {
   return store.getState();
 }
 
-export function dispatch(action: any) {
+export function dispatch(action: UnknownAction) {
   if (!store || !store.getState) {
     return;
   }
