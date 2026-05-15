@@ -190,6 +190,8 @@ export const ExemplarMarker = ({
           viewBox="0 0 7 7"
           width="7"
           height="7"
+          // Dynamic fill color is per-render runtime data threaded from uPlot series config (lineColor varies per series instance);
+          // kept inline per AAP §0.4.4 plugin-overlay exemption. Cannot use CSS custom property because `as React.CSSProperties` cast violates consistent-type-assertions rule.
           style={{ fill: seriesColor }}
           className={cx(styles.marble, (isOpen || isLocked) && styles.activeMarble)}
         >
