@@ -1,5 +1,5 @@
 import { isNumber } from 'lodash';
-import uPlot from 'uplot';
+import uPlot, { type AlignedData } from 'uplot';
 
 import {
   type DataFrame,
@@ -77,6 +77,7 @@ import { ANNOTATION_LANE_SIZE } from '../../../plugins/panel/timeseries/plugins/
 export const UPLOT_DEFAULT_AXIS_SIZE = 17;
 export const UPLOT_DEFAULT_AXIS_GAP = 5;
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- defaultFormatter is the fallback for `field.display ?? defaultFormatter`; narrowing `v` to `number | null | undefined` collapses the return-type union to `DisplayValue | string` and breaks `formattedValueToString(fmt(v, decimals))` (which requires `FormattedValue`). Additionally, `decimals` has type `DecimalCount = number | null | undefined`, and `Number.toFixed()` rejects `null` — only `any` propagation allows the call to type-check. Retaining `any` preserves the bivariant compatibility that lets `fmt` be inferred as `DisplayProcessor`.
 const defaultFormatter = (v: any, decimals: DecimalCount = 1) => (v == null ? '-' : v.toFixed(decimals));
 
 const defaultConfig: GraphFieldConfig = {
@@ -487,25 +488,27 @@ export const preparePlotConfigBuilder: UPlotConfigPrepFn = ({
         const defaultBuilder = uPlot.paths!.linear!();
 
         pathBuilder = (u, seriesIdx) => {
-          //eslint-disable-next-line
-          const _data: any[] = (u as any)._data; // uplot.AlignedData not exposed in types
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- accessing uPlot's internal _data field (typed publicly as AlignedData), which is not exposed on the public uPlot instance type
+          const _data: AlignedData = (u as unknown as { _data: AlignedData })._data;
 
           // the data we want the line renderer to pull is x at each plot edge with paired flat y values
 
           const r = getTimeRange();
           let xData = [r.from.valueOf(), r.to.valueOf()];
-          let firstY = _data[seriesIdx].find((v: number | null | undefined) => v != null);
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- AlignedData's element union (TypedArray | number[] | (number | null | undefined)[]) doesn't share a unified `.find()` signature; widen to a single element-type for the predicate
+          let firstY = (_data[seriesIdx] as Array<number | null | undefined>).find((v) => v != null);
           let yData = [firstY, firstY];
-          let fauxData = _data.slice();
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- AlignedData's TypedArray[] branch precludes plain-array element assignments to fauxData[0]/fauxData[seriesIdx]; widen the slice() result to a writable union of plain arrays
+          let fauxData = _data.slice() as Array<number[] | Array<number | null | undefined>>;
           fauxData[0] = xData;
           fauxData[seriesIdx] = yData;
 
-          //eslint-disable-next-line
           return defaultBuilder(
+            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- object spread doesn't preserve uPlot's prototype methods (rect/redraw/batch/destroy/...); a forced double-cast is required to satisfy defaultBuilder's first-arg type
             {
               ...u,
               _data: fauxData,
-            } as any,
+            } as unknown as typeof u,
             seriesIdx,
             0,
             1
