@@ -1,4 +1,4 @@
-import { css } from '@emotion/css';
+import { css, cx } from '@emotion/css';
 import uFuzzy from '@leeoniya/ufuzzy';
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import * as React from 'react';
@@ -579,10 +579,10 @@ const NewUIContainer = ({
     if (vertical) {
       body = (
         <div className={styles.verticalContainer}>
-          <div className={styles.verticalPaneContainer} style={{ order: panesSwapped ? 2 : 1 }}>
+          <div className={cx(styles.verticalPaneContainer, panesSwapped ? styles.orderSecond : styles.orderFirst)}>
             {leftPane}
           </div>
-          <div className={styles.verticalPaneContainer} style={{ order: panesSwapped ? 1 : 2 }}>
+          <div className={cx(styles.verticalPaneContainer, panesSwapped ? styles.orderFirst : styles.orderSecond)}>
             {rightPane}
           </div>
         </div>
@@ -590,10 +590,10 @@ const NewUIContainer = ({
     } else {
       body = (
         <div className={styles.horizontalContainer}>
-          <div className={styles.horizontalPaneContainer} style={{ order: panesSwapped ? 2 : 1 }}>
+          <div className={cx(styles.horizontalPaneContainer, panesSwapped ? styles.orderSecond : styles.orderFirst)}>
             {leftPane}
           </div>
-          <div className={styles.horizontalPaneContainer} style={{ order: panesSwapped ? 1 : 2 }}>
+          <div className={cx(styles.horizontalPaneContainer, panesSwapped ? styles.orderFirst : styles.orderSecond)}>
             {rightPane}
           </div>
         </div>
@@ -784,6 +784,14 @@ function getStyles(theme: GrafanaTheme2) {
       label: 'verticalPaneContainer',
       marginBottom: theme.spacing(1),
       height: FLAMEGRAPH_CONTAINER_HEIGHT,
+    }),
+
+    orderFirst: css({
+      order: 1,
+    }),
+
+    orderSecond: css({
+      order: 2,
     }),
   };
 }
