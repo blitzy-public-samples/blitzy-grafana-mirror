@@ -3501,11 +3501,6 @@
       "count": 1
     }
   },
-  "public/app/types/events.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 5
-    }
-  },
   "public/app/types/jquery/jquery.d.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 3
