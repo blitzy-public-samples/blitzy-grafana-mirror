@@ -624,11 +624,6 @@
       "count": 5
     }
   },
-  "public/app/core/utils/isShallowEqual.ts": {
-    "@typescript-eslint/consistent-type-assertions": {
-      "count": 2
-    }
-  },
   "public/app/core/utils/object.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 5

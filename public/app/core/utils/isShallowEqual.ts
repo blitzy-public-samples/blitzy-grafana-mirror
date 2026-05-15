@@ -1,31 +1,38 @@
 // From https://github.com/streamich/fast-shallow-equal
 
+/**
+ * Type guard preserving the original `instanceof Object` runtime check while narrowing the
+ * value to `Record<string, unknown>` so the indexing loops below type-check without using
+ * `as` assertions. Using a type predicate here avoids adding a new
+ * `@typescript-eslint/consistent-type-assertions` baseline entry per AAP §0.8.5.
+ */
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return value instanceof Object;
+}
+
 export function isShallowEqual(a: unknown, b: unknown): boolean {
   if (a === b) {
     return true;
   }
 
-  if (!(a instanceof Object) || !(b instanceof Object)) {
+  if (!isObjectRecord(a) || !isObjectRecord(b)) {
     return false;
   }
 
-  // After the instanceof checks both values are objects; widen to indexable records to inspect their own keys.
-  const aRecord = a as Record<string, unknown>;
-  const bRecord = b as Record<string, unknown>;
-  const keys = Object.keys(aRecord);
+  const keys = Object.keys(a);
   const length = keys.length;
 
   for (let i = 0; i < length; i++) {
-    if (!(keys[i] in bRecord)) {
+    if (!(keys[i] in b)) {
       return false;
     }
   }
 
   for (let i = 0; i < length; i++) {
-    if (aRecord[keys[i]] !== bRecord[keys[i]]) {
+    if (a[keys[i]] !== b[keys[i]]) {
       return false;
     }
   }
 
-  return length === Object.keys(bRecord).length;
+  return length === Object.keys(b).length;
 }

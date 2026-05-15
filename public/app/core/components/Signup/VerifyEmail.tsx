@@ -50,6 +50,11 @@ export const VerifyEmail = () => {
   }
 
   return (
+    // Design system gap: this form uses react-hook-form's useForm() hook directly rather than
+    // the deprecated @grafana/ui <Form> wrapper (see @grafana/ui Form.tsx JSDoc "@deprecated
+    // use the useForm hook from react-hook-form instead" and AAP §0.4.2). Raw <form> with
+    // handleSubmit + FieldSet/Field composition is the documented design system pattern for
+    // forms with custom submit logic.
     <form onSubmit={handleSubmit(onSubmit)}>
       <FieldSet label={<Trans i18nKey="sign-up.verify.header">Verify email</Trans>}>
         <Field
