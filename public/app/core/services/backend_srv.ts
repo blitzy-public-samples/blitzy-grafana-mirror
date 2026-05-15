@@ -375,9 +375,9 @@ export class BackendSrv implements BackendService {
       return;
     }
 
-    const data: { message: string } = response.data as any;
+    const data: unknown = response.data;
 
-    if (data?.message) {
+    if (data && typeof data === 'object' && 'message' in data && typeof data.message === 'string' && data.message) {
       this.dependencies.appEvents.emit(AppEvents.alertSuccess, [data.message]);
     }
   }
@@ -476,13 +476,10 @@ export class BackendSrv implements BackendService {
         response: rawData,
       };
     } else if (typeof rawData === 'object') {
-      const dataMessage =
-        'message' in rawData && typeof rawData.message === 'string' ? rawData.message : undefined;
+      const dataMessage = 'message' in rawData && typeof rawData.message === 'string' ? rawData.message : undefined;
       const dataError = 'error' in rawData && typeof rawData.error === 'string' ? rawData.error : undefined;
-      const dataResponse =
-        'response' in rawData && typeof rawData.response === 'string' ? rawData.response : undefined;
-      const dataTraceID =
-        'traceID' in rawData && typeof rawData.traceID === 'string' ? rawData.traceID : undefined;
+      const dataResponse = 'response' in rawData && typeof rawData.response === 'string' ? rawData.response : undefined;
+      const dataTraceID = 'traceID' in rawData && typeof rawData.traceID === 'string' ? rawData.traceID : undefined;
       // If no message but got error string, copy error to message (preserves original behavior).
       // Default to '' for empty payloads so `if (normalizedData.message)` below stays falsy —
       // matching the original behavior of skipping the alert for object payloads with neither
@@ -633,7 +630,7 @@ export class BackendSrv implements BackendService {
     return this.inspectorStream;
   }
 
-  async get<T = any>(
+  async get<T = unknown>(
     url: string,
     params?: BackendSrvRequest['params'],
     requestId?: BackendSrvRequest['requestId'],
@@ -646,15 +643,15 @@ export class BackendSrv implements BackendService {
     return this.request<T>({ ...options, method: 'DELETE', url, data });
   }
 
-  async post<T = any>(url: string, data?: unknown, options?: Partial<BackendSrvRequest>) {
+  async post<T = unknown>(url: string, data?: unknown, options?: Partial<BackendSrvRequest>) {
     return this.request<T>({ ...options, method: 'POST', url, data });
   }
 
-  async patch<T = any>(url: string, data: unknown, options?: Partial<BackendSrvRequest>) {
+  async patch<T = unknown>(url: string, data: unknown, options?: Partial<BackendSrvRequest>) {
     return this.request<T>({ ...options, method: 'PATCH', url, data });
   }
 
-  async put<T = any>(url: string, data: unknown, options?: Partial<BackendSrvRequest>): Promise<T> {
+  async put<T = unknown>(url: string, data: unknown, options?: Partial<BackendSrvRequest>): Promise<T> {
     return this.request<T>({ ...options, method: 'PUT', url, data });
   }
 

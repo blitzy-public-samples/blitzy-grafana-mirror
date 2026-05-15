@@ -651,14 +651,6 @@
       "count": 1
     }
   },
-  "public/app/core/services/backend_srv.ts": {
-    "@typescript-eslint/consistent-type-assertions": {
-      "count": 1
-    },
-    "@typescript-eslint/no-explicit-any": {
-      "count": 5
-    }
-  },
   "public/app/core/services/context_srv.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1
