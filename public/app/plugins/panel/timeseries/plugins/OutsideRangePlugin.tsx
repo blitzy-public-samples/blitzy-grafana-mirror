@@ -1,9 +1,10 @@
+import { css } from '@emotion/css';
 import { useLayoutEffect, useState, useCallback, memo } from 'react';
 import type uPlot from 'uplot';
 
-import { type AbsoluteTimeRange } from '@grafana/data';
+import { type AbsoluteTimeRange, type GrafanaTheme2 } from '@grafana/data';
 import { Trans } from '@grafana/i18n';
-import { type UPlotConfigBuilder, Button } from '@grafana/ui';
+import { type UPlotConfigBuilder, Button, useStyles2 } from '@grafana/ui';
 
 interface ThresholdControlsPluginProps {
   config: UPlotConfigBuilder;
@@ -20,6 +21,8 @@ export const OutsideRangePlugin = memo(({ config, onChangeTimeRange }: Threshold
       setTimeRange(u.scales['x']);
     });
   }, [config]);
+
+  const styles = useStyles2(getStyles);
 
   /**
    * returns true if all non-time series are null at the given index
@@ -79,15 +82,7 @@ export const OutsideRangePlugin = memo(({ config, onChangeTimeRange }: Threshold
   }
 
   return (
-    <div
-      style={{
-        position: 'absolute',
-        top: '50%',
-        transform: 'translateY(-50%)',
-        width: '100%',
-        textAlign: 'center',
-      }}
-    >
+    <div className={styles.wrapper}>
       <div>
         <div>
           <Trans i18nKey="timeseries.outside-range-plugin.data-outside-time-range">Data outside time range</Trans>
@@ -105,3 +100,13 @@ export const OutsideRangePlugin = memo(({ config, onChangeTimeRange }: Threshold
 });
 
 OutsideRangePlugin.displayName = 'OutsideRangePlugin';
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  wrapper: css({
+    position: 'absolute',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    width: '100%',
+    textAlign: 'center',
+  }),
+});
