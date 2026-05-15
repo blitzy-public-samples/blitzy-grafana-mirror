@@ -692,7 +692,7 @@ const FlameGraphCallTreeContainer = memo(
           </div>
         </div>
 
-        <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+        <div className={styles.tableWrapper}>
           <AutoSizer>
             {({ width, height }) => (
               <CallTreeTable
@@ -843,6 +843,11 @@ function getStyles(theme: GrafanaTheme2) {
     modePillCloseButton: css({
       verticalAlign: 'text-bottom',
       margin: theme.spacing(0, 0.5),
+    }),
+    tableWrapper: css({
+      flex: 1,
+      minHeight: 0,
+      overflow: 'hidden',
     }),
   };
 }
