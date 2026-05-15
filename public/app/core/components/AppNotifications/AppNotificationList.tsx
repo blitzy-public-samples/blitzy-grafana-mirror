@@ -88,7 +88,7 @@ export function AppNotificationList() {
 
   return (
     <div className={styles.wrapper}>
-      <div className="sr-only" role="log" aria-live="polite" aria-atomic="true" aria-label={liveRegionMessage} />
+      <div className={styles.srOnly} role="log" aria-live="polite" aria-atomic="true" aria-label={liveRegionMessage} />
       <Stack direction="column">
         {appNotifications.map((appNotification, index) => {
           return (
@@ -114,6 +114,21 @@ function getStyles(theme: GrafanaTheme2) {
       position: 'fixed',
       right: 6,
       top: 88,
+    }),
+    // Visually-hidden but screen-reader accessible. Mirrors the global `.sr-only`
+    // utility class defined in packages/grafana-ui/src/themes/GlobalStyles/accessibility.ts
+    // so this live-region remains announceable to assistive technologies while
+    // occupying zero visible space. Fixed pixel values (not theme tokens) are
+    // intentional — this is the canonical "visually hidden" CSS recipe.
+    srOnly: css({
+      position: 'absolute',
+      width: '1px',
+      height: '1px',
+      padding: 0,
+      margin: '-1px',
+      overflow: 'hidden',
+      clip: 'rect(0, 0, 0, 0)',
+      border: 0,
     }),
   };
 }
