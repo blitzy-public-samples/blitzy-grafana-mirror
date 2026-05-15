@@ -45,6 +45,117 @@ import { type GrafanaQuery, GrafanaQueryType } from 'app/plugins/datasource/graf
 import { defaultGraphConfig } from './config';
 import { type Options } from './panelcfg.gen';
 
+/**
+ * Legacy Angular Graph-panel options shape consumed by graphToTimeseriesOptions.
+ * Kept loose because real-world dashboards may carry arbitrary additional fields
+ * from the pre-React panel. Only the fields actually read by this migration are
+ * declared explicitly; the index signature accommodates everything else.
+ */
+interface LegacyGraphLegend {
+  show?: boolean;
+  alignAsTable?: boolean;
+  rightSide?: boolean;
+  values?: boolean;
+  sideWidth?: number;
+  hideZero?: boolean;
+  hideEmpty?: boolean;
+  // Reducer flags (min, max, current, total, avg, ...) accessed dynamically via lodash pickBy.
+  [key: string]: unknown;
+}
+
+interface LegacyGraphTooltip {
+  shared?: boolean;
+  sort?: number;
+}
+
+interface LegacyAxisConfig {
+  show?: boolean;
+  label?: string;
+  logBase?: number;
+  format?: string;
+  decimals?: number | string;
+  min?: number | string;
+  max?: number | string;
+}
+
+interface LegacySeriesOverride {
+  alias?: string;
+  $$hashKey?: string;
+  yaxis?: number;
+  fill?: number;
+  fillBelowTo?: string;
+  fillGradient?: number;
+  points?: boolean;
+  bars?: boolean;
+  lines?: boolean;
+  linewidth?: number;
+  pointradius?: number;
+  dashLength?: number;
+  spaceLength?: number;
+  dashes?: boolean;
+  stack?: boolean | string;
+  color?: string;
+  transform?: string;
+  // Allow arbitrary additional override keys that the switch in the migration body simply ignores.
+  [key: string]: unknown;
+}
+
+interface HideFromConfig {
+  graph?: boolean;
+  viz?: boolean;
+  legend?: boolean;
+  tooltip?: boolean;
+}
+
+interface LegacyGraphPanel {
+  fieldConfig?: FieldConfigSource;
+  panel: { id: number; title?: string };
+  bars?: boolean;
+  lines?: boolean;
+  points?: boolean;
+  linewidth?: number;
+  pointradius?: number;
+  dashLength?: number;
+  spaceLength?: number;
+  dashes?: boolean;
+  nullPointMode?: NullValueMode;
+  steppedLine?: boolean;
+  stack?: boolean;
+  percentage?: boolean;
+  fill?: number;
+  fillGradient?: number;
+  legend?: LegacyGraphLegend;
+  tooltip?: LegacyGraphTooltip;
+  xaxis?: { show?: boolean; mode?: string };
+  yaxis?: boolean;
+  yaxes?: LegacyAxisConfig[];
+  seriesOverrides?: LegacySeriesOverride[];
+  aliasColors?: Record<string, string>;
+  thresholds?: AngularThreshold[];
+  timeRegions?: GraphTimeRegionConfig[];
+  alert?: unknown;
+}
+
+/**
+ * Shape of objects produced by the timeRegions migration .map() below.
+ * fillColor and lineColor are declared optional because the .map() does not populate
+ * them, but the legacy fallback chain (`region.fillColor ?? region.color`,
+ * `region.lineColor ?? 'white'`) is preserved verbatim from the original code so we
+ * keep the optional fields on the type for that fallback to remain compilable.
+ */
+interface LegacyMappedTimeRegion {
+  name: string;
+  color: string;
+  fillColor?: string;
+  lineColor?: string;
+  line: boolean;
+  fill: boolean;
+  fromDayOfWeek?: number;
+  toDayOfWeek?: number;
+  from?: string;
+  to?: string;
+}
+
 let dashboardRefreshDebouncer: ReturnType<typeof setTimeout> | null = null;
 
 /**
@@ -79,7 +190,7 @@ export const graphPanelChangedHandler: PanelTypeChangedHandler = (
   return {};
 };
 
-export function graphToTimeseriesOptions(angular: any): {
+export function graphToTimeseriesOptions(angular: LegacyGraphPanel): {
   fieldConfig: FieldConfigSource;
   options: Options;
   annotations: AnnotationQuery[];
@@ -170,7 +281,7 @@ export function graphToTimeseriesOptions(angular: any): {
           case 'fill':
             rule.properties.push({
               id: 'custom.fillOpacity',
-              value: v * 10, // was 0-10, new graph is 0 - 100
+              value: Number(v) * 10, // was 0-10, new graph is 0 - 100
             });
             break;
           case 'fillBelowTo':
@@ -188,7 +299,7 @@ export function graphToTimeseriesOptions(angular: any): {
               });
               rule.properties.push({
                 id: 'custom.fillOpacity',
-                value: v * 10, // was 0-10, new graph is 0 - 100
+                value: Number(v) * 10, // was 0-10, new graph is 0 - 100
               });
             }
             break;
@@ -237,7 +348,7 @@ export function graphToTimeseriesOptions(angular: any): {
           case 'pointradius':
             rule.properties.push({
               id: 'custom.pointSize',
-              value: 2 + v * 2,
+              value: 2 + Number(v) * 2,
             });
             break;
           case 'dashLength':
@@ -251,10 +362,10 @@ export function graphToTimeseriesOptions(angular: any): {
             }
             switch (p) {
               case 'dashLength':
-                dashOverride.dash![0] = v;
+                dashOverride.dash![0] = Number(v);
                 break;
               case 'spaceLength':
-                dashOverride.dash![1] = v;
+                dashOverride.dash![1] = Number(v);
                 break;
               case 'dashes':
                 dashOverride.fill = v ? 'dash' : 'solid';
@@ -268,13 +379,15 @@ export function graphToTimeseriesOptions(angular: any): {
             });
             break;
           case 'color':
-            rule.properties.push({
-              id: 'color',
-              value: {
-                fixedColor: v,
-                mode: FieldColorModeId.Fixed,
-              },
-            });
+            if (typeof v === 'string') {
+              rule.properties.push({
+                id: 'color',
+                value: {
+                  fixedColor: v,
+                  mode: FieldColorModeId.Fixed,
+                },
+              });
+            }
             break;
           case 'transform':
             rule.properties.push({
@@ -386,13 +499,13 @@ export function graphToTimeseriesOptions(angular: any): {
       options.legend.placement = 'right';
     }
 
-    if (angular.legend.values) {
-      const enabledLegendValues = pickBy(angular.legend);
+    if (legendConfig.values) {
+      const enabledLegendValues = pickBy(legendConfig);
       options.legend.calcs = getReducersFromLegend(enabledLegendValues);
     }
 
-    if (angular.legend.sideWidth) {
-      options.legend.width = angular.legend.sideWidth;
+    if (legendConfig.sideWidth) {
+      options.legend.width = legendConfig.sideWidth;
     }
 
     if (legendConfig.hideZero) {
@@ -406,7 +519,7 @@ export function graphToTimeseriesOptions(angular: any): {
 
   // timeRegions migration
   if (angular.timeRegions?.length) {
-    let regions = angular.timeRegions.map((old: GraphTimeRegionConfig, idx: number) => ({
+    let regions: LegacyMappedTimeRegion[] = angular.timeRegions.map((old, idx) => ({
       name: `T${idx}`,
       color: old.colorMode !== 'custom' ? old.colorMode : old.fillColor,
       line: old.line,
@@ -417,7 +530,7 @@ export function graphToTimeseriesOptions(angular: any): {
       to: old.to,
     }));
 
-    regions.forEach((region: GraphTimeRegionConfig, idx: number) => {
+    regions.forEach((region, idx) => {
       const anno: AnnotationQuery<GrafanaQuery> = {
         datasource: {
           type: 'datasource',
@@ -429,7 +542,7 @@ export function graphToTimeseriesOptions(angular: any): {
           exclude: false,
           ids: [angular.panel.id],
         },
-        iconColor: region.fillColor ?? (region as any).color,
+        iconColor: region.fillColor ?? region.color,
         name: `Time region for panel ${angular.panel.title}${idx > 0 ? ` ${idx}` : ''}`,
         target: {
           queryType: GrafanaQueryType.TimeRegions,
@@ -619,7 +732,7 @@ interface AngularThreshold {
 //   "$$hashKey": "object:19",
 //   "decimals": 3
 // },
-function getFieldConfigFromOldAxis(obj: any): FieldConfig<GraphFieldConfig> {
+function getFieldConfigFromOldAxis(obj: LegacyAxisConfig | undefined): FieldConfig<GraphFieldConfig> {
   if (!obj) {
     return {};
   }
@@ -655,9 +768,12 @@ function fillY2DynamicValues(
   y2: FieldConfig<GraphFieldConfig>,
   props: DynamicConfigValue[]
 ) {
+  // Build string-indexable records once so dynamic lookups below avoid type assertions.
+  const y1Record: Record<string, unknown> = Object.fromEntries(Object.entries(y1));
+
   // The standard properties
   for (const [key, value] of Object.entries(y2)) {
-    if (key !== 'custom' && value !== (y1 as any)[key]) {
+    if (key !== 'custom' && value !== y1Record[key]) {
       props.push({
         id: key,
         value,
@@ -673,8 +789,10 @@ function fillY2DynamicValues(
   // Add any custom property
   const y1G = y1.custom ?? {};
   const y2G = y2.custom ?? {};
+  const y1GRecord: Record<string, unknown> = Object.fromEntries(Object.entries(y1G));
+
   for (const [key, value] of Object.entries(y2G)) {
-    if (value !== (y1G as any)[key]) {
+    if (value !== y1GRecord[key]) {
       props.push({
         id: `custom.${key}`,
         value,
@@ -708,7 +826,7 @@ function getReducersFromLegend(obj: Record<string, unknown>): string[] {
 }
 
 function migrateHideFrom(panel: {
-  fieldConfig?: { defaults?: { custom?: { hideFrom?: any } }; overrides: ConfigOverrideRule[] };
+  fieldConfig?: { defaults?: { custom?: { hideFrom?: HideFromConfig } }; overrides: ConfigOverrideRule[] };
 }) {
   if (panel.fieldConfig?.defaults?.custom?.hideFrom?.graph !== undefined) {
     panel.fieldConfig.defaults.custom.hideFrom.viz = panel.fieldConfig.defaults.custom.hideFrom.graph;
@@ -751,7 +869,7 @@ function getLegendHideFromOverride(reducer: ReducerID.allIsZero | ReducerID.allI
   };
 }
 
-function getStackingFromOverrides(value: Boolean | string) {
+function getStackingFromOverrides(value: unknown) {
   const defaultGroupName = defaultGraphConfig.stacking?.group;
   return {
     mode: value ? StackingMode.Normal : StackingMode.None,

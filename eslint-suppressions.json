@@ -3346,10 +3346,7 @@
   },
   "public/app/plugins/panel/timeseries/migrations.ts": {
     "@typescript-eslint/consistent-type-assertions": {
-      "count": 4
-    },
-    "@typescript-eslint/no-explicit-any": {
-      "count": 6
+      "count": 1
     }
   },
   "public/app/plugins/panel/timeseries/plugins/AnnotationsPlugin2.tsx": {
