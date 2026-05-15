@@ -591,9 +591,6 @@
     "no-restricted-syntax": {
       "count": 6
     },
-    "react-prefer-function-component/react-prefer-function-component": {
-      "count": 1
-    },
     "react/no-unescaped-entities": {
       "count": 1
     }
