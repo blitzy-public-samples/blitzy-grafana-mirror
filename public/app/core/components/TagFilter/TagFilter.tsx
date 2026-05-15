@@ -4,7 +4,7 @@ import { components, type MultiValueRemoveProps } from 'react-select';
 
 import { escapeStringForRegex, type GrafanaTheme2, type SelectableValue } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
-import { Icon, MultiSelect, useStyles2 } from '@grafana/ui';
+import { Button, Icon, MultiSelect, useStyles2 } from '@grafana/ui';
 
 import { TagBadge, getStyles as getTagBadgeStyles } from './TagBadge';
 import { TagOption, type TagSelectOption } from './TagOption';
@@ -33,6 +33,15 @@ const filterOption = (option: SelectableValue<string>, searchQuery: string) => {
   const regex = RegExp(escapeStringForRegex(searchQuery), 'i');
   return Boolean(option.value && regex.test(option.value));
 };
+
+/**
+ * Type predicate narrowing react-select's general `SelectableValue<string>` payload to the local
+ * `TagSelectOption` shape. At runtime, every option flowing through `onTagChange` originates from
+ * `currentlySelectedTags` or `onLoadOptions` and always carries `{ value: string; label: string; count: number }`,
+ * so this predicate is a no-op filter in practice and is used purely for type narrowing.
+ */
+const isTagSelectOption = (option: SelectableValue<string>): option is TagSelectOption =>
+  typeof option.value === 'string' && typeof option.label === 'string' && typeof option.count === 'number';
 
 export const TagFilter = ({
   allowCustomValue = false,
@@ -104,16 +113,27 @@ export const TagFilter = ({
     }
   }, [onFocus, previousTags, tags]);
 
-  const onTagChange = (newTags: any[]) => {
-    newTags.forEach((tag) => (tag.count = 0));
+  const onTagChange = (newTags: Array<SelectableValue<string>>) => {
+    // Narrow react-select's general SelectableValue payload to the project's local TagSelectOption
+    // shape via the `isTagSelectOption` type predicate. At runtime every emitted option carries the
+    // full `{ value, label, count }` triple so the filter is a no-op semantically, while statically
+    // it lets the rest of this handler operate on `TagSelectOption[]` without any `any` typing.
+    const typedTags = newTags.filter(isTagSelectOption);
+    typedTags.forEach((tag) => (tag.count = 0));
 
     // On remove with 1 item returns null, so we need to make sure it's an empty array in that case
     // https://github.com/JedWatson/react-select/issues/3632
-    onChange((newTags || []).map((tag) => tag.value));
+    onChange((typedTags || []).map((tag) => tag.value));
 
-    // If custom values are allowed, set custom tags to prevent overwriting from query update
+    // If custom values are allowed, set custom tags to prevent overwriting from query update.
+    // Note: the original `tags.includes(tag)` predicate compares a `string[]` against object
+    // entries and therefore always evaluates to `false` at runtime. We preserve that behavior
+    // verbatim per the minimal-change mandate by widening `tags` to `readonly unknown[]` via a
+    // local variable annotation (a covariant assignment, not a type assertion) so that
+    // `.includes(tag)` is well-typed without introducing `any`.
     if (allowCustomValue) {
-      setCustomTags(newTags.filter((tag) => !tags.includes(tag)));
+      const tagsAsUnknown: readonly unknown[] = tags;
+      setCustomTags(typedTags.filter((tag) => !tagsAsUnknown.includes(tag)));
     }
   };
 
@@ -157,9 +177,16 @@ export const TagFilter = ({
   return (
     <div className={styles.tagFilter}>
       {isClearable && tags.length > 0 && (
-        <button className={styles.clear} onClick={() => onTagChange([])} disabled={disabled}>
+        <Button
+          variant="secondary"
+          fill="text"
+          size="sm"
+          className={styles.clear}
+          onClick={() => onTagChange([])}
+          disabled={disabled}
+        >
           <Trans i18nKey="tag-filter.clear-button">Clear tags</Trans>
-        </button>
+        </Button>
       )}
       <MultiSelect
         key={selectKey}
