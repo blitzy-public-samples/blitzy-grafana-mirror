@@ -680,11 +680,6 @@
       "count": 1
     }
   },
-  "public/app/core/time_series2.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 19
-    }
-  },
   "public/app/core/utils/connectWithReduxStore.tsx": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 2
