@@ -1,8 +1,15 @@
+import { css } from '@emotion/css';
 import { useState, useLayoutEffect, useMemo, useRef } from 'react';
 import type uPlot from 'uplot';
 
-import { type FieldConfigSource, type ThresholdsConfig, getValueFormat, FieldType } from '@grafana/data';
-import { type UPlotConfigBuilder } from '@grafana/ui';
+import {
+  type FieldConfigSource,
+  type ThresholdsConfig,
+  getValueFormat,
+  FieldType,
+  type GrafanaTheme2,
+} from '@grafana/data';
+import { type UPlotConfigBuilder, useStyles2 } from '@grafana/ui';
 import { buildScaleKey } from '@grafana/ui/internal';
 
 import { ThresholdDragHandle } from './ThresholdDragHandle';
@@ -16,6 +23,7 @@ interface ThresholdControlsPluginProps {
 }
 
 export const ThresholdControlsPlugin = ({ config, fieldConfig, onThresholdsChange }: ThresholdControlsPluginProps) => {
+  const styles = useStyles2(getStyles);
   const plotInstance = useRef<uPlot | undefined>(undefined);
   const [renderToken, setRenderToken] = useState(0);
 
@@ -98,9 +106,9 @@ export const ThresholdControlsPlugin = ({ config, fieldConfig, onThresholdsChang
 
   return (
     <div
+      className={styles.gutter}
+      // Dynamic positioning computed from uPlot bbox at draw time (re-renders on each renderToken increment); kept inline per AAP §0.4.4 plugin-overlay exemption.
       style={{
-        position: 'absolute',
-        overflow: 'visible',
         left: `${(plotInstance.current.bbox.left + plotInstance.current.bbox.width) / window.devicePixelRatio}px`,
         top: `${plotInstance.current.bbox.top / window.devicePixelRatio}px`,
         width: `${GUTTER_SIZE}px`,
@@ -113,3 +121,10 @@ export const ThresholdControlsPlugin = ({ config, fieldConfig, onThresholdsChang
 };
 
 ThresholdControlsPlugin.displayName = 'ThresholdControlsPlugin';
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  gutter: css({
+    position: 'absolute',
+    overflow: 'visible',
+  }),
+});
