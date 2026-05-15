@@ -1,8 +1,20 @@
+import { css } from '@emotion/css';
 import { useMemo } from 'react';
 
-import { Trans } from '@grafana/i18n';
+import { type GrafanaTheme2 } from '@grafana/data';
+import { Trans, t } from '@grafana/i18n';
+import {
+  Box,
+  Button,
+  type CellProps,
+  type Column,
+  Icon,
+  InteractiveTable,
+  Select,
+  Tooltip,
+  useStyles2,
+} from '@grafana/ui';
 
-import { PermissionListItem } from './PermissionListItem';
 import { type ResourcePermission } from './types';
 
 interface Props {
@@ -16,6 +28,8 @@ interface Props {
 }
 
 export const PermissionList = ({ title, items, compareKey, permissionLevels, canSet, onRemove, onChange }: Props) => {
+  const styles = useStyles2(getStyles);
+
   const computed = useMemo(() => {
     const keep: { [key: string]: ResourcePermission } = {};
     for (let item of items) {
@@ -42,40 +56,171 @@ export const PermissionList = ({ title, items, compareKey, permissionLevels, can
     return Object.keys(keep).map((k) => keep[k]);
   }, [items, compareKey]);
 
+  const columns = useMemo<Array<Column<ResourcePermission>>>(
+    () => [
+      {
+        id: 'avatar',
+        header: '',
+        disableGrow: true,
+        cell: ({ row: { original: item } }: CellProps<ResourcePermission>) => {
+          if (item.teamId) {
+            return (
+              <img className={styles.avatar} src={item.teamAvatarUrl} alt={`Avatar for team ${item.teamId}`} />
+            );
+          }
+          if (item.userId) {
+            return (
+              <img className={styles.avatar} src={item.userAvatarUrl} alt={`Avatar for user ${item.userId}`} />
+            );
+          }
+          return <Icon size="xl" name="shield" />;
+        },
+      },
+      {
+        id: 'name',
+        header: title,
+        cell: ({ row: { original: item } }: CellProps<ResourcePermission>) => {
+          if (item.userId) {
+            return <span>{item.userLogin} </span>;
+          }
+          if (item.teamId) {
+            return <span>{item.team} </span>;
+          }
+          if (item.builtInRole) {
+            return <span>{item.builtInRole} </span>;
+          }
+          return <span />;
+        },
+      },
+      {
+        id: 'inherited',
+        header: '',
+        disableGrow: true,
+        cell: ({ row: { original: item } }: CellProps<ResourcePermission>) => {
+          if (item.isInherited) {
+            return (
+              <em className={styles.inherited}>
+                <Trans i18nKey="access-control.permission-list-item.inherited">Inherited from folder</Trans>
+              </em>
+            );
+          }
+          return null;
+        },
+      },
+      {
+        id: 'permission',
+        header: t('access-control.permission-list.permission', 'Permission'),
+        cell: ({ row: { original: item } }: CellProps<ResourcePermission>) => (
+          <Select
+            disabled={!canSet || !item.isManaged}
+            onChange={(p) => onChange(item, p.value!)}
+            value={permissionLevels.find((p) => p === item.permission)}
+            options={permissionLevels.map((p) => ({ value: p, label: p }))}
+          />
+        ),
+      },
+      {
+        id: 'warning',
+        header: '',
+        disableGrow: true,
+        cell: ({ row: { original: item } }: CellProps<ResourcePermission>) => {
+          if (item.warning) {
+            return (
+              <Tooltip
+                content={
+                  <>
+                    <Box marginBottom={1}>{item.warning}</Box>
+                    {getPermissionInfo(item)}
+                  </>
+                }
+              >
+                <Icon name="exclamation-triangle" className={styles.warning} />
+              </Tooltip>
+            );
+          }
+          return (
+            <Tooltip content={getPermissionInfo(item)}>
+              <Icon name="info-circle" />
+            </Tooltip>
+          );
+        },
+      },
+      {
+        id: 'action',
+        header: '',
+        disableGrow: true,
+        cell: ({ row: { original: item } }: CellProps<ResourcePermission>) => {
+          if (item.isManaged) {
+            return (
+              <Button
+                size="sm"
+                icon="times"
+                variant="destructive"
+                disabled={!canSet}
+                onClick={() => onRemove(item)}
+                aria-label={t(
+                  'access-control.permission-list-item.remove-aria-label',
+                  'Remove permission for {{identifier}}',
+                  { identifier: getName(item) }
+                )}
+              />
+            );
+          }
+          return (
+            <Tooltip
+              content={
+                item.isInherited
+                  ? t('access-control.permission-list-item.tooltip-inherited-permission', 'Inherited permission')
+                  : t('access-control.permission-list-item.tooltip-provisioned-permission', 'Provisioned permission')
+              }
+            >
+              <Button
+                size="sm"
+                icon="lock"
+                aria-label={t('access-control.permission-list-item.locked-aria-label', 'Locked permission indicator')}
+              />
+            </Tooltip>
+          );
+        },
+      },
+    ],
+    [styles, title, permissionLevels, canSet, onChange, onRemove]
+  );
+
   if (computed.length === 0) {
     return null;
   }
 
   return (
-    <div>
-      <table className="filter-table gf-form-group">
-        <thead>
-          <tr>
-            <th style={{ width: '1%' }} />
-            <th>{title}</th>
-            <th style={{ width: '1%' }} />
-
-            <th style={{ width: '40%' }}>
-              <Trans i18nKey="access-control.permission-list.permission">Permission</Trans>
-            </th>
-
-            <th style={{ width: '1%' }} />
-            <th style={{ width: '1%' }} />
-          </tr>
-        </thead>
-        <tbody>
-          {computed.map((item, index) => (
-            <PermissionListItem
-              item={item}
-              onRemove={onRemove}
-              onChange={onChange}
-              canSet={canSet}
-              key={`${index}-${item.userId}`}
-              permissionLevels={permissionLevels}
-            />
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <Box marginBottom={5}>
+      <InteractiveTable columns={columns} data={computed} getRowId={(item) => String(item.id)} />
+    </Box>
   );
 };
+
+const getName = (item: ResourcePermission) => {
+  if (item.userId) {
+    return item.userLogin;
+  }
+  if (item.teamId) {
+    return item.team;
+  }
+  return item.builtInRole;
+};
+
+const getPermissionInfo = (p: ResourcePermission) => `Actions: ${[...new Set(p.actions)].sort().join(' ')}`;
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  avatar: css({
+    width: '25px',
+    height: '25px',
+    borderRadius: theme.shape.radius.circle,
+  }),
+  inherited: css({
+    color: theme.colors.text.secondary,
+    flexWrap: 'nowrap',
+  }),
+  warning: css({
+    color: theme.colors.warning.main,
+  }),
+});
