@@ -86,8 +86,8 @@ export const prepConfig = (xySeries: XYSeries[], theme: GrafanaTheme2) => {
 
           let pointAlpha = scatterInfo.fillOpacity / 100;
 
-          u.ctx.fillStyle = colorManipulator.alpha((series.fill as any)(), pointAlpha);
-          u.ctx.strokeStyle = colorManipulator.alpha((series.stroke as any)(), 1);
+          u.ctx.fillStyle = colorManipulator.alpha((series.fill as () => string)(), pointAlpha);
+          u.ctx.strokeStyle = colorManipulator.alpha((series.stroke as () => string)(), 1);
           u.ctx.lineWidth = strokeWidth;
 
           let deg360 = 2 * Math.PI;
@@ -210,7 +210,7 @@ export const prepConfig = (xySeries: XYSeries[], theme: GrafanaTheme2) => {
       size: {
         //unit: 3, // raw CSS pixels
         values: (u, seriesIdx) => {
-          return u.data[seriesIdx][2] as any; // already contains final pixel geometry
+          return u.data[seriesIdx][2] as unknown as number[]; // already contains final pixel geometry
           //let [minValue, maxValue] = getSizeMinMax(u);
           //return u.data[seriesIdx][2].map(v => getSize(v, minValue, maxValue));
         },
@@ -218,7 +218,7 @@ export const prepConfig = (xySeries: XYSeries[], theme: GrafanaTheme2) => {
       color: {
         // string values
         values: (u, seriesIdx) => {
-          return u.data[seriesIdx][3] as any;
+          return u.data[seriesIdx][3] as unknown as string[];
         },
       },
     },
