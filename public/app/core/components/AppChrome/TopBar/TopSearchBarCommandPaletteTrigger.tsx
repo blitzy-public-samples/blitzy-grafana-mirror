@@ -61,7 +61,8 @@ function PretendTextInput({ onClick }: PretendTextInputProps) {
           <Icon name="search" />
         </div>
 
-        <button className={styles.fakeInput} onClick={onClick}>
+        {/* Design system gap: this is a button styled to look like a search input via getInputStyles. @grafana/ui's Button cannot replicate the input-like appearance (it injects button-specific padding, height, line-height, border-radius, and focus styles via getButtonStyles) without overriding its own variant styling. Kept as raw <button> per refactor protocol (AAP §0.9.2.6, §0.4.4). */}
+        <button type="button" className={styles.fakeInput} onClick={onClick}>
           {t('nav.search.placeholderCommandPalette', 'Search...')}
         </button>
 
