@@ -631,11 +631,6 @@
       "count": 1
     }
   },
-  "public/app/core/navigation/types.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "public/app/core/reducers/appNotification.ts": {
     "no-restricted-syntax": {
       "count": 3
