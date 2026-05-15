@@ -3339,11 +3339,6 @@
       "count": 4
     }
   },
-  "public/app/plugins/panel/text/textPanelMigrationHandler.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "public/app/plugins/panel/timeseries/migrations.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1
