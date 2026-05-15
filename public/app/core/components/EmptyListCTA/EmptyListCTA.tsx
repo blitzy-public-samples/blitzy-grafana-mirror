@@ -3,7 +3,7 @@ import { type MouseEvent } from 'react';
 
 import { selectors } from '@grafana/e2e-selectors';
 import { Trans } from '@grafana/i18n';
-import { Alert, Button, CallToActionCard, Icon, type IconName, LinkButton } from '@grafana/ui';
+import { Alert, Button, CallToActionCard, Icon, type IconName, LinkButton, TextLink } from '@grafana/ui';
 
 export interface Props {
   title: string;
@@ -51,9 +51,9 @@ const EmptyListCTA = ({
             <Icon name="rocket" />
             <Trans i18nKey="empty-list-cta.pro-tip">ProTip: {{ proTip }}</Trans>
             {proTipLink && (
-              <a href={proTipLink} target={proTipTarget} className="text-link">
+              <TextLink href={proTipLink} external={proTipTarget === '_blank'}>
                 {proTipLinkTitle}
-              </a>
+              </TextLink>
             )}
           </span>
         ) : (
