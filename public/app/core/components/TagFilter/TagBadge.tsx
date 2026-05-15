@@ -15,11 +15,12 @@ export const TagBadge = ({ count, label, onClick, removeIcon }: Props) => {
   const { color } = getTagColorsFromName(label);
   const styles = useStyles2(getStyles);
 
-  const countLabel = count !== 0 && <span style={{ marginLeft: '3px' }}>{`(${count})`}</span>;
+  const countLabel = count !== 0 && <span className={styles.countSuffix}>{`(${count})`}</span>;
 
   return (
     <span
       className={styles.badge}
+      // Design system gap: tag color is derived from tag string per existing color hash function (getTagColorsFromName); cannot be statically tokenized.
       style={{
         backgroundColor: color,
       }}
@@ -45,5 +46,8 @@ export const getStyles = (theme: GrafanaTheme2) => ({
     '&:hover': {
       opacity: 0.85,
     },
+  }),
+  countSuffix: css({
+    marginLeft: theme.spacing(0.5),
   }),
 });
