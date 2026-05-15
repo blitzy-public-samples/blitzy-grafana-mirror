@@ -1,7 +1,7 @@
 import { css } from '@emotion/css';
 import { useMemo } from 'react';
 
-import { colorManipulator, FALLBACK_COLOR, type PanelProps } from '@grafana/data';
+import { colorManipulator, FALLBACK_COLOR, type GrafanaTheme2, type PanelProps } from '@grafana/data';
 import { config } from '@grafana/runtime';
 import {
   TooltipDisplayMode,
@@ -103,8 +103,8 @@ export const XYChartPanel2 = (props: Props2) => {
 
   if (error) {
     return (
-      <div className="panel-empty">
-        <p>{error}</p>
+      <div className={styles.panelEmpty}>
+        <p className={styles.panelEmptyText}>{error}</p>
       </div>
     );
   }
@@ -145,10 +145,22 @@ export const XYChartPanel2 = (props: Props2) => {
   );
 };
 
-const getStyles = () => ({
+const getStyles = (theme: GrafanaTheme2) => ({
   legend: css({
     div: {
       justifyContent: 'flex-start',
     },
+  }),
+  panelEmpty: css({
+    display: 'flex',
+    alignItems: 'center',
+    height: '100%',
+    width: '100%',
+  }),
+  panelEmptyText: css({
+    textAlign: 'center',
+    color: theme.colors.text.secondary,
+    fontSize: theme.typography.size.lg,
+    width: '100%',
   }),
 });
