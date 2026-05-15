@@ -28,6 +28,13 @@ export const OperationRowHelp = React.memo(
 
 function markdownHelper(markdown: string) {
   const helpHtml = renderMarkdown(markdown);
+  // Design system gap: `markdown-html` is the design-system-provided global class declared in
+  // `@grafana/ui` (packages/grafana-ui/src/themes/GlobalStyles/markdownStyles.ts) that styles
+  // descendants of dynamically-rendered markdown HTML (img/ul/ol/table/th/td/a). It cannot be
+  // replaced with `useStyles2`-managed Emotion atomic classes because the markup here is injected
+  // via `dangerouslySetInnerHTML` from `renderMarkdown(...)` and Emotion atomic CSS does not
+  // target dynamically-generated descendant HTML. This is not a `public/sass/**` legacy class and
+  // is therefore intentionally retained per AAP §0.4.4 (Gaps Inventory).
   return <div className="markdown-html" dangerouslySetInnerHTML={{ __html: helpHtml }} />;
 }
 
