@@ -3496,11 +3496,6 @@
       "count": 1
     }
   },
-  "public/app/types/dashboard.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "public/app/types/jquery/jquery.d.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 3
