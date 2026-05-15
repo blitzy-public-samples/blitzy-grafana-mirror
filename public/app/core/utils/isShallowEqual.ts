@@ -1,7 +1,6 @@
 // From https://github.com/streamich/fast-shallow-equal
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function isShallowEqual(a: any, b: any) {
+export function isShallowEqual(a: unknown, b: unknown): boolean {
   if (a === b) {
     return true;
   }
@@ -10,20 +9,23 @@ export function isShallowEqual(a: any, b: any) {
     return false;
   }
 
-  const keys = Object.keys(a);
+  // After the instanceof checks both values are objects; widen to indexable records to inspect their own keys.
+  const aRecord = a as Record<string, unknown>;
+  const bRecord = b as Record<string, unknown>;
+  const keys = Object.keys(aRecord);
   const length = keys.length;
 
   for (let i = 0; i < length; i++) {
-    if (!(keys[i] in b)) {
+    if (!(keys[i] in bRecord)) {
       return false;
     }
   }
 
   for (let i = 0; i < length; i++) {
-    if (a[keys[i]] !== b[keys[i]]) {
+    if (aRecord[keys[i]] !== bRecord[keys[i]]) {
       return false;
     }
   }
 
-  return length === Object.keys(b).length;
+  return length === Object.keys(bRecord).length;
 }
