@@ -6,7 +6,6 @@ import {
   type AsyncThunkOptions,
   type AsyncThunkPayloadCreator,
   createAsyncThunk as createAsyncThunkUntyped,
-  type PayloadAction,
   type TypedAddListener,
 } from '@reduxjs/toolkit';
 import {
@@ -25,7 +24,7 @@ export type StoreState = ReturnType<ReturnType<typeof createRootReducer>>;
 /*
  * Utility type to get strongly types thunks
  */
-export type ThunkResult<R> = ThunkAction<R, StoreState, undefined, PayloadAction<any>>;
+export type ThunkResult<R> = ThunkAction<R, StoreState, undefined, Action>;
 
 export type ThunkDispatch = GenericThunkDispatch<StoreState, undefined, Action>;
 
