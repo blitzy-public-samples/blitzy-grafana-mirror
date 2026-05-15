@@ -653,10 +653,7 @@
   },
   "public/app/core/services/echo/backends/analytics/RudderstackBackend.ts": {
     "@typescript-eslint/consistent-type-assertions": {
-      "count": 2
-    },
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
+      "count": 3
     }
   },
   "public/app/core/specs/backend_srv.test.ts": {

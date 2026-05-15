@@ -66,7 +66,8 @@ export class RudderstackBackend implements EchoBackend<PageviewEchoEvent, Rudder
     const url = options.sdkUrl || `https://cdn.rudderlabs.com/v1/rudder-analytics.min.js`;
     loadScript(url);
 
-    const tempRudderstack = ((window as any).rudderanalytics = []);
+    const tempRudderstack: unknown[] = [];
+    (window as Window & { rudderanalytics?: unknown[] }).rudderanalytics = tempRudderstack;
 
     const methods = [
       'load',
@@ -83,7 +84,7 @@ export class RudderstackBackend implements EchoBackend<PageviewEchoEvent, Rudder
 
     for (let i = 0; i < methods.length; i++) {
       const method = methods[i];
-      (tempRudderstack as Record<string, any>)[method] = (function (methodName) {
+      (tempRudderstack as unknown as Record<string, (...args: unknown[]) => void>)[method] = (function (methodName) {
         return function () {
           // @ts-ignore
           tempRudderstack.push([methodName].concat(Array.prototype.slice.call(arguments)));
