@@ -516,11 +516,6 @@
       "count": 1
     }
   },
-  "public/app/core/components/DynamicImports/SafeDynamicImport.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "public/app/core/components/ForgottenPassword/ChangePassword.tsx": {
     "no-restricted-syntax": {
       "count": 2
