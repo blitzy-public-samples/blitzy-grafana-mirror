@@ -1,6 +1,11 @@
+import { css, cx } from '@emotion/css';
+
 import { type GrafanaTheme2 } from '@grafana/data';
+import { useStyles2 } from '@grafana/ui';
 
 export function DiffCell({ value, theme }: { value: number | undefined; theme: GrafanaTheme2 }) {
+  const styles = useStyles2(getStyles);
+
   if (value === undefined) {
     return <span>-</span>;
   }
@@ -19,5 +24,11 @@ export function DiffCell({ value, theme }: { value: number | undefined; theme: G
     color = value > 0 ? theme.colors.error.text : theme.colors.success.text;
   }
 
-  return <span style={{ color, fontWeight: 'bold' }}>{displayValue}</span>;
+  return <span className={cx(styles.bold, css({ color }))}>{displayValue}</span>;
 }
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  bold: css({
+    fontWeight: theme.typography.fontWeightBold,
+  }),
+});
