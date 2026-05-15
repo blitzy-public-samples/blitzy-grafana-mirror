@@ -697,10 +697,7 @@
   },
   "public/app/core/utils/object.ts": {
     "@typescript-eslint/consistent-type-assertions": {
-      "count": 4
-    },
-    "@typescript-eslint/no-explicit-any": {
-      "count": 3
+      "count": 5
     }
   },
   "public/app/core/utils/richHistory.test.ts": {
