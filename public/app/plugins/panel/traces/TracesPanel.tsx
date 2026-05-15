@@ -3,8 +3,9 @@ import { useMemo, useRef } from 'react';
 import { useAsync } from 'react-use';
 
 import { type TraceSearchProps, type Field, type LinkModel, type PanelProps } from '@grafana/data';
-import { Trans } from '@grafana/i18n';
+import { t } from '@grafana/i18n';
 import { getDataSourceSrv } from '@grafana/runtime';
+import { EmptyState } from '@grafana/ui';
 import { TraceView } from 'app/features/explore/TraceView/TraceView';
 import { type SpanLinkFunc } from 'app/features/explore/TraceView/components/types/links';
 import { transformDataFrames } from 'app/features/explore/TraceView/utils/transform';
@@ -35,11 +36,10 @@ export const TracesPanel = ({ data, options, replaceVariables }: PanelProps<Trac
 
   if (!data || !data.series.length || !traceProp) {
     return (
-      <div className="panel-empty">
-        <p>
-          <Trans i18nKey="traces.traces-panel.no-data-found-in-response">No data found in response</Trans>
-        </p>
-      </div>
+      <EmptyState
+        variant="not-found"
+        message={t('traces.traces-panel.no-data-found-in-response', 'No data found in response')}
+      />
     );
   }
 
