@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 
 import { Trans, t } from '@grafana/i18n';
 import { getBackendSrv } from '@grafana/runtime';
-import { Field, Input, Button, Legend, Container, LinkButton, Stack } from '@grafana/ui';
+import { Field, Input, Button, FieldSet, Container, LinkButton, Stack } from '@grafana/ui';
 import { getConfig } from 'app/core/config';
 import { useAppNotification } from 'app/core/copy/appNotification';
 import { w3cStandardEmailValidator } from 'app/features/admin/utils';
@@ -51,29 +51,28 @@ export const VerifyEmail = () => {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
-      <Legend>
-        <Trans i18nKey="sign-up.verify.header">Verify email</Trans>
-      </Legend>
-      <Field
-        label={t('sign-up.verify.email-label', 'Email')}
-        description={t(
-          'sign-up.verify.email-description',
-          'Enter your email address to get a verification link sent to you'
-        )}
-        invalid={!!errors.email}
-        error={errors.email?.message}
-      >
-        <Input
-          id="email"
-          {...register('email', {
-            required: 'Email is required',
-            pattern: {
-              value: w3cStandardEmailValidator,
-              message: 'Email is invalid',
-            },
-          })}
-        />
-      </Field>
+      <FieldSet label={<Trans i18nKey="sign-up.verify.header">Verify email</Trans>}>
+        <Field
+          label={t('sign-up.verify.email-label', 'Email')}
+          description={t(
+            'sign-up.verify.email-description',
+            'Enter your email address to get a verification link sent to you'
+          )}
+          invalid={!!errors.email}
+          error={errors.email?.message}
+        >
+          <Input
+            id="email"
+            {...register('email', {
+              required: 'Email is required',
+              pattern: {
+                value: w3cStandardEmailValidator,
+                message: 'Email is invalid',
+              },
+            })}
+          />
+        </Field>
+      </FieldSet>
       <Stack>
         <Button type="submit">
           <Trans i18nKey="sign-up.verify.send-button">Send verification email</Trans>
