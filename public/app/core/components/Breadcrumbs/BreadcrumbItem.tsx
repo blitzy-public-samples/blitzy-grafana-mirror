@@ -21,6 +21,7 @@ export function BreadcrumbItem({ href, isCurrent, text, index, flexGrow }: Props
   };
 
   return (
+    // Design system gap: dynamic flexGrow value driven by runtime prop. Inline style required because the value varies at runtime.
     <li className={styles.breadcrumbWrapper} style={{ flexGrow }}>
       {isCurrent ? (
         <span
