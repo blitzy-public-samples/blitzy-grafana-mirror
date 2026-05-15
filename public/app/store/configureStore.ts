@@ -18,7 +18,7 @@ import { alertingApi } from '../features/alerting/unified/api/alertingApi';
 
 import { setStore } from './store';
 
-export function addRootReducer(reducers: any) {
+export function addRootReducer(reducers: Parameters<typeof addReducer>[0]) {
   // this is ok now because we add reducers before configureStore is called
   // in the future if we want to add reducers during runtime
   // we'll have to solve this in a more dynamic way
