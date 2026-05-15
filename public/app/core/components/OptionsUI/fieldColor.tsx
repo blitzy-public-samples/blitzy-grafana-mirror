@@ -14,7 +14,7 @@ import {
   getFieldColorMode,
 } from '@grafana/data';
 import { t } from '@grafana/i18n';
-import { useStyles2, useTheme2, Field, RadioButtonGroup, Select } from '@grafana/ui';
+import { Box, Field, RadioButtonGroup, Select, useStyles2, useTheme2 } from '@grafana/ui';
 
 import { ColorValueEditor } from './color';
 
@@ -113,9 +113,9 @@ export const FieldColorEditor = ({ value, onChange, item, id }: Props) => {
 
     return (
       <>
-        <div style={{ marginBottom: theme.spacing(2) }}>
+        <Box marginBottom={2}>
           <Select minMenuHeight={200} options={options} value={mode} onChange={onModeChange} inputId={id} />
-        </div>
+        </Box>
         <Field label={t('options-ui.field-color.color-by-label', 'Color series by')}>
           <RadioButtonGroup value={value?.seriesBy ?? 'last'} options={seriesModes} onChange={onSeriesModeChange} />
         </Field>
