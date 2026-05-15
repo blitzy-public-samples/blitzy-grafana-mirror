@@ -162,11 +162,6 @@
       "count": 6
     }
   },
-  "packages/grafana-prometheus/src/configuration/AlertingSettingsOverhaul.tsx": {
-    "no-restricted-syntax": {
-      "count": 5
-    }
-  },
   "packages/grafana-prometheus/src/datasource.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1

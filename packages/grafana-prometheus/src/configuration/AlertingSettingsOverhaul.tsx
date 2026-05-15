@@ -7,7 +7,7 @@ import { selectors } from '@grafana/e2e-selectors';
 import { Trans, t } from '@grafana/i18n';
 import { ConfigSubSection } from '@grafana/plugin-ui';
 import { config } from '@grafana/runtime';
-import { InlineField, Switch, useTheme2 } from '@grafana/ui';
+import { InlineField, Stack, Switch, useTheme2 } from '@grafana/ui';
 
 import { docsTip, overhaulStyles } from './shared/utils';
 
@@ -33,9 +33,9 @@ export function AlertingSettingsOverhaul<T extends AlertingConfig>({
       title={t('grafana-prometheus.configuration.alerting-settings-overhaul.title-alerting', 'Alerting')}
       className={cx(styles.container, styles.alertingTop)}
     >
-      <div className="gf-form-group">
-        <div className="gf-form-inline">
-          <div className="gf-form">
+      <Stack direction="column" gap={2}>
+        <Stack direction="row" alignItems="center">
+          <Stack direction="row" gap={0.5}>
             <InlineField
               labelWidth={30}
               label={t(
@@ -66,10 +66,10 @@ export function AlertingSettingsOverhaul<T extends AlertingConfig>({
                 id={selectors.components.DataSource.Prometheus.configPage.manageAlerts}
               />
             </InlineField>
-          </div>
-        </div>
-        <div className="gf-form-inline">
-          <div className="gf-form">
+          </Stack>
+        </Stack>
+        <Stack direction="row" alignItems="center">
+          <Stack direction="row" gap={0.5}>
             <InlineField
               labelWidth={30}
               label={t(
@@ -101,9 +101,9 @@ export function AlertingSettingsOverhaul<T extends AlertingConfig>({
                 id={selectors.components.DataSource.Prometheus.configPage.allowAsRecordingRulesTarget}
               />
             </InlineField>
-          </div>
-        </div>
-      </div>
+          </Stack>
+        </Stack>
+      </Stack>
     </ConfigSubSection>
   );
 }
