@@ -685,11 +685,6 @@
       "count": 4
     }
   },
-  "public/app/core/utils/deferred.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "public/app/core/utils/fetch.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 5

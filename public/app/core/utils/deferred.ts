@@ -1,6 +1,6 @@
 export class Deferred<T = unknown> {
   resolve?: (reason: T | PromiseLike<T>) => void;
-  reject?: (reason?: any) => void;
+  reject?: (reason?: unknown) => void;
   promise: Promise<T>;
 
   constructor() {
