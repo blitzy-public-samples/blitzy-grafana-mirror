@@ -1,7 +1,8 @@
+import { css } from '@emotion/css';
 import { type FormEvent, useCallback, useEffect, useRef, useState, useSyncExternalStore, type JSX } from 'react';
 
-import { type OrgRole } from '@grafana/data';
-import { ClickOutsideWrapper, Portal, useTheme2 } from '@grafana/ui';
+import { type GrafanaTheme2, type OrgRole } from '@grafana/data';
+import { ClickOutsideWrapper, Portal, useStyles2, useTheme2 } from '@grafana/ui';
 import { pickerStateStore } from 'app/core/utils/roles';
 import type { Role } from 'app/types/accessControl';
 
@@ -75,6 +76,7 @@ export const RolePicker = ({
   const ref = useRef<HTMLDivElement>(null);
   const theme = useTheme2();
   const widthPx = typeof width === 'number' ? theme.spacing(width) : width;
+  const styles = useStyles2(getStyles);
 
   // Sync internal state only when picker closes (transitions from open to closed)
   useEffect(() => {
@@ -201,8 +203,9 @@ export const RolePicker = ({
   return (
     <div
       data-testid="role-picker"
+      className={styles.wrapper}
+      // Design system gap: dynamic prop-driven width values cannot be expressed via @grafana/ui theme tokens
       style={{
-        position: 'relative',
         maxWidth: widthPx || maxWidth,
         width: widthPx,
       }}
@@ -252,3 +255,9 @@ export const RolePicker = ({
     </div>
   );
 };
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  wrapper: css({
+    position: 'relative',
+  }),
+});
