@@ -167,11 +167,6 @@
       "count": 5
     }
   },
-  "packages/grafana-prometheus/src/configuration/ExemplarSetting.tsx": {
-    "no-restricted-syntax": {
-      "count": 1
-    }
-  },
   "packages/grafana-prometheus/src/datasource.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1
