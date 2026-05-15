@@ -23,7 +23,8 @@ export interface QueryWithOperations {
   operations: QueryBuilderOperation[];
 }
 
-export interface QueryBuilderOperationDef<T = unknown> extends RegistryItem {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- The default type parameter MUST remain `any` to preserve the bivariance escape hatch required by the `QueryBuilderAddOperationHandler<T>` alias declared later in this file for the operation-registry pattern: operation arrays in querybuilder/operations.ts, aggregations.ts, and binaryScalarOperations.ts contain heterogeneous `QueryBuilderOperationDef` entries whose `addOperationHandler` callbacks accept differently-typed `query` arguments (e.g., `PromVisualQuery`), and TypeScript's strict variance rejects `unknown` as a default because `unknown` cannot be assigned to those concrete callback parameter types. Narrowing to `unknown` produces 64 TS2322 contravariance errors across 5 consumer files (querybuilder/operations.ts:29, operationUtils.ts:180, aggregations.ts:67, binaryScalarOperations.ts:91, shared/OperationList.tsx:69); those consumer files are OUT OF SCOPE for the current checkpoint per AAP §0.6.4 batch boundaries, and refactoring them to declare `QueryBuilderOperationDef<PromVisualQuery>[]` at every operation-array declaration violates the AAP §0.9.2.12 minimal-change mandate. The `any` here also preserves the public API surface contract per AAP §0.8.7 — `QueryBuilderOperationDef` is exported and consumed by downstream plugin code via the `@grafana-app/source` TypeScript custom condition.
+export interface QueryBuilderOperationDef<T = any> extends RegistryItem {
   documentation?: string;
   params: QueryBuilderOperationParamDef[];
   defaultParams: QueryBuilderOperationParamValue[];

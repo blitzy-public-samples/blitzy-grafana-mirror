@@ -14,7 +14,7 @@ import {
 import { selectors } from '@grafana/e2e-selectors';
 import { t, Trans } from '@grafana/i18n';
 import { reportInteraction } from '@grafana/runtime';
-import { Button, Icon, useStyles2 } from '@grafana/ui';
+import { Button, Stack, useStyles2 } from '@grafana/ui';
 
 import { type PrometheusDatasource } from '../datasource';
 import { getInitHints } from '../query_hints';
@@ -110,13 +110,17 @@ export const PromQueryField = (props: PromQueryFieldProps) => {
 
   return (
     <>
-      <div
-        className="gf-form-inline gf-form-inline--xs-view-flex-column flex-grow-1"
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        gap={0}
+        grow={1}
         data-testid={props['data-testid']}
       >
         {!hideMetricsBrowser && (
-          <button
-            className="gf-form-label query-keyword pointer"
+          <Button
+            variant="secondary"
+            fill="text"
+            icon={labelBrowserVisible ? 'angle-down' : 'angle-right'}
             onClick={onClickChooserButton}
             disabled={datasource.lookupsDisabled}
             type="button"
@@ -127,11 +131,10 @@ export const PromQueryField = (props: PromQueryFieldProps) => {
             ) : (
               <Trans i18nKey="grafana-prometheus.metrics-browser.enabled-label">Metrics browser</Trans>
             )}
-            <Icon name={labelBrowserVisible ? 'angle-down' : 'angle-right'} />
-          </button>
+          </Button>
         )}
 
-        <div className="flex-grow-1 min-width-15">
+        <div className={styles.monacoWrapper}>
           <MonacoQueryFieldWrapper
             languageProvider={languageProvider}
             history={history}
@@ -146,7 +149,7 @@ export const PromQueryField = (props: PromQueryFieldProps) => {
             timeRange={range ?? getDefaultTimeRange()}
           />
         </div>
-      </div>
+      </Stack>
       {labelBrowserVisible && (
         <div>
           <MetricsBrowserProvider
@@ -182,5 +185,9 @@ export const PromQueryField = (props: PromQueryFieldProps) => {
 const getStyles = (theme: GrafanaTheme2) => ({
   warning: css({
     color: theme.colors.warning.text,
+  }),
+  monacoWrapper: css({
+    flexGrow: 1,
+    minWidth: theme.spacing(30),
   }),
 });

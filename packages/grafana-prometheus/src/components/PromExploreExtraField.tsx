@@ -7,7 +7,7 @@ import { usePrevious } from 'react-use';
 
 import { type GrafanaTheme2 } from '@grafana/data';
 import { t, Trans } from '@grafana/i18n';
-import { InlineFormLabel, RadioButtonGroup, Stack, useStyles2 } from '@grafana/ui';
+import { InlineFormLabel, Input, RadioButtonGroup, Stack, useStyles2 } from '@grafana/ui';
 
 import { type PrometheusDatasource } from '../datasource';
 import { type PromQuery } from '../types';
@@ -119,9 +119,9 @@ export const PromExploreExtraField = memo(({ query, datasource, onChange, onRunQ
         >
           <Trans i18nKey="grafana-prometheus.components.prom-explore-extra-field.min-step">Min step</Trans>
         </InlineFormLabel>
-        <input
-          type={'text'}
-          className="gf-form-input width-4"
+        <Input
+          type="text"
+          width={8}
           // eslint-disable-next-line @grafana/i18n/no-untranslated-strings
           placeholder="auto"
           onChange={onStepChange}

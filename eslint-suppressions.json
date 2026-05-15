@@ -147,16 +147,6 @@
       "count": 1
     }
   },
-  "packages/grafana-prometheus/src/components/PromExploreExtraField.tsx": {
-    "no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "packages/grafana-prometheus/src/components/PromQueryField.tsx": {
-    "no-restricted-syntax": {
-      "count": 2
-    }
-  },
   "packages/grafana-prometheus/src/components/metrics-browser/useMetricsLabelsValues.ts": {
     "no-restricted-syntax": {
       "count": 6
