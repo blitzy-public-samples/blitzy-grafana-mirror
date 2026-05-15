@@ -72,8 +72,9 @@ export function CallTreeTable({
   }
 
   return (
-    <div style={{ width, height, display: 'flex', flexDirection: 'column' }}>
-      <table {...getTableProps()} className={styles.table} style={{ flexShrink: 0 }}>
+    <div className={cx(styles.outerContainer, css({ width, height }))}>
+      {/* Design system gap: react-table integration with custom expansion/virtualization beyond InteractiveTable scope; keeping raw per refactor protocol */}
+      <table {...getTableProps()} className={cx(styles.table, styles.headerTable)}>
         <thead className={styles.thead}>
           {headerGroups.map((headerGroup) => {
             const { key, ...headerGroupProps } = headerGroup.getHeaderGroupProps();
@@ -82,16 +83,20 @@ export function CallTreeTable({
                 {headerGroup.headers.map((column) => {
                   const { key: headerKey, ...headerProps } = column.getHeaderProps(column.getSortByToggleProps());
                   const columnWidth = column.id === 'label' ? functionColumnWidth : column.width;
+                  const isValueColumn = column.id === 'self' || column.id === 'total';
                   return (
                     <th
                       key={headerKey}
                       {...headerProps}
-                      className={styles.th}
-                      style={{
-                        ...(columnWidth !== undefined && { width: columnWidth }),
-                        textAlign: column.id === 'self' || column.id === 'total' ? 'right' : undefined,
-                        ...(column.minWidth !== undefined && { minWidth: column.minWidth }),
-                      }}
+                      className={cx(
+                        styles.th,
+                        isValueColumn && styles.valueColumnHeader,
+                        (columnWidth !== undefined || column.minWidth !== undefined) &&
+                          css({
+                            ...(columnWidth !== undefined && { width: columnWidth }),
+                            ...(column.minWidth !== undefined && { minWidth: column.minWidth }),
+                          })
+                      )}
                     >
                       {column.render('Header')}
                       {column.isSorted && (
@@ -109,11 +114,8 @@ export function CallTreeTable({
           })}
         </thead>
       </table>
-      <div
-        ref={scrollContainerRef}
-        style={{ flex: 1, overflowY: 'scroll', overflowX: 'auto' }}
-        className={styles.scrollContainer}
-      >
+      <div ref={scrollContainerRef} className={styles.scrollContainer}>
+        {/* Design system gap: react-table integration with custom expansion/virtualization beyond InteractiveTable scope; keeping raw per refactor protocol */}
         <table {...getTableProps()} className={styles.table}>
           <tbody {...getTableBodyProps()} className={styles.tbody}>
             {rows.map((row, rowIndex) => {
@@ -149,12 +151,13 @@ export function CallTreeTable({
                         className={cx(
                           styles.td,
                           isActionsColumn && styles.actionsColumnCell,
-                          isValueColumn && styles.valueColumnCell
+                          isValueColumn && styles.valueColumnCell,
+                          (columnWidth !== undefined || cell.column.minWidth !== undefined) &&
+                            css({
+                              ...(columnWidth !== undefined && { width: columnWidth }),
+                              ...(cell.column.minWidth !== undefined && { minWidth: cell.column.minWidth }),
+                            })
                         )}
-                        style={{
-                          ...(columnWidth !== undefined && { width: columnWidth }),
-                          ...(cell.column.minWidth !== undefined && { minWidth: cell.column.minWidth }),
-                        }}
                       >
                         {cell.render('Cell', { rowIndex })}
                       </td>
@@ -173,6 +176,9 @@ export function CallTreeTable({
 function getStyles(theme: GrafanaTheme2) {
   return {
     scrollContainer: css({
+      flex: 1,
+      overflowY: 'scroll',
+      overflowX: 'auto',
       '&::-webkit-scrollbar': {
         width: '8px',
       },
@@ -187,12 +193,19 @@ function getStyles(theme: GrafanaTheme2) {
         background: theme.colors.text.secondary,
       },
     }),
+    outerContainer: css({
+      display: 'flex',
+      flexDirection: 'column',
+    }),
     table: css({
       width: '100%',
       tableLayout: 'fixed',
       borderCollapse: 'collapse',
       fontSize: theme.typography.fontSize,
       color: theme.colors.text.primary,
+    }),
+    headerTable: css({
+      flexShrink: 0,
     }),
     thead: css({
       backgroundColor: theme.colors.background.secondary,
@@ -208,6 +221,9 @@ function getStyles(theme: GrafanaTheme2) {
       '&:hover': {
         backgroundColor: theme.colors.emphasize(theme.colors.background.secondary, 0.03),
       },
+    }),
+    valueColumnHeader: css({
+      textAlign: 'right',
     }),
     tbody: css({
       backgroundColor: theme.colors.background.primary,
