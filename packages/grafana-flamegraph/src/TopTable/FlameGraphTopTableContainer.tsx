@@ -63,7 +63,7 @@ const FlameGraphTopTableContainer = memo(
 
     return (
       <div className={styles.topTableContainer} data-testid="topTable">
-        <AutoSizer style={{ width: '100%' }}>
+        <AutoSizer className={styles.autoSizer}>
           {({ width, height }) => {
             if (width < 3 || height < 3) {
               return null;
@@ -370,6 +370,10 @@ const getStyles = (theme: GrafanaTheme2) => {
       padding: theme.spacing(1),
       backgroundColor: theme.colors.background.secondary,
       height: '100%',
+    }),
+    autoSizer: css({
+      label: 'autoSizer',
+      width: '100%',
     }),
   };
 };
