@@ -132,7 +132,7 @@ export const PromSettings = (props: Props) => {
             >
               <>
                 <Input
-                  className="width-20"
+                  width={40}
                   value={optionsWithDefaults.jsonData.timeInterval}
                   spellCheck={false}
                   // eslint-disable-next-line @grafana/i18n/no-untranslated-strings
@@ -166,7 +166,7 @@ export const PromSettings = (props: Props) => {
             >
               <>
                 <Input
-                  className="width-20"
+                  width={40}
                   value={optionsWithDefaults.jsonData.queryTimeout}
                   onChange={onChangeHandler('queryTimeout', optionsWithDefaults, onOptionsChange)}
                   spellCheck={false}
@@ -439,7 +439,7 @@ export const PromSettings = (props: Props) => {
                         incrementalQueryOverlapWindow: e.currentTarget.value,
                       })
                     }
-                    className="width-20"
+                    width={40}
                     value={
                       optionsWithDefaults.jsonData.incrementalQueryOverlapWindow ?? defaultPrometheusQueryOverlapWindow
                     }
@@ -515,7 +515,7 @@ export const PromSettings = (props: Props) => {
               disabled={optionsWithDefaults.readOnly}
             >
               <Input
-                className="width-20"
+                width={40}
                 value={optionsWithDefaults.jsonData.customQueryParameters}
                 onChange={onChangeHandler('customQueryParameters', optionsWithDefaults, onOptionsChange)}
                 spellCheck={false}
@@ -574,7 +574,7 @@ export const PromSettings = (props: Props) => {
             >
               <>
                 <Input
-                  className="width-20"
+                  width={40}
                   value={seriesLimit}
                   spellCheck={false}
                   // eslint-disable-next-line @grafana/i18n/no-untranslated-strings
