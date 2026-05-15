@@ -682,10 +682,7 @@
   },
   "public/app/core/utils/connectWithReduxStore.tsx": {
     "@typescript-eslint/consistent-type-assertions": {
-      "count": 2
-    },
-    "@typescript-eslint/no-explicit-any": {
-      "count": 8
+      "count": 4
     }
   },
   "public/app/core/utils/deferred.ts": {
