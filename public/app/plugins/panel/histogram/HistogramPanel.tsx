@@ -9,8 +9,8 @@ import {
   cacheFieldDisplayNames,
   getHistogramFields,
 } from '@grafana/data';
-import { Trans } from '@grafana/i18n';
-import { TooltipDisplayMode, TooltipPlugin2, useTheme2 } from '@grafana/ui';
+import { t } from '@grafana/i18n';
+import { EmptyState, TooltipDisplayMode, TooltipPlugin2, useTheme2 } from '@grafana/ui';
 import { TooltipHoverMode } from '@grafana/ui/internal';
 
 import { Histogram, getBucketSize } from './Histogram';
@@ -64,13 +64,10 @@ export const HistogramPanel = ({ data, options, width, height }: Props) => {
 
   if (!histogram || !histogram.fields.length) {
     return (
-      <div className="panel-empty">
-        <p>
-          <Trans i18nKey="histogram.histogram-panel.no-histogram-found-in-response">
-            No histogram found in response
-          </Trans>
-        </p>
-      </div>
+      <EmptyState
+        variant="not-found"
+        message={t('histogram.histogram-panel.no-histogram-found-in-response', 'No histogram found in response')}
+      />
     );
   }
 
