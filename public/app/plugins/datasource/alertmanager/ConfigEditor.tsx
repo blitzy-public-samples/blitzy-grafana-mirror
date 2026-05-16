@@ -46,7 +46,11 @@ export const ConfigEditor = (props: Props) => {
 
   return (
     <>
-      <h3 className="page-heading">Alertmanager</h3>
+      <Box marginBottom={2}>
+        <Text element="h3" variant="h4">
+          Alertmanager
+        </Text>
+      </Box>
       <Box marginBottom={5}>
         <InlineField label="Implementation" labelWidth={26}>
           <Select
