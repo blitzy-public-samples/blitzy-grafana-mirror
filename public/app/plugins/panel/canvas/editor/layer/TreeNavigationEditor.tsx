@@ -1,4 +1,4 @@
-import { css } from '@emotion/css';
+import { css, cx } from '@emotion/css';
 import { Global } from '@emotion/react';
 import Tree, { type TreeNodeProps } from '@rc-component/tree';
 import { type Key, useEffect, useMemo, useState } from 'react';
@@ -105,10 +105,7 @@ export const TreeNavigationEditor = ({ item }: StandardEditorProps<unknown, Tree
       <Icon
         name="angle-right"
         title={t('canvas.tree-navigation-editor.switcher-icon.title-node-icon', 'Node Icon')}
-        style={{
-          transform: `rotate(${obj.expanded ? 90 : 0}deg)`,
-          fill: theme.colors.text.primary,
-        }}
+        className={cx(styles.switcherIcon, { [styles.switcherIconExpanded]: obj.expanded })}
       />
     );
   };
@@ -184,5 +181,11 @@ const getStyles = (theme: GrafanaTheme2) => ({
   addLayerButton: css({
     marginLeft: '18px',
     minWidth: '150px',
+  }),
+  switcherIcon: css({
+    fill: theme.colors.text.primary,
+  }),
+  switcherIconExpanded: css({
+    transform: 'rotate(90deg)',
   }),
 });
