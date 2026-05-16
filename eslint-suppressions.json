@@ -2535,11 +2535,6 @@
       "count": 3
     }
   },
-  "public/app/plugins/datasource/alertmanager/types.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    }
-  },
   "public/app/plugins/datasource/azuremonitor/components/ConfigEditor/BasicLogsToggle.tsx": {
     "no-restricted-syntax": {
       "count": 1
