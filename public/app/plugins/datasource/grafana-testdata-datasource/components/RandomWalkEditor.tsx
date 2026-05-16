@@ -33,7 +33,22 @@ const randomWalkFields: Array<{
 const testSelectors = selectors.components.DataSource.TestData.QueryTab;
 type Selector = 'max' | 'min' | 'noise' | 'seriesCount' | 'spread' | 'startValue' | 'drop';
 
+/**
+ * Random walk stores its scenario-specific numeric fields (max, min, noise,
+ * spread, startValue, drop, seriesCount) directly on the query object even
+ * though most of those fields are not declared on TestDataDataQuery. This
+ * view type captures the optional numeric fields so the editor can read them
+ * without `any` and without an explicit type assertion.
+ */
+type RandomWalkFields = Partial<Record<Selector, number>>;
+
 export const RandomWalkEditor = ({ onChange, query }: EditorProps) => {
+  // The runtime query may carry random walk-specific properties as ad-hoc
+  // additions; this view extends the typed query with those optional fields.
+  // The implicit upcast is safe because RandomWalkFields is all-optional,
+  // so any TestDataDataQuery satisfies it without a type assertion.
+  const queryWithRandomWalkFields: TestDataDataQuery & RandomWalkFields = query;
+
   return (
     <InlineFieldRow>
       {randomWalkFields.map(({ label, id, min, step, placeholder, tooltip }) => {
@@ -47,7 +62,7 @@ export const RandomWalkEditor = ({ onChange, query }: EditorProps) => {
               id={`randomWalk-${id}-${query.refId}`}
               min={min}
               step={step}
-              value={(query as any)[id as keyof TestDataDataQuery] ?? placeholder}
+              value={queryWithRandomWalkFields[id] ?? placeholder}
               placeholder={placeholder}
               onChange={onChange}
             />

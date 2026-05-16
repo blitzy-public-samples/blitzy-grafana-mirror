@@ -2702,14 +2702,6 @@
       "count": 1
     }
   },
-  "public/app/plugins/datasource/grafana-testdata-datasource/components/RandomWalkEditor.tsx": {
-    "@typescript-eslint/consistent-type-assertions": {
-      "count": 2
-    },
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "public/app/plugins/datasource/grafana-testdata-datasource/components/SimulationQueryEditor.tsx": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1
