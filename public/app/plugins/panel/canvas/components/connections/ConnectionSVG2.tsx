@@ -400,6 +400,7 @@ export const ConnectionSVG = ({ setLineRef, setVertexPathRef, setVertexRef, setC
                 // Render path with vertices
                 <g>
                   {/* heighlight line */}
+                  {/* Design system gap: SVG element uses dynamic stroke/strokeOpacity/strokeWidth values (strokeWidth varies per connection); @grafana/ui provides no useStyles2 equivalent for runtime-computed SVG presentation values. Kept as inline style. */}
                   <path
                     id={`${CONNECTION_LINE_ID}_transparent`}
                     d={pathString}
@@ -476,6 +477,7 @@ export const ConnectionSVG = ({ setLineRef, setVertexPathRef, setVertexRef, setC
                 // Render line without vertices
                 <g>
                   {/* heighlight line */}
+                  {/* Design system gap: SVG element uses dynamic stroke/strokeOpacity/strokeWidth values (strokeWidth varies per connection); @grafana/ui provides no useStyles2 equivalent for runtime-computed SVG presentation values. Kept as inline style. */}
                   <line
                     id={`${CONNECTION_LINE_ID}_transparent`}
                     cursor={connectionCursorStyle}
@@ -554,6 +556,7 @@ export const ConnectionSVG = ({ setLineRef, setVertexPathRef, setVertexRef, setC
           </marker>
         </defs>
         {/* svg line for connection creation */}
+        {/* Design system gap: SVG element starts hidden via inline style and is toggled imperatively by the Connections controller via ref-managed `element.style.display` mutations; migrating to className would break the imperative DOM manipulation pattern. Kept as inline style. */}
         <line
           ref={setLineRef}
           stroke={defaultArrowColor}
@@ -564,6 +567,7 @@ export const ConnectionSVG = ({ setLineRef, setVertexPathRef, setVertexRef, setC
 
         {/* svg circle for initial vertex?
           path? is it for the line drag handling? */}
+        {/* Design system gap: SVG element starts hidden via inline style and is toggled imperatively by the Connections controller via ref-managed `element.style.display` mutations; migrating to className would break the imperative DOM manipulation pattern. Kept as inline style. */}
         <path
           ref={setVertexPathRef}
           stroke={defaultArrowColor}
@@ -572,6 +576,7 @@ export const ConnectionSVG = ({ setLineRef, setVertexPathRef, setVertexRef, setC
           fill={'none'}
           style={{ display: 'none' }}
         />
+        {/* Design system gap: SVG element starts hidden via inline style and is toggled imperatively by the Connections controller via ref-managed `element.style.display` mutations; migrating to className would break the imperative DOM manipulation pattern. Kept as inline style. */}
         <circle
           ref={setVertexRef}
           stroke={defaultArrowColor}
