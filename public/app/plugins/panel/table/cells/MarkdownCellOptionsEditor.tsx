@@ -1,8 +1,10 @@
+import { css } from '@emotion/css';
 import { type FormEvent } from 'react';
 
+import { type GrafanaTheme2 } from '@grafana/data';
 import { t, Trans } from '@grafana/i18n';
 import { type TableMarkdownCellOptions } from '@grafana/schema';
-import { Badge, Field, Label, Switch } from '@grafana/ui';
+import { Badge, Field, Label, Switch, useStyles2 } from '@grafana/ui';
 
 import { type TableCellEditorProps } from '../TableCellOptionEditor';
 
@@ -10,6 +12,8 @@ export const MarkdownCellOptionsEditor = ({
   cellOptions,
   onChange,
 }: TableCellEditorProps<TableMarkdownCellOptions>) => {
+  const styles = useStyles2(getStyles);
+
   const onDynamicHeightChange = (e: FormEvent<HTMLInputElement>) => {
     cellOptions.dynamicHeight = e.currentTarget.checked;
     onChange(cellOptions);
@@ -29,7 +33,7 @@ export const MarkdownCellOptionsEditor = ({
           <Badge
             text={t('table.markdown-cell-options-editor.label.text-alpha', 'Alpha')}
             color="blue"
-            style={{ fontSize: '11px', marginLeft: '5px', lineHeight: '1.2' }}
+            className={styles.alphaBadge}
           />
         </Label>
       }
@@ -38,3 +42,11 @@ export const MarkdownCellOptionsEditor = ({
     </Field>
   );
 };
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  alphaBadge: css({
+    fontSize: theme.typography.bodySmall.fontSize,
+    marginLeft: theme.spacing(0.5),
+    lineHeight: 1.2,
+  }),
+});
