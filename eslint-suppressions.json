@@ -2623,11 +2623,6 @@
       "count": 2
     }
   },
-  "public/app/plugins/datasource/cloud-monitoring/types/types.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "public/app/plugins/datasource/cloudwatch/components/ConfigEditor/ConfigEditor.tsx": {
     "no-restricted-syntax": {
       "count": 3
@@ -2717,9 +2712,6 @@
   "public/app/plugins/datasource/grafana/components/QueryEditor.tsx": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 2
-    },
-    "react-prefer-function-component/react-prefer-function-component": {
-      "count": 1
     }
   },
   "public/app/plugins/datasource/grafana/components/TimeRegionEditor.tsx": {
