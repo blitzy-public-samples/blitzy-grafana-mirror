@@ -53,7 +53,8 @@ const QUERIES: QueryExample[] = [
 function renderHighlightedMarkup(
   code: string,
   keyPrefix: string,
-  queryLanugage: LogsQueryLanguage = LogsQueryLanguage.CWLI
+  queryLanugage: LogsQueryLanguage = LogsQueryLanguage.CWLI,
+  slateQueryFieldClassName: string
 ) {
   const grammar = getGrammarForLanguage(queryLanugage);
   const tokens = flattenTokens(Prism.tokenize(code, grammar));
@@ -70,7 +71,7 @@ function renderHighlightedMarkup(
       );
     });
 
-  return <div className="slate-query-field">{spans}</div>;
+  return <div className={slateQueryFieldClassName}>{spans}</div>;
 }
 
 interface CollapseProps {
@@ -135,7 +136,14 @@ const LogsCheatSheet = (props: Props) => {
                       key={item.expr[queryLanguage]}
                       onClick={() => onClickExample(item, query.category)}
                     >
-                      <pre>{renderHighlightedMarkup(item.expr[queryLanguage], `item-${j}`, queryLanguage)}</pre>
+                      <pre>
+                        {renderHighlightedMarkup(
+                          item.expr[queryLanguage],
+                          `item-${j}`,
+                          queryLanguage,
+                          styles.slateQueryField
+                        )}
+                      </pre>
                     </button>
                   </>
                 )}
@@ -171,6 +179,13 @@ const getStyles = (theme: GrafanaTheme2) => ({
     border: 'none',
     background: 'transparent',
     display: 'block',
+  }),
+  slateQueryField: css({
+    fontSize: theme.typography.fontSize,
+    fontFamily: theme.typography.fontFamilyMonospace,
+    height: 'auto',
+    wordBreak: 'break-word',
+    overflow: 'auto',
   }),
 });
 
