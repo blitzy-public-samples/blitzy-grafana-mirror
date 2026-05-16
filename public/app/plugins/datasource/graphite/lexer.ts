@@ -87,12 +87,47 @@ for (let i = 0; i < 128; i++) {
 
 const identifierPartTable = identifierStartTable;
 
+/**
+ * Token shape returned by {@link Lexer.scanNumericLiteral} when a numeric
+ * literal is recognized. Fields are optional because the various numeric-literal
+ * code paths (decimal, base-16, base-8, malformed) emit different subsets of
+ * metadata. See the per-return-statement comments inside scanNumericLiteral
+ * for the exact field combinations.
+ */
+type NumericLiteralToken = {
+  type: 'number';
+  value: string;
+  base?: 8 | 10 | 16;
+  isMalformed?: boolean;
+  pos?: number;
+};
+
+/**
+ * Union supertype for every token produced by any of the Lexer's scanner
+ * methods (scanStringLiteral, scanPunctuator, scanNumericLiteral,
+ * scanIdentifier, scanTemplateSequence). Each individual scanner emits a
+ * subset of these fields — for example, string-literal tokens carry
+ * `isUnclosed` and `quote`, while numeric tokens carry `base` and
+ * `isMalformed`. Declaring the local `match` variable inside Lexer.next()
+ * with this union allows TypeScript to accept reassignment from any
+ * scanner's return value without widening to `any`.
+ */
+type LexerToken = {
+  type: string;
+  value: string;
+  pos?: number;
+  isUnclosed?: boolean;
+  quote?: string;
+  base?: 8 | 10 | 16;
+  isMalformed?: boolean;
+};
+
 export class Lexer {
-  input: any;
+  input: string;
   char: number;
   from: number;
 
-  constructor(expression: any) {
+  constructor(expression: string) {
     this.input = expression;
     this.char = 1;
     this.from = 1;
@@ -134,7 +169,7 @@ export class Lexer {
       }
     }
 
-    let match = this.scanStringLiteral();
+    let match: LexerToken | null = this.scanStringLiteral();
     if (match) {
       return match;
     }
@@ -334,7 +369,7 @@ export class Lexer {
    * This method's implementation was heavily influenced by the
    * scanNumericLiteral function in the Esprima parser's source code.
    */
-  scanNumericLiteral(): any {
+  scanNumericLiteral(): NumericLiteralToken | null {
     let index = 0;
     let value = '';
     const length = this.input.length;

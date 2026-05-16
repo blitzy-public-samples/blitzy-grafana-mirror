@@ -2748,11 +2748,6 @@
       "count": 9
     }
   },
-  "public/app/plugins/datasource/graphite/lexer.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 3
-    }
-  },
   "public/app/plugins/datasource/graphite/migrations.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1
