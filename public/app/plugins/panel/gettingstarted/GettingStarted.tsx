@@ -1,6 +1,6 @@
 // Libraries
 import { css, cx } from '@emotion/css';
-import { PureComponent } from 'react';
+import { memo, useCallback, useEffect, useState } from 'react';
 
 import { type PanelProps } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
@@ -14,61 +14,58 @@ import { Step } from './components/Step';
 import { getSteps } from './steps';
 import { type SetupStep } from './types';
 
-interface State {
-  checksDone: boolean;
-  currentStep: number;
-  steps: SetupStep[];
-}
+export const GettingStarted = memo((props: PanelProps) => {
+  const { id } = props;
+  const [checksDone, setChecksDone] = useState(false);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [steps, setSteps] = useState<SetupStep[]>(() => getSteps());
 
-export class GettingStarted extends PureComponent<PanelProps, State> {
-  state = {
-    checksDone: false,
-    currentStep: 0,
-    steps: getSteps(),
-  };
+  useEffect(() => {
+    let cancelled = false;
 
-  async componentDidMount() {
-    const { steps } = this.state;
-
-    const checkedStepsPromises: Array<Promise<SetupStep>> = steps.map(async (step: SetupStep) => {
-      const checkedCardsPromises = step.cards.map(async (card) => {
-        return card.check().then((passed) => {
-          return { ...card, done: passed };
+    const checkSteps = async () => {
+      const initialSteps = getSteps();
+      const checkedStepsPromises: Array<Promise<SetupStep>> = initialSteps.map(async (step: SetupStep) => {
+        const checkedCardsPromises = step.cards.map(async (card) => {
+          return card.check().then((passed) => {
+            return { ...card, done: passed };
+          });
         });
+        const checkedCards = await Promise.all(checkedCardsPromises);
+        return {
+          ...step,
+          done: checkedCards.every((c) => c.done),
+          cards: checkedCards,
+        };
       });
-      const checkedCards = await Promise.all(checkedCardsPromises);
-      return {
-        ...step,
-        done: checkedCards.every((c) => c.done),
-        cards: checkedCards,
-      };
-    });
 
-    const checkedSteps = await Promise.all(checkedStepsPromises);
+      const checkedSteps = await Promise.all(checkedStepsPromises);
 
-    this.setState({
-      currentStep: !checkedSteps[0].done ? 0 : 1,
-      steps: checkedSteps,
-      checksDone: true,
-    });
-  }
+      if (!cancelled) {
+        setSteps(checkedSteps);
+        setCurrentStep(!checkedSteps[0].done ? 0 : 1);
+        setChecksDone(true);
+      }
+    };
 
-  onForwardClick = () => {
+    checkSteps();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const onForwardClick = useCallback(() => {
     reportInteraction('grafana_getting_started_button_to_advanced_tutorials');
-    this.setState((prevState) => ({
-      currentStep: prevState.currentStep + 1,
-    }));
-  };
+    setCurrentStep((prev) => prev + 1);
+  }, []);
 
-  onPreviousClick = () => {
+  const onPreviousClick = useCallback(() => {
     reportInteraction('grafana_getting_started_button_to_basic_tutorials');
-    this.setState((prevState) => ({
-      currentStep: prevState.currentStep - 1,
-    }));
-  };
+    setCurrentStep((prev) => prev - 1);
+  }, []);
 
-  dismiss = () => {
-    const { id } = this.props;
+  const dismiss = useCallback(() => {
     const dashboard = getDashboardSrv().getCurrent();
     const panel = dashboard?.getPanelById(id);
 
@@ -81,59 +78,58 @@ export class GettingStarted extends PureComponent<PanelProps, State> {
       .then((res) => {
         contextSrv.user.helpFlags1 = res.helpFlags1;
       });
-  };
+  }, [id]);
 
-  render() {
-    const { checksDone, currentStep, steps } = this.state;
-    const styles = getStyles();
-    const step = steps[currentStep];
+  const styles = getStyles();
+  const step = steps[currentStep];
 
-    return (
-      <div className={styles.container}>
-        {!checksDone ? (
-          <div className={styles.loading}>
-            <div className={styles.loadingText}>
-              <Trans i18nKey="gettingstarted.getting-started.checking-completed-setup-steps">
-                Checking completed setup steps
-              </Trans>
-            </div>
-            <Spinner size="xl" inline />
+  return (
+    <div className={styles.container}>
+      {!checksDone ? (
+        <div className={styles.loading}>
+          <div className={styles.loadingText}>
+            <Trans i18nKey="gettingstarted.getting-started.checking-completed-setup-steps">
+              Checking completed setup steps
+            </Trans>
           </div>
-        ) : (
-          <>
-            <Button size="sm" fill="text" className={styles.dismiss} onClick={this.dismiss}>
-              <Trans i18nKey="gettingstarted.getting-started.remove-this-panel">Remove this panel</Trans>
-            </Button>
-            {currentStep === steps.length - 1 && (
-              <Button
-                className={cx(styles.backForwardButtons, styles.previous)}
-                onClick={this.onPreviousClick}
-                aria-label={t('gettingstarted.getting-started.aria-label-to-basic-tutorials', 'To basic tutorials')}
-                icon="angle-left"
-                variant="secondary"
-              />
-            )}
-            <div className={styles.content}>
-              <Step step={step} />
-            </div>
-            {currentStep < steps.length - 1 && (
-              <Button
-                className={cx(styles.backForwardButtons, styles.forward)}
-                onClick={this.onForwardClick}
-                aria-label={t(
-                  'gettingstarted.getting-started.aria-label-to-advanced-tutorials',
-                  'To advanced tutorials'
-                )}
-                icon="angle-right"
-                variant="secondary"
-              />
-            )}
-          </>
-        )}
-      </div>
-    );
-  }
-}
+          <Spinner size="xl" inline />
+        </div>
+      ) : (
+        <>
+          <Button size="sm" fill="text" className={styles.dismiss} onClick={dismiss}>
+            <Trans i18nKey="gettingstarted.getting-started.remove-this-panel">Remove this panel</Trans>
+          </Button>
+          {currentStep === steps.length - 1 && (
+            <Button
+              className={cx(styles.backForwardButtons, styles.previous)}
+              onClick={onPreviousClick}
+              aria-label={t('gettingstarted.getting-started.aria-label-to-basic-tutorials', 'To basic tutorials')}
+              icon="angle-left"
+              variant="secondary"
+            />
+          )}
+          <div className={styles.content}>
+            <Step step={step} />
+          </div>
+          {currentStep < steps.length - 1 && (
+            <Button
+              className={cx(styles.backForwardButtons, styles.forward)}
+              onClick={onForwardClick}
+              aria-label={t(
+                'gettingstarted.getting-started.aria-label-to-advanced-tutorials',
+                'To advanced tutorials'
+              )}
+              icon="angle-right"
+              variant="secondary"
+            />
+          )}
+        </>
+      )}
+    </div>
+  );
+});
+
+GettingStarted.displayName = 'GettingStarted';
 
 const getStyles = stylesFactory(() => {
   const theme = config.theme2;

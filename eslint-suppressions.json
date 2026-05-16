@@ -3250,11 +3250,6 @@
       "count": 2
     }
   },
-  "public/app/plugins/panel/gettingstarted/GettingStarted.tsx": {
-    "react-prefer-function-component/react-prefer-function-component": {
-      "count": 1
-    }
-  },
   "public/app/plugins/panel/heatmap/palettes.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1
