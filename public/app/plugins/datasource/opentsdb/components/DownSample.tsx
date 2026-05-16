@@ -1,5 +1,7 @@
-import { toOption } from '@grafana/data';
-import { InlineLabel, Select, Input, InlineFormLabel, InlineSwitch, Stack } from '@grafana/ui';
+import { css, cx } from '@emotion/css';
+
+import { type GrafanaTheme2, toOption } from '@grafana/data';
+import { InlineLabel, Select, Input, InlineFormLabel, InlineSwitch, Stack, useStyles2 } from '@grafana/ui';
 
 import { type OpenTsdbQuery } from '../types';
 
@@ -15,12 +17,13 @@ export interface DownSampleProps {
 export function DownSample({ query, onChange, onRunQuery, aggregators, fillPolicies, tsdbVersion }: DownSampleProps) {
   const aggregatorOptions = aggregators.map((value: string) => toOption(value));
   const fillPolicyOptions = fillPolicies.map((value: string) => toOption(value));
+  const styles = useStyles2(getStyles);
 
   return (
     <Stack gap={0.5} alignItems="flex-start" data-testid={testIds.section}>
       <Stack gap={0}>
         <InlineFormLabel
-          className="query-keyword"
+          className={styles.queryKeyword}
           width={8}
           tooltip={
             <div>
@@ -43,7 +46,7 @@ export function DownSample({ query, onChange, onRunQuery, aggregators, fillPolic
         />
       </Stack>
       <Stack gap={0}>
-        <InlineFormLabel width={'auto'} className="query-keyword">
+        <InlineFormLabel width={'auto'} className={styles.queryKeyword}>
           Aggregator
         </InlineFormLabel>
         <Select
@@ -59,7 +62,7 @@ export function DownSample({ query, onChange, onRunQuery, aggregators, fillPolic
       </Stack>
       {tsdbVersion >= 2 && (
         <Stack gap={0} alignItems="flex-start">
-          <InlineLabel className="width-6 query-keyword">Fill</InlineLabel>
+          <InlineLabel className={cx(styles.width6, styles.queryKeyword)}>Fill</InlineLabel>
           <Select
             inputId="opentsdb-fillpolicy-select"
             value={query.downsampleFillPolicy ? toOption(query.downsampleFillPolicy) : undefined}
@@ -74,7 +77,7 @@ export function DownSample({ query, onChange, onRunQuery, aggregators, fillPolic
         </Stack>
       )}
       <Stack gap={0}>
-        <InlineFormLabel className="query-keyword">Disable downsampling</InlineFormLabel>
+        <InlineFormLabel className={styles.queryKeyword}>Disable downsampling</InlineFormLabel>
         <InlineSwitch
           value={query.disableDownsampling ?? false}
           onChange={() => {
@@ -95,3 +98,12 @@ export const testIds = {
   section: 'opentsdb-downsample',
   interval: 'downsample-interval',
 };
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  queryKeyword: css({
+    color: theme.colors.primary.text,
+  }),
+  width6: css({
+    width: `${theme.spacing(12)} !important`,
+  }),
+});
