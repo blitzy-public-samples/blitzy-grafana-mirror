@@ -2619,9 +2619,6 @@
   "public/app/plugins/datasource/cloud-monitoring/datasource.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 3
-    },
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
     }
   },
   "public/app/plugins/datasource/cloud-monitoring/functions.ts": {

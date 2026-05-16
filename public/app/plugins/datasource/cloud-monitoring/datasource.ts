@@ -236,7 +236,20 @@ export default class CloudMonitoringDatasource extends DataSourceWithBackend<
   // This is a manual port of the migration code in cloudmonitoring.go
   // DO NOT UPDATE THIS CODE WITHOUT UPDATING THE BACKEND CODE
   migrateQuery(query: CloudMonitoringQuery): CloudMonitoringQuery {
-    const { hide, refId, datasource, key, queryType, maxLines, metric, intervalMs, type, ...rest } = query as any;
+    // Legacy queries (pre-migration) may carry TimeSeriesList-shaped fields
+    // (projectName, filters, view, crossSeriesReducer, etc.) AND additional
+    // historical top-level fields (type, maxLines, metric, metricType) at the
+    // root of the query. The intersection below captures both groups so the
+    // destructured `rest` can be safely spread into the resulting
+    // `timeSeriesList` without falling back to `any`.
+    const { hide, refId, datasource, key, queryType, maxLines, metric, intervalMs, type, ...rest } =
+      query as CloudMonitoringQuery &
+        NonNullable<CloudMonitoringQuery['timeSeriesList']> & {
+          type?: string;
+          maxLines?: number;
+          metric?: string;
+          metricType?: string;
+        };
     if (
       !query.hasOwnProperty('metricQuery') &&
       !query.hasOwnProperty('sloQuery') &&
@@ -314,13 +327,13 @@ export default class CloudMonitoringDatasource extends DataSourceWithBackend<
     return value;
   }
 
-  interpolateProps<T extends Record<string, any>>(
+  interpolateProps<T extends object>(
     object: T,
     scopedVars: ScopedVars = {},
     formattingFunctions?: { [key: string]: Function | undefined }
   ): T {
     return Object.entries(object).reduce((acc, [key, value]) => {
-      let interpolatedValue = value;
+      let interpolatedValue: unknown = value;
       if (value && isString(value)) {
         // Pass a function to the template service for formatting
         interpolatedValue = this.templateSrv.replace(
