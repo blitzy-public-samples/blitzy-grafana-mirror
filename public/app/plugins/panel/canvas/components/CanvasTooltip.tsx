@@ -1,7 +1,7 @@
 import { css, cx } from '@emotion/css';
 import { useDialog } from '@react-aria/dialog';
 import { useOverlay } from '@react-aria/overlays';
-import { createRef, useMemo } from 'react';
+import { createRef, useMemo, type CSSProperties } from 'react';
 
 import {
   type Field,
@@ -27,6 +27,13 @@ import { type Scene } from 'app/features/canvas/runtime/scene';
 
 import { getDataLinks } from '../../status-history/utils';
 import { getElementFields, getRowIndex } from '../utils';
+
+// Design system gap: @grafana/ui/internal CloseButton's API exposes only a `style`
+// prop (no className override), so the small local z-index used to layer the close
+// button above subsequent positioned tooltip content (header / body / footer) must
+// be applied as an inline style. Hoisted to module scope to avoid the inline
+// `style={{ }}` JSX literal pattern and to preserve a stable object reference.
+const CLOSE_BUTTON_STYLE: CSSProperties = { zIndex: 1 };
 
 interface Props {
   scene: Scene;
@@ -151,7 +158,7 @@ export const CanvasTooltip = ({ scene }: Props) => {
             allowPointerEvents={scene.tooltipPayload.isOpen}
           >
             <section ref={ref} {...overlayProps} {...dialogProps}>
-              {scene.tooltipPayload.isOpen && <CloseButton style={{ zIndex: 1 }} onClick={onClose} />}
+              {scene.tooltipPayload.isOpen && <CloseButton style={CLOSE_BUTTON_STYLE} onClick={onClose} />}
               <VizTooltipHeader item={headerItem} isPinned={scene.tooltipPayload.isOpen!} />
               {element.data.text && <VizTooltipContent items={contentItems} isPinned={scene.tooltipPayload.isOpen!} />}
               {(links.length > 0 || actions.length > 0) && <VizTooltipFooter dataLinks={links} actions={actions} />}
