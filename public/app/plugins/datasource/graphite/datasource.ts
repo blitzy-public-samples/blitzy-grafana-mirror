@@ -1163,7 +1163,7 @@ export class GraphiteDatasource
         catchError((err) => {
           return throwError(() => {
             const reduced = reduceError(err);
-            return new Error(`${reduced.data.message}`);
+            return new Error(`${reduced.data?.message}`);
           });
         })
       );

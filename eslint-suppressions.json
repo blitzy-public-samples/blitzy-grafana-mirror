@@ -2773,11 +2773,6 @@
       "count": 2
     }
   },
-  "public/app/plugins/datasource/graphite/utils.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "public/app/plugins/datasource/influxdb/components/editor/annotation/AnnotationEditor.tsx": {
     "no-restricted-syntax": {
       "count": 1
