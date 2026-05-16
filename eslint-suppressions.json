@@ -2981,11 +2981,6 @@
       "count": 1
     }
   },
-  "public/app/plugins/datasource/tempo/_importedDependencies/components/AdHocFilter/AdHocFilterValue.tsx": {
-    "no-restricted-syntax": {
-      "count": 1
-    }
-  },
   "public/app/plugins/datasource/tempo/_importedDependencies/datasources/prometheus/language_utils.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1

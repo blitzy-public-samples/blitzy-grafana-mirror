@@ -1,7 +1,9 @@
-import { type AdHocVariableFilter, type DataSourceRef, type SelectableValue, getDefaultTimeRange } from '@grafana/data';
+import { css } from '@emotion/css';
+
+import { type AdHocVariableFilter, type DataSourceRef, type GrafanaTheme2, type SelectableValue, getDefaultTimeRange } from '@grafana/data';
 // import { getTimeSrv } from 'app/features/dashboard/services/TimeSrv';
 import { getDataSourceSrv } from '@grafana/runtime';
-import { SegmentAsync } from '@grafana/ui';
+import { SegmentAsync, useStyles2 } from '@grafana/ui';
 
 interface Props {
   datasource: DataSourceRef;
@@ -22,12 +24,13 @@ export const AdHocFilterValue = ({
   placeHolder,
   allFilters,
 }: Props) => {
+  const styles = useStyles2(getStyles);
   const loadValues = () => fetchFilterValues(datasource, filterKey, allFilters);
 
   return (
-    <div className="gf-form" data-testid="AdHocFilterValue-value-wrapper">
+    <div className={styles.gfForm} data-testid="AdHocFilterValue-value-wrapper">
       <SegmentAsync
-        className="query-segment-value"
+        className={styles.querySegmentValue}
         disabled={disabled}
         placeholder={placeHolder}
         value={filterValue}
@@ -59,3 +62,17 @@ const fetchFilterValues = async (
   const metrics = Array.isArray(response) ? response : response.data;
   return metrics.map((m) => ({ label: m.text, value: m.text }));
 };
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  gfForm: css({
+    display: 'flex',
+    flexFlow: 'row nowrap',
+    marginBottom: theme.spacing(0.5),
+    paddingTop: theme.spacing(0.25),
+    paddingBottom: theme.spacing(0.25),
+  }),
+  querySegmentValue: css({
+    backgroundColor: theme.colors.primary.transparent,
+    color: theme.colors.text.primary,
+  }),
+});
