@@ -1,4 +1,7 @@
-import { InlineLabel, Input, InlineFormLabel, InlineSwitch, Stack } from '@grafana/ui';
+import { css } from '@emotion/css';
+
+import { type GrafanaTheme2 } from '@grafana/data';
+import { InlineLabel, Input, InlineFormLabel, InlineSwitch, Stack, useStyles2 } from '@grafana/ui';
 
 import { type OpenTsdbQuery } from '../types';
 
@@ -10,9 +13,10 @@ export interface RateSectionProps {
 }
 
 export function RateSection({ query, onChange, onRunQuery, tsdbVersion }: RateSectionProps) {
+  const styles = useStyles2(getStyles);
   return (
     <Stack gap={0} data-testid={testIds.section}>
-      <InlineFormLabel className="query-keyword" width={8}>
+      <InlineFormLabel className={styles.queryKeyword} width={8}>
         Rate
       </InlineFormLabel>
       <InlineSwitch
@@ -27,7 +31,7 @@ export function RateSection({ query, onChange, onRunQuery, tsdbVersion }: RateSe
 
       {query.shouldComputeRate && (
         <>
-          <InlineFormLabel className="query-keyword" width={'auto'}>
+          <InlineFormLabel className={styles.queryKeyword} width={'auto'}>
             Counter
           </InlineFormLabel>
           <InlineSwitch
@@ -43,7 +47,7 @@ export function RateSection({ query, onChange, onRunQuery, tsdbVersion }: RateSe
       )}
       {query.shouldComputeRate && query.isCounter && (
         <Stack gap={0}>
-          <InlineLabel width={'auto'} className="query-keyword">
+          <InlineLabel width={'auto'} className={styles.queryKeyword}>
             Counter max
           </InlineLabel>
           <Input
@@ -56,7 +60,7 @@ export function RateSection({ query, onChange, onRunQuery, tsdbVersion }: RateSe
             }}
             onBlur={() => onRunQuery()}
           />
-          <InlineLabel width={'auto'} className="query-keyword">
+          <InlineLabel width={'auto'} className={styles.queryKeyword}>
             Reset value
           </InlineLabel>
           <Input
@@ -73,7 +77,7 @@ export function RateSection({ query, onChange, onRunQuery, tsdbVersion }: RateSe
       )}
       {tsdbVersion > 2 && (
         <>
-          <InlineFormLabel className="query-keyword" width={'auto'}>
+          <InlineFormLabel className={styles.queryKeyword} width={'auto'}>
             Explicit tags
           </InlineFormLabel>
           <InlineSwitch
@@ -102,3 +106,9 @@ export const testIds = {
   counterResetValue: 'opentsdb-counter-reset-value',
   explicitTags: 'opentsdb-explicit-tags',
 };
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  queryKeyword: css({
+    color: theme.colors.primary.text,
+  }),
+});
