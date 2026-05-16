@@ -1,4 +1,4 @@
-import { PureComponent } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 
 import { type QueryEditorProps } from '@grafana/data';
 import { getTemplateSrv } from '@grafana/runtime';
@@ -23,174 +23,271 @@ export type Props = QueryEditorProps<
   CloudMonitoringVariableQuery
 >;
 
-export class CloudMonitoringVariableQueryEditor extends PureComponent<Props, VariableQueryData> {
-  queryTypes: Array<{ value: string; label: string }> = [
-    { value: MetricFindQueryTypes.Projects, label: 'Projects' },
-    { value: MetricFindQueryTypes.Services, label: 'Services' },
-    { value: MetricFindQueryTypes.MetricTypes, label: 'Metric Types' },
-    { value: MetricFindQueryTypes.LabelKeys, label: 'Label Keys' },
-    { value: MetricFindQueryTypes.LabelValues, label: 'Label Values' },
-    { value: MetricFindQueryTypes.ResourceTypes, label: 'Resource Types' },
-    { value: MetricFindQueryTypes.Aggregations, label: 'Aggregations' },
-    { value: MetricFindQueryTypes.Aligners, label: 'Aligners' },
-    { value: MetricFindQueryTypes.AlignmentPeriods, label: 'Alignment Periods' },
-    { value: MetricFindQueryTypes.Selectors, label: 'Selectors' },
-    { value: MetricFindQueryTypes.SLOServices, label: 'SLO Services' },
-    { value: MetricFindQueryTypes.SLO, label: 'Service Level Objectives (SLO)' },
-  ];
+// Module-level constants — preserve referential stability across renders and avoid
+// re-creating these on every render (previously class instance properties).
+const queryTypes: Array<{ value: string; label: string }> = [
+  { value: MetricFindQueryTypes.Projects, label: 'Projects' },
+  { value: MetricFindQueryTypes.Services, label: 'Services' },
+  { value: MetricFindQueryTypes.MetricTypes, label: 'Metric Types' },
+  { value: MetricFindQueryTypes.LabelKeys, label: 'Label Keys' },
+  { value: MetricFindQueryTypes.LabelValues, label: 'Label Values' },
+  { value: MetricFindQueryTypes.ResourceTypes, label: 'Resource Types' },
+  { value: MetricFindQueryTypes.Aggregations, label: 'Aggregations' },
+  { value: MetricFindQueryTypes.Aligners, label: 'Aligners' },
+  { value: MetricFindQueryTypes.AlignmentPeriods, label: 'Alignment Periods' },
+  { value: MetricFindQueryTypes.Selectors, label: 'Selectors' },
+  { value: MetricFindQueryTypes.SLOServices, label: 'SLO Services' },
+  { value: MetricFindQueryTypes.SLO, label: 'Service Level Objectives (SLO)' },
+];
 
-  defaults: VariableQueryData = {
-    selectedQueryType: this.queryTypes[0].value,
-    metricDescriptors: [],
-    selectedService: '',
-    selectedMetricType: '',
-    labels: [],
-    labelKey: '',
-    metricTypes: [],
-    services: [],
-    sloServices: [],
-    selectedSLOService: '',
-    projects: [],
-    projectName: '',
-    loading: true,
-  };
+const defaults: VariableQueryData = {
+  selectedQueryType: queryTypes[0].value,
+  metricDescriptors: [],
+  selectedService: '',
+  selectedMetricType: '',
+  labels: [],
+  labelKey: '',
+  metricTypes: [],
+  services: [],
+  sloServices: [],
+  selectedSLOService: '',
+  projects: [],
+  projectName: '',
+  loading: true,
+};
 
-  constructor(props: Props) {
-    super(props);
-    this.state = Object.assign(this.defaults, this.props.query);
+// Pure module-level helper — replaces the class's `getLabels` instance method.
+// Accepts all dependencies as parameters to avoid stale closures and keep the function pure.
+async function getLabelsImpl(
+  selectedMetricType: string,
+  projectName: string,
+  selectedQueryType: string,
+  currentLabels: string[],
+  currentLabelKey: string,
+  datasource: CloudMonitoringDatasource
+) {
+  let result = { labels: currentLabels, labelKey: currentLabelKey };
+  if (selectedMetricType && selectedQueryType === MetricFindQueryTypes.LabelValues) {
+    const labels = await getLabelKeys(datasource, selectedMetricType, projectName);
+    const labelKey = labels.some((l) => l === getTemplateSrv().replace(currentLabelKey))
+      ? currentLabelKey
+      : labels[0];
+    result = { labels, labelKey };
   }
+  return result;
+}
 
-  async componentDidMount() {
-    await this.props.datasource.ensureGCEDefaultProject();
-    const projectName = this.props.query.projectName || this.props.datasource.getDefaultProject();
-    const projects = (await this.props.datasource.getProjects()) as MetricDescriptor[];
-    const metricDescriptors = await this.props.datasource.getMetricTypes(
-      this.props.query.projectName || this.props.datasource.getDefaultProject()
-    );
-    const services = extractServicesFromMetricDescriptors(metricDescriptors).map((m) => ({
-      value: m.service,
-      label: m.serviceShortName,
-    }));
+export const CloudMonitoringVariableQueryEditor = memo(function CloudMonitoringVariableQueryEditor(props: Props) {
+  const { datasource, query, onChange } = props;
 
-    let selectedService = '';
-    if (services.some((s) => s.value === getTemplateSrv().replace(this.state.selectedService))) {
-      selectedService = this.state.selectedService;
-    } else if (services && services.length > 0) {
-      selectedService = services[0].value;
-    }
+  // Initial state mirrors the original class's constructor: `Object.assign(this.defaults, this.props.query)`.
+  // We use `Object.assign({}, defaults, query)` with an empty-object first argument to avoid mutating
+  // the shared module-level `defaults` constant (the original class mutated its instance-level
+  // `this.defaults`, which was safe because each instance had its own copy).
+  // The `useState` initializer is a function so the spread runs only on first render.
+  const [state, setState] = useState<VariableQueryData>(() => Object.assign({}, defaults, query));
 
-    const { metricTypes, selectedMetricType } = getMetricTypes(
-      metricDescriptors,
-      this.state.selectedMetricType,
-      getTemplateSrv().replace(this.state.selectedMetricType),
-      getTemplateSrv().replace(selectedService)
-    );
+  // Track whether the component has completed its first render so `componentDidUpdate` semantics
+  // can skip the initial mount (the original `componentDidUpdate` does NOT fire on first mount).
+  const isFirstRender = useRef(true);
 
-    const sloServices = await this.props.datasource.getSLOServices(projectName);
+  // componentDidMount equivalent — runs once on mount.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      await datasource.ensureGCEDefaultProject();
+      const projectName = query.projectName || datasource.getDefaultProject();
+      const projects = (await datasource.getProjects()) as MetricDescriptor[];
+      const metricDescriptors = await datasource.getMetricTypes(
+        query.projectName || datasource.getDefaultProject()
+      );
+      const services = extractServicesFromMetricDescriptors(metricDescriptors).map((m) => ({
+        value: m.service,
+        label: m.serviceShortName,
+      }));
 
-    const state = {
-      services,
-      selectedService,
-      metricTypes,
-      selectedMetricType,
-      metricDescriptors,
-      projects,
-      ...(await this.getLabels(selectedMetricType, projectName)),
-      sloServices,
-      loading: false,
-      projectName,
-    };
-    this.setState(state, () => this.onPropsChange());
-  }
+      let selectedService = '';
+      if (services.some((s) => s.value === getTemplateSrv().replace(state.selectedService))) {
+        selectedService = state.selectedService;
+      } else if (services && services.length > 0) {
+        selectedService = services[0].value;
+      }
 
-  onPropsChange = () => {
-    const { metricDescriptors, labels, metricTypes, services, ...queryModel } = this.state;
-    this.props.onChange({ ...queryModel, refId: 'CloudMonitoringVariableQueryEditor-VariableQuery' });
-  };
+      const { metricTypes, selectedMetricType } = getMetricTypes(
+        metricDescriptors,
+        state.selectedMetricType,
+        getTemplateSrv().replace(state.selectedMetricType),
+        getTemplateSrv().replace(selectedService)
+      );
 
-  async onQueryTypeChange(queryType: string) {
-    const state = {
-      selectedQueryType: queryType,
-      ...(await this.getLabels(this.state.selectedMetricType, this.state.projectName, queryType)),
-    };
+      const sloServices = await datasource.getSLOServices(projectName);
 
-    this.setState(state);
-  }
+      const labelsResult = await getLabelsImpl(
+        selectedMetricType,
+        projectName,
+        state.selectedQueryType,
+        state.labels,
+        state.labelKey,
+        datasource
+      );
 
-  async onProjectChange(projectName: string) {
-    const metricDescriptors = await this.props.datasource.getMetricTypes(projectName);
-    const labels = await this.getLabels(this.state.selectedMetricType, projectName);
-    const { metricTypes, selectedMetricType } = getMetricTypes(
-      metricDescriptors,
-      this.state.selectedMetricType,
-      getTemplateSrv().replace(this.state.selectedMetricType),
-      getTemplateSrv().replace(this.state.selectedService)
-    );
+      if (cancelled) {
+        return;
+      }
 
-    const sloServices = await this.props.datasource.getSLOServices(projectName);
-
-    this.setState(
-      {
-        ...labels,
+      const newState: VariableQueryData = {
+        ...state,
+        services,
+        selectedService,
         metricTypes,
         selectedMetricType,
         metricDescriptors,
-        projectName,
+        projects,
+        labels: labelsResult.labels,
+        labelKey: labelsResult.labelKey,
         sloServices,
-      },
-      () => this.onPropsChange()
-    );
-  }
+        loading: false,
+        projectName,
+      };
+      setState(newState);
 
-  async onServiceChange(service: string) {
+      // Replicates `setState(state, () => this.onPropsChange())` callback semantics:
+      // compute the new state locally and call onChange synchronously with it so the
+      // parent receives the freshly-computed payload without waiting for React to commit
+      // the state (avoiding stale-closure issues with React 18's async setState).
+      const { metricDescriptors: _md, labels: _l, metricTypes: _mt, services: _s, ...queryModel } = newState;
+      onChange({ ...queryModel, refId: 'CloudMonitoringVariableQueryEditor-VariableQuery' });
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- componentDidMount semantics: run exactly once on mount, equivalent to the original class's mount-only fetch
+  }, []);
+
+  // componentDidUpdate equivalent — fire onPropsChange when selectedQueryType or selectedSLOService change.
+  // Skip the initial render (original componentDidUpdate does not fire on mount).
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    const { metricDescriptors: _md, labels: _l, metricTypes: _mt, services: _s, ...queryModel } = state;
+    onChange({ ...queryModel, refId: 'CloudMonitoringVariableQueryEditor-VariableQuery' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- match componentDidUpdate semantics: fire only when selectedQueryType or selectedSLOService change, not on every state mutation
+  }, [state.selectedQueryType, state.selectedSLOService]);
+
+  // Helper that replicates `onPropsChange = () => { ... }` from the original class.
+  // Accepts an optional `newState` parameter (defaulting to current `state`), allowing
+  // the post-setState callback pattern to pass the freshly-computed state without
+  // relying on a re-render to read it.
+  const onPropsChange = (newState: VariableQueryData = state) => {
+    const { metricDescriptors: _md, labels: _l, metricTypes: _mt, services: _s, ...queryModel } = newState;
+    onChange({ ...queryModel, refId: 'CloudMonitoringVariableQueryEditor-VariableQuery' });
+  };
+
+  const onQueryTypeChange = async (queryType: string) => {
+    const labelsResult = await getLabelsImpl(
+      state.selectedMetricType,
+      state.projectName,
+      queryType,
+      state.labels,
+      state.labelKey,
+      datasource
+    );
+    // Note: original class `onQueryTypeChange` uses setState WITHOUT a callback. The
+    // componentDidUpdate useEffect (above) fires onPropsChange when selectedQueryType
+    // changes. We do not call onPropsChange directly here, matching the original behavior.
+    setState((prev) => ({ ...prev, selectedQueryType: queryType, ...labelsResult }));
+  };
+
+  const onProjectChange = async (projectName: string) => {
+    const metricDescriptors = await datasource.getMetricTypes(projectName);
+    const labelsResult = await getLabelsImpl(
+      state.selectedMetricType,
+      projectName,
+      state.selectedQueryType,
+      state.labels,
+      state.labelKey,
+      datasource
+    );
     const { metricTypes, selectedMetricType } = getMetricTypes(
-      this.state.metricDescriptors,
-      this.state.selectedMetricType,
-      getTemplateSrv().replace(this.state.selectedMetricType),
+      metricDescriptors,
+      state.selectedMetricType,
+      getTemplateSrv().replace(state.selectedMetricType),
+      getTemplateSrv().replace(state.selectedService)
+    );
+
+    const sloServices = await datasource.getSLOServices(projectName);
+
+    // Compute new state locally and call onPropsChange with it — replicates
+    // `setState(s, () => this.onPropsChange())` from the original class.
+    const newState: VariableQueryData = {
+      ...state,
+      labels: labelsResult.labels,
+      labelKey: labelsResult.labelKey,
+      metricTypes,
+      selectedMetricType,
+      metricDescriptors,
+      projectName,
+      sloServices,
+    };
+    setState(newState);
+    onPropsChange(newState);
+  };
+
+  const onServiceChange = async (service: string) => {
+    const { metricTypes, selectedMetricType } = getMetricTypes(
+      state.metricDescriptors,
+      state.selectedMetricType,
+      getTemplateSrv().replace(state.selectedMetricType),
       getTemplateSrv().replace(service)
     );
-    const state = {
+    const labelsResult = await getLabelsImpl(
+      selectedMetricType,
+      state.projectName,
+      state.selectedQueryType,
+      state.labels,
+      state.labelKey,
+      datasource
+    );
+    const newState: VariableQueryData = {
+      ...state,
       selectedService: service,
       metricTypes,
       selectedMetricType,
-      ...(await this.getLabels(selectedMetricType, this.state.projectName)),
+      labels: labelsResult.labels,
+      labelKey: labelsResult.labelKey,
     };
-    this.setState(state, () => this.onPropsChange());
-  }
+    setState(newState);
+    onPropsChange(newState);
+  };
 
-  async onMetricTypeChange(metricType: string) {
-    const state = {
+  const onMetricTypeChange = async (metricType: string) => {
+    const labelsResult = await getLabelsImpl(
+      getTemplateSrv().replace(metricType),
+      state.projectName,
+      state.selectedQueryType,
+      state.labels,
+      state.labelKey,
+      datasource
+    );
+    const newState: VariableQueryData = {
+      ...state,
       selectedMetricType: metricType,
-      ...(await this.getLabels(getTemplateSrv().replace(metricType), this.state.projectName)),
+      labels: labelsResult.labels,
+      labelKey: labelsResult.labelKey,
     };
-    this.setState(state, () => this.onPropsChange());
-  }
+    setState(newState);
+    onPropsChange(newState);
+  };
 
-  onLabelKeyChange(labelKey: string) {
-    this.setState({ labelKey }, () => this.onPropsChange());
-  }
+  const onLabelKeyChange = (labelKey: string) => {
+    const newState: VariableQueryData = { ...state, labelKey };
+    setState(newState);
+    onPropsChange(newState);
+  };
 
-  componentDidUpdate(prevProps: Readonly<Props>, prevState: Readonly<VariableQueryData>) {
-    const selecQueryTypeChanged = prevState.selectedQueryType !== this.state.selectedQueryType;
-    const selectSLOServiceChanged = this.state.selectedSLOService !== prevState.selectedSLOService;
-    if (selecQueryTypeChanged || selectSLOServiceChanged) {
-      this.onPropsChange();
-    }
-  }
-
-  async getLabels(selectedMetricType: string, projectName: string, selectedQueryType = this.state.selectedQueryType) {
-    let result = { labels: this.state.labels, labelKey: this.state.labelKey };
-    if (selectedMetricType && selectedQueryType === MetricFindQueryTypes.LabelValues) {
-      const labels = await getLabelKeys(this.props.datasource, selectedMetricType, projectName);
-      const labelKey = labels.some((l) => l === getTemplateSrv().replace(this.state.labelKey))
-        ? this.state.labelKey
-        : labels[0];
-      result = { labels, labelKey };
-    }
-    return result;
-  }
-
-  renderQueryTypeSwitch(queryType: string) {
+  const renderQueryTypeSwitch = (queryType: string) => {
     const variableOptionGroup = {
       label: 'Template Variables',
       expanded: false,
@@ -208,15 +305,15 @@ export class CloudMonitoringVariableQueryEditor extends PureComponent<Props, Var
           <>
             <VariableQueryField
               allowCustomValue={true}
-              value={this.state.projectName}
-              options={[variableOptionGroup, ...this.state.projects]}
-              onChange={(value) => this.onProjectChange(value)}
+              value={state.projectName}
+              options={[variableOptionGroup, ...state.projects]}
+              onChange={(value) => onProjectChange(value)}
               label="Project"
             />
             <VariableQueryField
-              value={this.state.selectedService}
-              options={[variableOptionGroup, ...this.state.services]}
-              onChange={(value) => this.onServiceChange(value)}
+              value={state.selectedService}
+              options={[variableOptionGroup, ...state.services]}
+              onChange={(value) => onServiceChange(value)}
               label="Service"
             />
           </>
@@ -228,31 +325,31 @@ export class CloudMonitoringVariableQueryEditor extends PureComponent<Props, Var
           <>
             <VariableQueryField
               allowCustomValue={true}
-              value={this.state.projectName}
-              options={[variableOptionGroup, ...this.state.projects]}
-              onChange={(value) => this.onProjectChange(value)}
+              value={state.projectName}
+              options={[variableOptionGroup, ...state.projects]}
+              onChange={(value) => onProjectChange(value)}
               label="Project"
             />
             <VariableQueryField
-              value={this.state.selectedService}
-              options={[variableOptionGroup, ...this.state.services]}
-              onChange={(value) => this.onServiceChange(value)}
+              value={state.selectedService}
+              options={[variableOptionGroup, ...state.services]}
+              onChange={(value) => onServiceChange(value)}
               label="Service"
             />
             <VariableQueryField
-              value={this.state.selectedMetricType}
+              value={state.selectedMetricType}
               options={[
                 variableOptionGroup,
-                ...this.state.metricTypes.map(({ value, name }) => ({ value, label: name })),
+                ...state.metricTypes.map(({ value, name }) => ({ value, label: name })),
               ]}
-              onChange={(value) => this.onMetricTypeChange(value)}
+              onChange={(value) => onMetricTypeChange(value)}
               label="Metric Type"
             />
             {queryType === MetricFindQueryTypes.LabelValues && (
               <VariableQueryField
-                value={this.state.labelKey}
-                options={[variableOptionGroup, ...this.state.labels.map((l) => ({ value: l, label: l }))]}
-                onChange={(value) => this.onLabelKeyChange(value)}
+                value={state.labelKey}
+                options={[variableOptionGroup, ...state.labels.map((l) => ({ value: l, label: l }))]}
+                onChange={(value) => onLabelKeyChange(value)}
                 label="Label Key"
               />
             )}
@@ -263,18 +360,18 @@ export class CloudMonitoringVariableQueryEditor extends PureComponent<Props, Var
         return (
           <>
             <VariableQueryField
-              value={this.state.selectedService}
-              options={[variableOptionGroup, ...this.state.services]}
-              onChange={(value) => this.onServiceChange(value)}
+              value={state.selectedService}
+              options={[variableOptionGroup, ...state.services]}
+              onChange={(value) => onServiceChange(value)}
               label="Service"
             />
             <VariableQueryField
-              value={this.state.selectedMetricType}
+              value={state.selectedMetricType}
               options={[
                 variableOptionGroup,
-                ...this.state.metricTypes.map(({ value, name }) => ({ value, label: name })),
+                ...state.metricTypes.map(({ value, name }) => ({ value, label: name })),
               ]}
-              onChange={(value) => this.onMetricTypeChange(value)}
+              onChange={(value) => onMetricTypeChange(value)}
               label="Metric Type"
             />
           </>
@@ -285,9 +382,9 @@ export class CloudMonitoringVariableQueryEditor extends PureComponent<Props, Var
           <>
             <VariableQueryField
               allowCustomValue={true}
-              value={this.state.projectName}
-              options={[variableOptionGroup, ...this.state.projects]}
-              onChange={(value) => this.onProjectChange(value)}
+              value={state.projectName}
+              options={[variableOptionGroup, ...state.projects]}
+              onChange={(value) => onProjectChange(value)}
               label="Project"
             />
           </>
@@ -298,19 +395,19 @@ export class CloudMonitoringVariableQueryEditor extends PureComponent<Props, Var
           <>
             <VariableQueryField
               allowCustomValue={true}
-              value={this.state.projectName}
-              options={[variableOptionGroup, ...this.state.projects]}
-              onChange={(value) => this.onProjectChange(value)}
+              value={state.projectName}
+              options={[variableOptionGroup, ...state.projects]}
+              onChange={(value) => onProjectChange(value)}
               label="Project"
             />
             <VariableQueryField
-              value={this.state.selectedSLOService}
-              options={[variableOptionGroup, ...this.state.sloServices]}
+              value={state.selectedSLOService}
+              options={[variableOptionGroup, ...state.sloServices]}
               onChange={(value) => {
-                this.setState({
-                  ...this.state,
+                setState((prev) => ({
+                  ...prev,
                   selectedSLOService: value,
-                });
+                }));
               }}
               label="SLO Service"
             />
@@ -319,30 +416,30 @@ export class CloudMonitoringVariableQueryEditor extends PureComponent<Props, Var
       default:
         return '';
     }
-  }
+  };
 
-  render() {
-    if (this.state.loading) {
-      return (
-        <VariableQueryField
-          value={'loading'}
-          options={[{ value: 'loading', label: 'Loading...' }]}
-          onChange={(value) => null}
-          label="Query Type"
-        />
-      );
-    }
-
+  if (state.loading) {
     return (
-      <>
-        <VariableQueryField
-          value={this.state.selectedQueryType}
-          options={this.queryTypes}
-          onChange={(value) => this.onQueryTypeChange(value)}
-          label="Query Type"
-        />
-        {this.renderQueryTypeSwitch(this.state.selectedQueryType)}
-      </>
+      <VariableQueryField
+        value={'loading'}
+        options={[{ value: 'loading', label: 'Loading...' }]}
+        onChange={(value) => null}
+        label="Query Type"
+      />
     );
   }
-}
+
+  return (
+    <>
+      <VariableQueryField
+        value={state.selectedQueryType}
+        options={queryTypes}
+        onChange={(value) => onQueryTypeChange(value)}
+        label="Query Type"
+      />
+      {renderQueryTypeSwitch(state.selectedQueryType)}
+    </>
+  );
+});
+
+CloudMonitoringVariableQueryEditor.displayName = 'CloudMonitoringVariableQueryEditor';
