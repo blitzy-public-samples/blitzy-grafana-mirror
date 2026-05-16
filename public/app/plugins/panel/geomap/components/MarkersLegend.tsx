@@ -13,7 +13,7 @@ import {
 } from '@grafana/data';
 import { t } from '@grafana/i18n';
 import { config } from '@grafana/runtime';
-import { useStyles2, type VizLegendItem } from '@grafana/ui';
+import { SeriesIcon, useStyles2, type VizLegendItem } from '@grafana/ui';
 import { ColorScale } from 'app/core/components/ColorScale/ColorScale';
 import { SanitizedSVG } from 'app/core/components/SVG/SanitizedSVG';
 import { getThresholdItems } from 'app/core/components/TimelineChart/utils';
@@ -21,6 +21,16 @@ import { type DimensionSupplier } from 'app/features/dimensions/types';
 
 import { type StyleConfigState } from '../style/types';
 import { type MapLayerState } from '../types';
+
+/**
+ * OpenLayers `BaseLayer` instances created by `initLayer` (in `utils/layers.ts`)
+ * do NOT carry `__state` as a typed property — it is attached as a hidden runtime
+ * field. This local interface types the legacy `__state` access pattern without
+ * resorting to `any`.
+ */
+interface BaseLayerWithState extends BaseLayer {
+  __state?: MapLayerState;
+}
 
 export interface MarkersLegendProps {
   size?: DimensionSupplier<number>;
@@ -33,7 +43,7 @@ export function MarkersLegend(props: MarkersLegendProps) {
   const { layerName, styleConfig, layer } = props;
   const style = useStyles2(getStyles);
 
-  const hoverEvent = useObservable(((layer as any)?.__state as MapLayerState)?.mouseEvents ?? of(undefined));
+  const hoverEvent = useObservable((layer as BaseLayerWithState | undefined)?.__state?.mouseEvents ?? of(undefined));
 
   const colorField = styleConfig?.dims?.color?.field;
   const hoverValue = useMemo(() => {
@@ -64,6 +74,8 @@ export function MarkersLegend(props: MarkersLegendProps) {
       <div className={style.infoWrap}>
         <div className={style.layerName}>{layerName}</div>
         <div className={cx(style.layerBody, style.fixedColorContainer)}>
+          {/* Runtime-dynamic fill/opacity from styleConfig.base — kept inline because values
+              are not theme tokens (per @grafana/ui SeriesIcon convention for runtime colors). */}
           <SanitizedSVG
             src={`${window.__grafana_public_path__}build/${symbol}`}
             className={style.legendSymbol}
@@ -127,8 +139,8 @@ export function MarkersLegend(props: MarkersLegendProps) {
       <div className={cx(style.layerBody, style.legend)}>
         {items.map((item: VizLegendItem, idx: number) => (
           <div key={`${idx}/${item.label}`} className={style.legendItem}>
-            <i style={{ background: item.color }}></i>
-            {item.label}
+            <SeriesIcon color={item.color} />
+            <span>{item.label}</span>
           </div>
         ))}
       </div>
@@ -159,18 +171,12 @@ const getStyles = (theme: GrafanaTheme2) => ({
     flexDirection: 'column',
     fontSize: theme.typography.bodySmall.fontSize,
     padding: '5px 10px 0',
-
-    i: {
-      width: '15px',
-      height: '15px',
-      float: 'left',
-      marginRight: '8px',
-      opacity: 0.7,
-      borderRadius: theme.shape.radius.circle,
-    },
   }),
   legendItem: css({
     whiteSpace: 'nowrap',
+    display: 'flex',
+    alignItems: 'center',
+    gap: theme.spacing(1),
   }),
   fixedColorContainer: css({
     minWidth: '80px',
