@@ -10,6 +10,9 @@ function getStyles() {
       label: 'wrapper',
       pointerEvents: 'all',
     }),
+    configInput: css({
+      width: '50px',
+    }),
   };
 }
 
@@ -26,7 +29,7 @@ interface Props<Config> {
 /**
  * Control buttons for zoom but also some layout config inputs mainly for debugging.
  */
-export function ViewControls<Config extends Record<string, any>>(props: Props<Config>) {
+export function ViewControls<Config extends object>(props: Props<Config>) {
   const { config, onConfigChange, onPlus, onMinus, disableZoomOut, disableZoomIn } = props;
   const [showConfig, setShowConfig] = useState(false);
 
@@ -67,15 +70,15 @@ export function ViewControls<Config extends Record<string, any>>(props: Props<Co
 
       {allowConfiguration &&
         showConfig &&
-        Object.keys(config)
-          .filter((k) => k !== 'show')
-          .map((k) => (
+        Object.entries(config)
+          .filter(([k]) => k !== 'show')
+          .map(([k, v]) => (
             <div key={k}>
               {k}
               <input
-                style={{ width: 50 }}
+                className={styles.configInput}
                 type={'number'}
-                value={config[k]}
+                value={String(v ?? '')}
                 onChange={(e) => {
                   onConfigChange({ ...config, [k]: parseFloat(e.target.value) });
                 }}
