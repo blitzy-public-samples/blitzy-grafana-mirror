@@ -2650,11 +2650,6 @@
       "count": 1
     }
   },
-  "public/app/plugins/datasource/cloudwatch/types.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 7
-    }
-  },
   "public/app/plugins/datasource/cloudwatch/utils/datalinks.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 2
