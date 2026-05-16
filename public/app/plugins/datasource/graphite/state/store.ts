@@ -49,14 +49,30 @@ const reducer = async (action: Action, state: GraphiteQueryEditorState): Promise
 
   if (actions.init.match(action)) {
     const deps = action.payload;
-    deps.target.target = deps.target.target || '';
 
     await deps.datasource.waitForFuncDefsLoaded();
+
+    // TODO(modernization-2026): GraphiteQuery (passed from the editor) and GraphiteTarget
+    // (the store's internal model) have a pre-existing data-shape mismatch. GraphiteQuery
+    // has optional target/targetFull/textEditor and no `paused` field, while GraphiteTarget
+    // declares these as required (with `paused: boolean` that is never actually read on
+    // target objects — state.paused is the real flag). Object.assign coerces the editor's
+    // GraphiteQuery into the store's GraphiteTarget shape in place, preserving reference
+    // identity so that subsequent reducer mutations to state.target.* remain visible to
+    // queryModel.target.* (they are the same object). Properly unifying the two types is
+    // out of scope for this any-elimination refactor.
+    const target: GraphiteTarget = Object.assign(deps.target, {
+      target: deps.target.target ?? '',
+      targetFull: deps.target.targetFull ?? '',
+      textEditor: deps.target.textEditor ?? false,
+      paused: false,
+    });
 
     state = {
       ...state,
       ...deps,
-      queryModel: new GraphiteQuery(deps.datasource, deps.target, state.templateSrv),
+      target,
+      queryModel: new GraphiteQuery(deps.datasource, target, state.templateSrv),
       supportsTags: deps.datasource.supportsTags,
       paused: false,
       removeTagValue: '-- remove tag --',
