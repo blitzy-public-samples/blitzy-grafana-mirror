@@ -1,8 +1,9 @@
+import { css } from '@emotion/css';
 import * as React from 'react';
 
-import { type SelectableValue } from '@grafana/data';
+import { type GrafanaTheme2, type SelectableValue } from '@grafana/data';
 import { EditorField, EditorRow } from '@grafana/plugin-ui';
-import { TextArea, Input } from '@grafana/ui';
+import { TextArea, Input, useStyles2 } from '@grafana/ui';
 
 import { type PromQLQuery } from '../dataquery.gen';
 import type CloudMonitoringDatasource from '../datasource';
@@ -41,6 +42,8 @@ export function PromQLQueryEditor({
     }
   }
 
+  const styles = useStyles2(getStyles);
+
   return (
     <span data-testid={selectors.components.queryEditor.promQlQueryEditor.container.input}>
       <EditorRow>
@@ -53,7 +56,7 @@ export function PromQLQueryEditor({
         />
         <TextArea
           name="Query"
-          className="slate-query-field"
+          className={styles.queryField}
           value={query.expr}
           rows={10}
           placeholder="Enter a Cloud Monitoring Prometheus query (Run with Shift+Enter)"
@@ -79,3 +82,13 @@ export function PromQLQueryEditor({
     </span>
   );
 }
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  queryField: css({
+    fontSize: theme.typography.fontSize,
+    fontFamily: theme.typography.fontFamilyMonospace,
+    height: 'auto',
+    wordBreak: 'break-word',
+    overflow: 'auto',
+  }),
+});
