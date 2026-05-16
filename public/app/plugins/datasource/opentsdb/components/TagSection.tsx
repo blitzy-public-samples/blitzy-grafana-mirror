@@ -1,17 +1,19 @@
+import { css } from '@emotion/css';
 import debounce from 'debounce-promise';
 import { has, size } from 'lodash';
 import { useState } from 'react';
 
-import { type SelectableValue, toOption } from '@grafana/data';
+import { type GrafanaTheme2, type SelectableValue, toOption } from '@grafana/data';
 import {
-  Select,
-  InlineFormLabel,
-  Icon,
-  clearButtonStyles,
-  useStyles2,
   AsyncSelect,
-  Stack,
+  Button,
+  Icon,
+  IconButton,
+  InlineFormLabel,
   InlineLabel,
+  Select,
+  Stack,
+  useStyles2,
 } from '@grafana/ui';
 
 import { type OpenTsdbQuery } from '../types';
@@ -33,8 +35,6 @@ export function TagSection({
   suggestTagValues,
   tsdbVersion,
 }: TagSectionProps) {
-  const buttonStyles = useStyles2(clearButtonStyles);
-
   const [tagKeys, updTagKeys] = useState<Array<SelectableValue<string>>>();
   const [keyIsLoading, updKeyIsLoading] = useState<boolean>();
 
@@ -44,6 +44,8 @@ export function TagSection({
   const [curTagValue, updCurTagValue] = useState<string>('');
 
   const [errors, setErrors] = useState<string>('');
+
+  const styles = useStyles2(getStyles);
 
   function changeAddTagMode() {
     updAddTagMode(!addTagMode);
@@ -110,7 +112,7 @@ export function TagSection({
   return (
     <Stack gap={0} data-testid={testIds.section}>
       <InlineFormLabel
-        className="query-keyword"
+        className={styles.queryKeyword}
         width={8}
         tooltip={tsdbVersion >= 2 ? <div>Please use filters, tags are deprecated in opentsdb 2.2</div> : undefined}
       >
@@ -121,25 +123,19 @@ export function TagSection({
           return (
             <InlineFormLabel key={idx} width="auto" data-testid={testIds.list + idx}>
               {tagKey}={tagValue}
-              <button type="button" className={buttonStyles} onClick={() => editTag(tagKey, tagValue)}>
-                <Icon name={'pen'} />
-              </button>
-              <button
-                type="button"
-                className={buttonStyles}
+              <IconButton name="pen" aria-label="Edit tag" onClick={() => editTag(tagKey, tagValue)} />
+              <IconButton
+                name="times"
+                aria-label="Remove tag"
                 onClick={() => removeTag(tagKey)}
                 data-testid={testIds.remove}
-              >
-                <Icon name={'times'} />
-              </button>
+              />
             </InlineFormLabel>
           );
         })}
       {!addTagMode && (
         <InlineFormLabel width={2}>
-          <button type="button" className={buttonStyles} onClick={changeAddTagMode} aria-label="Add tag">
-            <Icon name={'plus'} />
-          </button>
+          <IconButton name="plus" aria-label="Add tag" onClick={changeAddTagMode} />
         </InlineFormLabel>
       )}
 
@@ -192,12 +188,10 @@ export function TagSection({
             )}
 
             <InlineFormLabel width={5.5}>
-              <button type="button" className={buttonStyles} onClick={addTag}>
+              <Button variant="secondary" size="sm" onClick={addTag}>
                 add tag
-              </button>
-              <button type="button" className={buttonStyles} onClick={changeAddTagMode}>
-                <Icon name={'times'} />
-              </button>
+              </Button>
+              <IconButton name="times" aria-label="Cancel adding tag" onClick={changeAddTagMode} />
             </InlineFormLabel>
           </Stack>
         </Stack>
@@ -215,3 +209,9 @@ export const testIds = {
   error: 'opentsdb-tag-error',
   remove: 'opentsdb-tag-remove',
 };
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  queryKeyword: css({
+    color: theme.colors.primary.text,
+  }),
+});
