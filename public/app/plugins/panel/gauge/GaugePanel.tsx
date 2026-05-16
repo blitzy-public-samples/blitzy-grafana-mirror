@@ -1,5 +1,5 @@
 import { css } from '@emotion/css';
-import { useMemo, type JSX } from 'react';
+import { useMemo, type CSSProperties, type JSX } from 'react';
 
 import {
   type DisplayValueAlignmentFactors,
@@ -15,6 +15,12 @@ import { DataLinksContextMenu, Stack, useStyles2, VizRepeater, type VizRepeaterR
 import { type DataLinksContextMenuApi, RadialGauge } from '@grafana/ui/internal';
 
 import { type Options } from './panelcfg.gen';
+
+// Layout style for the DataLinksContextMenu's style prop. Defined at module scope to avoid an
+// inline `style={{...}}` literal. DataLinksContextMenu's API only accepts `style: CSSProperties`
+// (no className), so this is the minimal-change replacement that preserves both the single-link
+// (`<a>` flex-grows to fill width) and multi-link (style ignored) behavior. See AAP §0.5.3 / §0.9.2.12.
+const dataLinksContextMenuStyle: CSSProperties = { flexGrow: 1 };
 
 export function GaugePanel({
   id,
@@ -130,7 +136,7 @@ const renderValueFactory = (options: Options) => {
 
     if (hasLinks && getLinks) {
       return (
-        <DataLinksContextMenu links={getLinks} style={{ flexGrow: 1 }}>
+        <DataLinksContextMenu links={getLinks} style={dataLinksContextMenuStyle}>
           {(api) => renderRadialGauge(valueProps, api)}
         </DataLinksContextMenu>
       );
