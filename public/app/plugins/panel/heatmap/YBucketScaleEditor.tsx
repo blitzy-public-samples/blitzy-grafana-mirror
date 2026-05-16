@@ -1,9 +1,10 @@
+import { css } from '@emotion/css';
 import { useState } from 'react';
 
-import { type SelectableValue, type StandardEditorProps } from '@grafana/data';
+import { type GrafanaTheme2, type SelectableValue, type StandardEditorProps } from '@grafana/data';
 import { t } from '@grafana/i18n';
 import { ScaleDistribution, type ScaleDistributionConfig } from '@grafana/schema';
-import { RadioButtonGroup, Field, Select, Input } from '@grafana/ui';
+import { RadioButtonGroup, Field, Select, Input, useStyles2 } from '@grafana/ui';
 
 type ScaleOptionValue = 'auto' | ScaleDistribution;
 
@@ -13,6 +14,8 @@ type ScaleOptionValue = 'auto' | ScaleDistribution;
  */
 export const YBucketScaleEditor = (props: StandardEditorProps<ScaleDistributionConfig | undefined>) => {
   const { value, onChange } = props;
+
+  const styles = useStyles2(getStyles);
 
   const type = value?.type;
   const log = value?.log ?? 2;
@@ -106,7 +109,7 @@ export const YBucketScaleEditor = (props: StandardEditorProps<ScaleDistributionC
       {showLogBase && (
         <Field
           label={t('heatmap.y-bucket-scale-editor.log-base-label', 'Log base')}
-          style={{ marginTop: '8px' }}
+          className={styles.fieldWithMargin}
           noMargin
         >
           <Select options={LOG_BASE_OPTIONS} value={log} onChange={(v) => handleLogBaseChange(v.value!)} />
@@ -119,7 +122,7 @@ export const YBucketScaleEditor = (props: StandardEditorProps<ScaleDistributionC
             'heatmap.y-bucket-scale-editor.linear-threshold-description',
             'Range within which the scale is linear'
           )}
-          style={{ marginTop: '8px' }}
+          className={styles.fieldWithMargin}
           noMargin
         >
           <Input
@@ -133,3 +136,9 @@ export const YBucketScaleEditor = (props: StandardEditorProps<ScaleDistributionC
     </>
   );
 };
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  fieldWithMargin: css({
+    marginTop: theme.spacing(1),
+  }),
+});
