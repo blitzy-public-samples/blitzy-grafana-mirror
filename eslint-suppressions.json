@@ -3021,10 +3021,7 @@
   },
   "public/app/plugins/datasource/tempo/resultTransformer.ts": {
     "@typescript-eslint/consistent-type-assertions": {
-      "count": 2
-    },
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
+      "count": 1
     },
     "no-restricted-syntax": {
       "count": 2
