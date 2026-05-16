@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 import { type LiveChannelAddress, isValidLiveChannelAddress } from '@grafana/data';
 import { Trans } from '@grafana/i18n';
 import { getBackendSrv, getGrafanaLiveSrv } from '@grafana/runtime';
-import { CodeEditor, Button } from '@grafana/ui';
+import { Box, Button, CodeEditor } from '@grafana/ui';
 
 import { MessagePublishMode } from './types';
 
@@ -66,11 +66,11 @@ export function LivePublish({ height, mode, body, addr, onSave }: Props) {
         showMiniMap={false}
         showLineNumbers={true}
       />
-      <div style={{ height: 32 }}>
+      <Box height={4}>
         <Button onClick={onPublishClicked}>
           <Trans i18nKey="live.live-publish.publish">Publish</Trans>
         </Button>
-      </div>
+      </Box>
     </>
   );
 }
