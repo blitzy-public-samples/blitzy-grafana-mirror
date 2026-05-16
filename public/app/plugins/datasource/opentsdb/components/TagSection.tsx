@@ -89,7 +89,9 @@ export function TagSection({
   }
 
   function removeTag(key: string | number) {
-    delete query.tags[key];
+    if (query.tags) {
+      delete query.tags[key];
+    }
 
     // fire off the query
     onChange(query);
@@ -115,8 +117,7 @@ export function TagSection({
         Tags
       </InlineFormLabel>
       {query.tags &&
-        Object.keys(query.tags).map((tagKey: string | number, idx: number) => {
-          const tagValue = query.tags[tagKey];
+        Object.entries(query.tags).map(([tagKey, tagValue], idx: number) => {
           return (
             <InlineFormLabel key={idx} width="auto" data-testid={testIds.list + idx}>
               {tagKey}={tagValue}

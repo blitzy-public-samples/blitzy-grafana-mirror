@@ -74,7 +74,7 @@ describe('FilterSection', () => {
         refId: 'A',
         downsampleAggregator: 'avg',
         downsampleFillPolicy: 'none',
-        tags: [{}],
+        tags: { tagKey: 'tagValue' },
       };
       setup({ query });
       fireEvent.click(screen.getByRole('button', { name: /Add filter/ }));

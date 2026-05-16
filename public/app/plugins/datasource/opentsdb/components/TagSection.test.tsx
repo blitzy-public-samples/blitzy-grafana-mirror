@@ -97,7 +97,7 @@ describe('Tag Section', () => {
 
       setup({ query });
       fireEvent.click(screen.getByTestId(testIds.remove));
-      expect(Object.keys(query.tags).length === 0).toBeTruthy();
+      expect(Object.keys(query.tags || {}).length === 0).toBeTruthy();
     });
   });
 });
