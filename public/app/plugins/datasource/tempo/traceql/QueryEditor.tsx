@@ -4,7 +4,7 @@ import { useState } from 'react';
 
 import { CoreApp, type GrafanaTheme2, type QueryEditorProps } from '@grafana/data';
 import { config, reportInteraction } from '@grafana/runtime';
-import { Alert, Button, InlineLabel, TextLink, useStyles2 } from '@grafana/ui';
+import { Alert, Button, InlineLabel, Stack, TextLink, useStyles2 } from '@grafana/ui';
 
 import { type TempoDatasource } from '../datasource';
 import { defaultQuery, type MyDataSourceOptions, type TempoQuery } from '../types';
@@ -51,30 +51,31 @@ export function QueryEditor(props: Props) {
       </InlineLabel>
       {!showCopyFromSearchButton && (
         <div className={styles.copyContainer}>
-          <span>Continue editing the query from the Search tab?</span>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => {
-              reportInteraction('grafana_traces_copy_to_traceql_clicked', {
-                app: props.app ?? '',
-                grafana_version: config.buildInfo.version,
-                location: 'traceql_tab',
-              });
+          <Stack direction="row" alignItems="center" gap={1}>
+            <span>Continue editing the query from the Search tab?</span>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                reportInteraction('grafana_traces_copy_to_traceql_clicked', {
+                  app: props.app ?? '',
+                  grafana_version: config.buildInfo.version,
+                  location: 'traceql_tab',
+                });
 
-              props.onClearResults();
-              props.onChange({
-                ...query,
-                query: props.datasource.languageProvider.generateQueryFromFilters({
-                  traceqlFilters: query.filters || [],
-                }),
-              });
-              setShowCopyFromSearchButton(true);
-            }}
-            style={{ marginLeft: '10px' }}
-          >
-            Copy query from Search
-          </Button>
+                props.onClearResults();
+                props.onChange({
+                  ...query,
+                  query: props.datasource.languageProvider.generateQueryFromFilters({
+                    traceqlFilters: query.filters || [],
+                  }),
+                });
+                setShowCopyFromSearchButton(true);
+              }}
+            >
+              Copy query from Search
+            </Button>
+          </Stack>
         </div>
       )}
       <TraceQLEditor
