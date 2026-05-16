@@ -1,6 +1,7 @@
+import { css } from '@emotion/css';
 import { useMemo, useState } from 'react';
 
-import { DashboardCursorSync, type PanelProps, useDataLinksContext } from '@grafana/data';
+import { DashboardCursorSync, type GrafanaTheme2, type PanelProps, useDataLinksContext } from '@grafana/data';
 import { Trans } from '@grafana/i18n';
 import { PanelDataErrorView } from '@grafana/runtime';
 import {
@@ -9,6 +10,7 @@ import {
   TooltipDisplayMode,
   TooltipPlugin2,
   usePanelContext,
+  useStyles2,
   useTheme2,
   XAxisInteractionAreaPlugin,
 } from '@grafana/ui';
@@ -45,6 +47,7 @@ export const StatusHistoryPanel = ({
   id: panelId,
 }: TimelinePanelProps) => {
   const theme = useTheme2();
+  const styles = useStyles2(getStyles);
 
   // temp range set for adding new annotation set by TooltipPlugin2, consumed by AnnotationPlugin2
   const [newAnnotationRange, setNewAnnotationRange] = useState<TimeRange2 | null>(null);
@@ -79,7 +82,7 @@ export const StatusHistoryPanel = ({
   // Status grid requires some space between values
   if (paginatedFrames[0].length > width / 2) {
     return (
-      <div className="panel-empty">
+      <div className={styles.panelEmpty}>
         <p>
           <Trans i18nKey="status-history.status-history-panel.too-many-points" count={paginatedFrames[0].length}>
             Too many points to visualize properly. <br />
@@ -184,3 +187,15 @@ export const StatusHistoryPanel = ({
     </div>
   );
 };
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  panelEmpty: css({
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    height: '100%',
+    color: theme.colors.text.secondary,
+    textAlign: 'center',
+  }),
+});
