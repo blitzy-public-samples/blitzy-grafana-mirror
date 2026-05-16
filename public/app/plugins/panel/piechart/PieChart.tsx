@@ -86,7 +86,7 @@ export const PieChart = ({
 
   return (
     <div className={styles.container}>
-      <svg width={layout.size} height={layout.size} ref={containerRef} style={{ overflow: 'visible' }}>
+      <svg width={layout.size} height={layout.size} ref={containerRef} className={styles.svg}>
         <Group top={layout.position} left={layout.position}>
           {colors.map((color) => {
             return (
@@ -435,6 +435,9 @@ const getStyles = (theme: GrafanaTheme2) => {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
+    }),
+    svg: css({
+      overflow: 'visible',
     }),
     svgArg: {
       normal: css({
