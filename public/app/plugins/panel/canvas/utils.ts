@@ -420,8 +420,11 @@ export function applyStyles(styles: React.CSSProperties, target: HTMLDivElement)
 }
 
 export function removeStyles(styles: React.CSSProperties, target: HTMLDivElement) {
+  // Mirror applyStyles' approach: CSSProperties can't be cleared using setProperty
+  // (which expects kebab-case names), so we use Object.assign to write an empty
+  // string for each previously-applied property. This preserves the exact runtime
+  // semantics of the prior camelCase-indexed `target.style[key] = ''` assignment.
   for (const key in styles) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/consistent-type-assertions
-    target.style[key as any] = '';
+    Object.assign(target.style, { [key]: '' });
   }
 }
