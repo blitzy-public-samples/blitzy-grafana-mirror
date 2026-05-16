@@ -1,4 +1,7 @@
-import { type AdHocVariableFilter, type DataSourceRef, type SelectableValue } from '@grafana/data';
+import { css } from '@emotion/css';
+
+import { type AdHocVariableFilter, type DataSourceRef, type GrafanaTheme2, type SelectableValue } from '@grafana/data';
+import { useStyles2 } from '@grafana/ui';
 
 import { AdHocFilterKey } from './AdHocFilterKey';
 import { AdHocFilterValue } from './AdHocFilterValue';
@@ -25,6 +28,8 @@ export const AdHocFilterRenderer = ({
   allFilters,
   disabled,
 }: Props) => {
+  const styles = useStyles2(getStyles);
+
   return (
     <>
       <AdHocFilterKey
@@ -34,7 +39,7 @@ export const AdHocFilterRenderer = ({
         onChange={onKeyChange}
         allFilters={allFilters}
       />
-      <div className="gf-form">
+      <div className={styles.gfForm}>
         <OperatorSegment disabled={disabled} value={operator} onChange={onOperatorChange} />
       </div>
       <AdHocFilterValue
@@ -49,3 +54,13 @@ export const AdHocFilterRenderer = ({
     </>
   );
 };
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  gfForm: css({
+    display: 'flex',
+    flexFlow: 'row nowrap',
+    marginBottom: theme.spacing(0.5),
+    paddingTop: theme.spacing(0.25),
+    paddingBottom: theme.spacing(0.25),
+  }),
+});
