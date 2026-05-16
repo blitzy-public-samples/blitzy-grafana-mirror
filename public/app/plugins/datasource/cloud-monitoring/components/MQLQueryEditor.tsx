@@ -1,6 +1,8 @@
+import { css } from '@emotion/css';
 import * as React from 'react';
 
-import { TextArea } from '@grafana/ui';
+import { type GrafanaTheme2 } from '@grafana/data';
+import { TextArea, useStyles2 } from '@grafana/ui';
 
 import { selectors } from '../e2e/selectors';
 
@@ -18,11 +20,13 @@ export function MQLQueryEditor({ query, onChange, onRunQuery }: React.PropsWithC
     }
   };
 
+  const styles = useStyles2(getStyles);
+
   return (
     <span data-testid={selectors.components.queryEditor.mqlMetricsQueryEditor.container.input}>
       <TextArea
         name="Query"
-        className="slate-query-field"
+        className={styles.queryField}
         value={query}
         rows={10}
         placeholder="Enter a Cloud Monitoring MQL query (Run with Shift+Enter)"
@@ -33,3 +37,13 @@ export function MQLQueryEditor({ query, onChange, onRunQuery }: React.PropsWithC
     </span>
   );
 }
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  queryField: css({
+    fontSize: theme.typography.fontSize,
+    fontFamily: theme.typography.fontFamilyMonospace,
+    height: 'auto',
+    wordBreak: 'break-word',
+    overflow: 'auto',
+  }),
+});
