@@ -1,3 +1,4 @@
+import { css } from '@emotion/css';
 import { type ReactElement, useEffect, useRef, useState, type ReactNode } from 'react';
 import * as React from 'react';
 import uPlot from 'uplot';
@@ -8,12 +9,13 @@ import {
   FieldType,
   formattedValueToString,
   getFieldDisplayName,
+  type GrafanaTheme2,
   type InterpolateFunction,
   type LinkModel,
   type PanelData,
 } from '@grafana/data';
 import { HeatmapCellLayout } from '@grafana/schema';
-import { TooltipDisplayMode, useTheme2 } from '@grafana/ui';
+import { TooltipDisplayMode, useStyles2, useTheme2 } from '@grafana/ui';
 import {
   VizTooltipContent,
   VizTooltipFooter,
@@ -346,6 +348,8 @@ const HeatmapHoverCell = ({
   let histCanWidth = Math.round(histCssWidth * uPlot.pxRatio);
   let histCanHeight = Math.round(histCssHeight * uPlot.pxRatio);
 
+  const styles = useStyles2(getStyles, histCssWidth, histCssHeight);
+
   useEffect(
     () => {
       if (showHistogram && xVals != null && countVals != null && mode === TooltipDisplayMode.Single) {
@@ -367,12 +371,7 @@ const HeatmapHoverCell = ({
     // Histogram
     if (showHistogram && !isSparse) {
       customContent.push(
-        <canvas
-          width={histCanWidth}
-          height={histCanHeight}
-          ref={can}
-          style={{ width: histCssWidth + 'px', height: histCssHeight + 'px' }}
-        />
+        <canvas width={histCanWidth} height={histCanHeight} ref={can} className={styles.histogramCanvas} />
       );
     }
 
@@ -400,7 +399,7 @@ const HeatmapHoverCell = ({
         maxHeight={maxHeight}
       >
         {customContent?.map((content, i) => (
-          <div key={i} style={{ padding: `${theme.spacing(1)} 0` }}>
+          <div key={i} className={styles.customContentItem}>
             {content}
           </div>
         ))}
@@ -409,3 +408,13 @@ const HeatmapHoverCell = ({
     </VizTooltipWrapper>
   );
 };
+
+const getStyles = (theme: GrafanaTheme2, histCssWidth: number, histCssHeight: number) => ({
+  histogramCanvas: css({
+    width: `${histCssWidth}px`,
+    height: `${histCssHeight}px`,
+  }),
+  customContentItem: css({
+    padding: theme.spacing(1, 0),
+  }),
+});
