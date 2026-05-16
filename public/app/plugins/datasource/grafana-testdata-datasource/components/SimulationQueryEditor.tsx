@@ -91,7 +91,9 @@ export const SimulationQueryEditor = ({ onChange, query, ds }: EditorProps) => {
       path += '/' + simKey.uid;
     }
     ds.postResource<SimInfo>('sim/' + path, config).then((res) => {
-      setCfgValue(res.config);
+      // Spread to create a fresh object literal compatible with `Record<string, unknown>`.
+      // `DataFrameJSON` has no index signature, so direct assignment is rejected by tsc.
+      setCfgValue({ ...res.config });
     });
   };
   return (

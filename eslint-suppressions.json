@@ -2715,11 +2715,6 @@
       "count": 1
     }
   },
-  "public/app/plugins/datasource/grafana-testdata-datasource/components/SimulationSchemaForm.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "public/app/plugins/datasource/grafana-testdata-datasource/datasource.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1
