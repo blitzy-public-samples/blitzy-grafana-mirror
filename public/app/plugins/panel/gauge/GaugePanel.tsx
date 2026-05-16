@@ -157,6 +157,12 @@ function DataLinkMenuWrapper({
 }) {
   const styles = useStyles2(getDataLinkMenuWrapperStyles);
   return (
+    // Design system gap: this is an overlay/click-target wrapper for the DataLinksContextMenu;
+    // @grafana/ui Button family imposes a button visual variant (primary/secondary/destructive)
+    // and padding that would alter the gauge's hit area and visual rendering. The raw <button>
+    // here is intentional — `cursor: context-menu` + `background: none` + `border: none` styling
+    // makes it a transparent overlay over the gauge that captures the click without producing
+    // any visible chrome. Keeping raw per AAP §0.4.4 / §0.9.2.6.
     <button
       className={styles}
       onClick={openMenu}

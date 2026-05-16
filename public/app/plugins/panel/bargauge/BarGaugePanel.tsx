@@ -1,5 +1,5 @@
 import { isNumber } from 'lodash';
-import { memo, useCallback, type JSX } from 'react';
+import { memo, useCallback, type CSSProperties, type JSX } from 'react';
 
 import {
   type DisplayProcessor,
@@ -19,6 +19,15 @@ import { type DataLinksContextMenuApi } from '@grafana/ui/internal';
 
 import { BarGaugeLegend } from './BarGaugeLegend';
 import { defaultOptions, type Options } from './panelcfg.gen';
+
+// Layout style for the DataLinksContextMenu's `style` prop. Defined at module scope to avoid an
+// inline `style={{...}}` literal — matches the sibling pattern in gauge/GaugePanel.tsx.
+// DataLinksContextMenu's API only accepts `style: CSSProperties` (no className), so this is the
+// minimal-change replacement that preserves the original full-height layout of the menu wrapper
+// (allowing the rendered <BarGauge> child to fill the orientation-flexed <Box> container above).
+// Hoisting to module scope also gives the prop a stable referential identity across re-renders,
+// preventing unnecessary downstream churn. See AAP §0.5.3 / §0.9.2.6 / §0.9.2.12.
+const dataLinksContextMenuStyle: CSSProperties = { height: '100%' };
 
 export type BarGaugePanelProps = PanelProps<Options>;
 
@@ -80,7 +89,7 @@ export const BarGaugePanel = memo((props: BarGaugePanelProps) => {
       if (hasLinks && getLinks) {
         return (
           <Box width="100%" display={orientation === VizOrientation.Vertical ? 'flex' : 'block'}>
-            <DataLinksContextMenu style={{ height: '100%' }} links={getLinks}>
+            <DataLinksContextMenu style={dataLinksContextMenuStyle} links={getLinks}>
               {(api) => renderComponent(valueProps, api)}
             </DataLinksContextMenu>
           </Box>

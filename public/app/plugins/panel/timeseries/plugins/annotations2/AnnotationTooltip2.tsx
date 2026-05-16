@@ -14,10 +14,12 @@ import { Stack, IconButton, Tag, usePanelContext, useStyles2 } from '@grafana/ui
 import { VizTooltipFooter } from '@grafana/ui/internal';
 import alertDef from 'app/features/alerting/state/alertDef';
 
+import { type AnnoVals } from '../utils';
+
 import { AnnotationTooltipHeaderCloseIcon } from './AnnotationTooltipHeaderCloseIcon';
 
 interface Props {
-  annoVals: Record<string, any[]>;
+  annoVals: AnnoVals;
   annoIdx: number;
   timeZone: string;
   isPinned: boolean;
@@ -66,7 +68,9 @@ export const AnnotationTooltip2 = ({
   let text = annoVals.text?.[annoIdx] ?? '';
 
   if (annoVals.isRegion?.[annoIdx]) {
-    time += ' - ' + timeFormatter(annoVals.timeEnd[annoIdx]);
+    // `timeEnd` is guaranteed to be set when `isRegion` is true (region annotations always
+    // carry both start and end timestamps from the annotation source).
+    time += ' - ' + timeFormatter(annoVals.timeEnd![annoIdx]);
   }
 
   let avatar;
@@ -117,7 +121,14 @@ export const AnnotationTooltip2 = ({
                   ref={canEdit ? null : focusRef}
                   name={'trash-alt'}
                   size={'sm'}
-                  onClick={() => onAnnotationDelete(annoId)}
+                  // `onAnnotationDelete` is declared with `id: string` in PanelContext, but the
+                  // runtime annotation id is a number — see
+                  // https://github.com/grafana/grafana/issues/120097. The AnnoVals interface
+                  // correctly reflects the runtime type (`number | undefined`); the cast bridges
+                  // the documented type-vs-runtime mismatch without converting to a string
+                  // (which would break the API per the linked issue).
+                  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+                  onClick={() => onAnnotationDelete(annoId as unknown as string)}
                   tooltip={t('timeseries.annotation-tooltip2.tooltip-delete', 'Delete')}
                 />
               )}

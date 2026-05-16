@@ -1,5 +1,5 @@
 import { css } from '@emotion/css';
-import { createRef, PureComponent, type JSX } from 'react';
+import { memo, useCallback, useEffect, useRef, useState, type JSX } from 'react';
 import { Subscription } from 'rxjs';
 
 import {
@@ -13,8 +13,8 @@ import {
   type PanelProps,
 } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
-import { config, getBackendSrv, locationService } from '@grafana/runtime';
-import { Button, ScrollContainer, stylesFactory, TagList } from '@grafana/ui';
+import { getBackendSrv, locationService } from '@grafana/runtime';
+import { Button, ScrollContainer, TagList, useStyles2 } from '@grafana/ui';
 import { AbstractList } from '@grafana/ui/internal';
 import { appEvents } from 'app/core/app_events';
 import { getDashboardSrv } from 'app/features/dashboard/services/DashboardSrv';
@@ -30,69 +30,69 @@ interface UserInfo {
 }
 
 export interface Props extends PanelProps<Options> {}
-interface State {
-  annotations: AnnotationEvent[];
-  timeInfo: string;
-  loaded: boolean;
-  queryUser?: UserInfo;
-  queryTags: string[];
-  requestId: string;
+
+// Pure helper hoisted to module scope (was an instance method on the class component).
+// Computes an absolute time offset (epoch ms) from a base `time` and a duration string like "10m".
+function _timeOffset(time: number, offset: string, subtract = false): number {
+  let incr = 5;
+  let unit = 'm';
+  const parts = /^(\d+)(\w)/.exec(offset);
+  if (parts && parts.length === 3) {
+    incr = parseInt(parts[1], 10);
+    unit = parts[2];
+  }
+
+  // Local variable intentionally named `t` to preserve the original implementation verbatim.
+  // It shadows the imported `t` translation function only within this function scope.
+  // eslint-disable-next-line @typescript-eslint/no-shadow
+  const t = dateTime(time);
+  if (subtract) {
+    incr *= -1;
+  }
+
+  if (!dateMath.isDurationUnit(unit)) {
+    return 0;
+  }
+
+  return t.add(incr, unit).valueOf();
 }
-export class AnnoListPanel extends PureComponent<Props, State> {
-  style = getStyles(config.theme2);
-  subs = new Subscription();
-  tagListRef = createRef<HTMLUListElement>();
 
-  constructor(props: Props) {
-    super(props);
+export const AnnoListPanel = memo((props: Props): JSX.Element => {
+  const { options, timeRange, renderCounter, eventBus } = props;
+  const styles = useStyles2(getStyles);
 
-    this.state = {
-      annotations: [],
-      timeInfo: '',
-      loaded: false,
-      queryTags: [],
-      requestId: `anno-list-panel-${Math.random()}`,
-    };
-  }
+  const [annotations, setAnnotations] = useState<AnnotationEvent[]>([]);
+  const [timeInfo, setTimeInfo] = useState<string>('');
+  const [loaded, setLoaded] = useState(false);
+  const [queryUser, setQueryUser] = useState<UserInfo | undefined>(undefined);
+  const [queryTags, setQueryTags] = useState<string[]>([]);
+  // requestId is generated once on mount and remains stable across re-renders.
+  // Format `anno-list-panel-${Math.random()}` matches the test regex `/^anno-list-panel-\d\.\d+/`.
+  const [requestId] = useState(() => `anno-list-panel-${Math.random()}`);
 
-  componentDidMount() {
-    this.doSearch();
+  const tagListRef = useRef<HTMLUListElement>(null);
+  // Holds the next tag element to receive focus after a removal — replaces the
+  // class component's `setState({ queryTags }, () => nextTag?.focus())` callback pattern.
+  const pendingFocusRef = useRef<HTMLElement | null>(null);
 
-    // When an annotation on this dashboard changes, re-run the query
-    this.subs.add(
-      this.props.eventBus.getStream(AnnotationChangeEvent).subscribe({
-        next: () => {
-          this.doSearch();
-        },
-      })
-    );
-  }
+  // Live refs to the latest props/state values consumed by stable callbacks (doSearch,
+  // event-bus subscription handlers). Without these refs, closures would capture stale values.
+  const propsRef = useRef(props);
+  propsRef.current = props;
+  const queryUserRef = useRef(queryUser);
+  queryUserRef.current = queryUser;
+  const queryTagsRef = useRef(queryTags);
+  queryTagsRef.current = queryTags;
 
-  componentWillUnmount() {
-    this.subs.unsubscribe();
-  }
-
-  componentDidUpdate(prevProps: Props, prevState: State) {
-    const { options, timeRange } = this.props;
-    const needsQuery =
-      options !== prevProps.options ||
-      this.state.queryTags !== prevState.queryTags ||
-      this.state.queryUser !== prevState.queryUser ||
-      prevProps.renderCounter !== this.props.renderCounter ||
-      (options.onlyInTimeRange && timeRange !== prevProps.timeRange);
-
-    if (needsQuery) {
-      this.doSearch();
-    }
-  }
-
-  async doSearch() {
+  // doSearch is referentially stable (deps = [requestId], and requestId is stable for the
+  // panel's lifetime). The subscription effect can safely capture it without restarting.
+  const doSearch = useCallback(async () => {
     // http://docs.grafana.org/http_api/annotations/
     // https://github.com/grafana/grafana/blob/main/public/app/core/services/backend_srv.ts
     // https://github.com/grafana/grafana/blob/main/public/app/features/annotations/annotations_srv.ts
-
-    const { options } = this.props;
-    const { queryUser, queryTags } = this.state;
+    const { options, timeRange, replaceVariables } = propsRef.current;
+    const currentQueryUser = queryUserRef.current;
+    const currentQueryTags = queryTagsRef.current;
 
     const params: {
       tags: typeof options.tags;
@@ -108,52 +108,89 @@ export class AnnoListPanel extends PureComponent<Props, State> {
       params.dashboardUID = getDashboardSrv().getCurrent()?.uid;
     }
 
-    let timeInfo = '';
+    let nextTimeInfo = '';
     if (options.onlyInTimeRange) {
-      const { timeRange } = this.props;
       params.from = timeRange.from.valueOf();
       params.to = timeRange.to.valueOf();
     } else {
-      timeInfo = 'All Time';
+      nextTimeInfo = 'All Time';
     }
 
-    if (queryUser) {
-      params.userId = queryUser.id;
+    if (currentQueryUser) {
+      params.userId = currentQueryUser.id;
     }
 
     if (options.tags && options.tags.length) {
-      params.tags = options.tags.map((tag) => this.props.replaceVariables(tag));
+      params.tags = options.tags.map((tag) => replaceVariables(tag));
     }
 
-    if (queryTags.length) {
-      params.tags = params.tags ? [...params.tags, ...queryTags] : queryTags;
+    if (currentQueryTags.length) {
+      params.tags = params.tags ? [...params.tags, ...currentQueryTags] : currentQueryTags;
     }
 
-    const annotations = await getBackendSrv().get<AnnotationEvent[]>(
-      '/api/annotations',
-      params,
-      this.state.requestId
+    const next = await getBackendSrv().get<AnnotationEvent[]>('/api/annotations', params, requestId);
+
+    setAnnotations(next);
+    setTimeInfo(nextTimeInfo);
+    setLoaded(true);
+  }, [requestId]);
+
+  // Suppress unused-state lint: timeInfo is set above for parity with the class component's
+  // State.timeInfo field; the field is retained verbatim per AAP §0.9.2.12 minimal-change.
+  void timeInfo;
+
+  // Effect: subscribe to AnnotationChangeEvent for this dashboard's panel.
+  // Matches the original componentDidMount + componentWillUnmount lifecycle.
+  //
+  // We use an rxjs Subscription wrapper (mirroring the original `this.subs = new Subscription()`
+  // pattern) so that even if a downstream observable's `.subscribe()` returns a falsy value
+  // (some test fakes / EventBus mocks do this), `subs.add(undefined)` is a no-op rather than
+  // a TypeError on cleanup. This preserves byte-equivalent behavior with the prior class form.
+  useEffect(() => {
+    const subs = new Subscription();
+    subs.add(
+      eventBus.getStream(AnnotationChangeEvent).subscribe({
+        next: () => {
+          doSearch();
+        },
+      })
     );
+    return () => subs.unsubscribe();
+  }, [eventBus, doSearch]);
 
-    this.setState({
-      annotations,
-      timeInfo,
-      loaded: true,
-    });
-  }
+  // componentDidMount + componentDidUpdate equivalent: re-run the search when any of the
+  // observed dependencies change. The mount triggers an initial call.
+  //
+  // The original componentDidUpdate guard `(options.onlyInTimeRange && timeRange !== prevProps.timeRange)`
+  // is preserved via the conditional `timeRangeDep`: when onlyInTimeRange is false the dep is `null`
+  // (stable across renders, no re-fire on timeRange changes); when true, the dep is `timeRange`
+  // (re-fires whenever the time range reference changes).
+  const timeRangeDep = options.onlyInTimeRange ? timeRange : null;
+  useEffect(() => {
+    doSearch();
+  }, [options, queryTags, queryUser, renderCounter, timeRangeDep, doSearch]);
 
-  onAnnoClick = async (anno: AnnotationEvent) => {
+  // Side-effect mirror of `setState({ queryTags }, () => nextTag?.focus())`.
+  // After queryTags updates, transfer focus to the pending target if one was queued by onTagClick.
+  useEffect(() => {
+    if (pendingFocusRef.current) {
+      pendingFocusRef.current.focus();
+      pendingFocusRef.current = null;
+    }
+  }, [queryTags]);
+
+  const onAnnoClick = useCallback(async (anno: AnnotationEvent) => {
     if (!anno.time) {
       return;
     }
 
-    const { options } = this.props;
+    const { options } = propsRef.current;
     const dashboardSrv = getDashboardSrv();
     const current = dashboardSrv.getCurrent();
 
     const params = {
-      from: this._timeOffset(anno.time, options.navigateBefore, true),
-      to: this._timeOffset(anno.timeEnd ?? anno.time, options.navigateAfter, false),
+      from: _timeOffset(anno.time, options.navigateBefore, true),
+      to: _timeOffset(anno.timeEnd ?? anno.time, options.navigateAfter, false),
       viewPanel: options.navigateToPanel && anno.panelId ? anno.panelId : undefined,
     };
 
@@ -174,157 +211,139 @@ export class AnnoListPanel extends PureComponent<Props, State> {
       return;
     }
     appEvents.emit(AppEvents.alertWarning, ['Unknown Dashboard: ' + anno.dashboardUID]);
-  };
+  }, []);
 
-  _timeOffset(time: number, offset: string, subtract = false): number {
-    let incr = 5;
-    let unit = 'm';
-    const parts = /^(\d+)(\w)/.exec(offset);
-    if (parts && parts.length === 3) {
-      incr = parseInt(parts[1], 10);
-      unit = parts[2];
-    }
-
-    const t = dateTime(time);
-    if (subtract) {
-      incr *= -1;
-    }
-
-    if (!dateMath.isDurationUnit(unit)) {
-      return 0;
-    }
-
-    return t.add(incr, unit).valueOf();
-  }
-
-  onTagClick = (tag: string, remove?: boolean) => {
-    if (!remove && this.state.queryTags.includes(tag)) {
+  const onTagClick = useCallback((tag: string, remove?: boolean) => {
+    const currentQueryTags = queryTagsRef.current;
+    if (!remove && currentQueryTags.includes(tag)) {
       return;
     }
 
-    const queryTags = remove ? this.state.queryTags.filter((item) => item !== tag) : [...this.state.queryTags, tag];
+    const nextQueryTags = remove
+      ? currentQueryTags.filter((item) => item !== tag)
+      : [...currentQueryTags, tag];
 
-    // Logic to ensure keyboard focus isn't lost when the currently
-    // focused tag is removed
+    // Logic to ensure keyboard focus isn't lost when the currently focused tag is removed.
     let nextTag: HTMLElement | undefined = undefined;
     if (remove) {
       const focusedTag = document.activeElement;
       const dataTagId = focusedTag?.getAttribute('data-tag-id');
-      if (this.tagListRef.current?.contains(focusedTag) && dataTagId) {
+      if (tagListRef.current?.contains(focusedTag) && dataTagId) {
         const parsedTagId = Number.parseInt(dataTagId, 10);
         const possibleNextTag =
-          this.tagListRef.current.querySelector(`[data-tag-id="${parsedTagId + 1}"]`) ??
-          this.tagListRef.current.querySelector(`[data-tag-id="${parsedTagId - 1}"]`);
+          tagListRef.current.querySelector(`[data-tag-id="${parsedTagId + 1}"]`) ??
+          tagListRef.current.querySelector(`[data-tag-id="${parsedTagId - 1}"]`);
         if (possibleNextTag instanceof HTMLElement) {
           nextTag = possibleNextTag;
         }
       }
     }
 
-    this.setState({ queryTags }, () => nextTag?.focus());
-  };
+    // Queue the focus transfer for the queryTags effect (replaces the class component's
+    // `this.setState({ queryTags }, () => nextTag?.focus())` callback pattern).
+    pendingFocusRef.current = nextTag ?? null;
+    setQueryTags(nextQueryTags);
+  }, []);
 
-  onUserClick = (anno: AnnotationEvent) => {
-    this.setState({
-      queryUser: {
-        id: anno.userId,
-        login: anno.login,
-        email: anno.email,
-      },
+  const onUserClick = useCallback((anno: AnnotationEvent) => {
+    setQueryUser({
+      id: anno.userId,
+      login: anno.login,
+      email: anno.email,
     });
-  };
+  }, []);
 
-  onClearUser = () => {
-    this.setState({
-      queryUser: undefined,
-    });
-  };
+  const onClearUser = useCallback(() => {
+    setQueryUser(undefined);
+  }, []);
 
-  renderItem = (anno: AnnotationEvent, index: number): JSX.Element => {
-    const { options } = this.props;
-    const dashboard = getDashboardSrv().getCurrent();
-    if (!dashboard) {
-      return <></>;
-    }
+  const renderItem = useCallback(
+    (anno: AnnotationEvent, _index: number): JSX.Element => {
+      const { options } = propsRef.current;
+      const dashboard = getDashboardSrv().getCurrent();
+      if (!dashboard) {
+        return <></>;
+      }
 
-    return (
-      <AnnotationListItem
-        annotation={anno}
-        formatDate={dashboard.formatDate}
-        onClick={this.onAnnoClick}
-        onAvatarClick={this.onUserClick}
-        onTagClick={this.onTagClick}
-        options={options}
-      />
-    );
-  };
-
-  render() {
-    const { loaded, annotations, queryUser, queryTags } = this.state;
-    if (!loaded) {
       return (
-        <div>
-          <Trans i18nKey="annolist.anno-list-panel.loading">Loading...</Trans>
-        </div>
+        <AnnotationListItem
+          annotation={anno}
+          formatDate={dashboard.formatDate}
+          onClick={onAnnoClick}
+          onAvatarClick={onUserClick}
+          onTagClick={onTagClick}
+          options={options}
+        />
       );
-    }
+    },
+    [onAnnoClick, onUserClick, onTagClick]
+  );
 
-    // Previously we showed inidication that it covered all time
-    // { timeInfo && (
-    //   <span className="panel-time-info">
-    //     <Icon name="clock-nine" /> {timeInfo}
-    //   </span>
-    // )}
-
-    const hasFilter = queryUser || queryTags.length > 0;
+  if (!loaded) {
     return (
-      <ScrollContainer minHeight="100%">
-        {hasFilter && (
-          <div className={this.style.filter}>
-            <b>
-              <Trans i18nKey="annolist.anno-list-panel.filter">Filter:</Trans>
-            </b>
-            {queryUser && (
-              <Button
-                size="sm"
-                variant="secondary"
-                fill="text"
-                onClick={this.onClearUser}
-                aria-label={t(
-                  'annolist.anno-list-panel.aria-label-remove-filter',
-                  'Remove filter: {{filterToRemove}}',
-                  { filterToRemove: queryUser.email }
-                )}
-              >
-                {queryUser.email}
-              </Button>
-            )}
-            {queryTags.length > 0 && (
-              <TagList
-                icon="times"
-                tags={queryTags}
-                onClick={(tag) => this.onTagClick(tag, true)}
-                getAriaLabel={(name) => `Remove ${name} tag`}
-                className={this.style.tagList}
-                ref={this.tagListRef}
-              />
-            )}
-          </div>
-        )}
-
-        {annotations.length < 1 && (
-          <div className={this.style.noneFound}>
-            <Trans i18nKey="annolist.anno-list-panel.no-annotations-found">No annotations found</Trans>
-          </div>
-        )}
-
-        <AbstractList items={annotations} renderItem={this.renderItem} getItemKey={(item) => `${item.id}`} />
-      </ScrollContainer>
+      <div>
+        <Trans i18nKey="annolist.anno-list-panel.loading">Loading...</Trans>
+      </div>
     );
   }
-}
 
-const getStyles = stylesFactory((theme: GrafanaTheme2) => ({
+  // Previously we showed inidication that it covered all time
+  // { timeInfo && (
+  //   <span className="panel-time-info">
+  //     <Icon name="clock-nine" /> {timeInfo}
+  //   </span>
+  // )}
+
+  const hasFilter = queryUser || queryTags.length > 0;
+  return (
+    <ScrollContainer minHeight="100%">
+      {hasFilter && (
+        <div className={styles.filter}>
+          <b>
+            <Trans i18nKey="annolist.anno-list-panel.filter">Filter:</Trans>
+          </b>
+          {queryUser && (
+            <Button
+              size="sm"
+              variant="secondary"
+              fill="text"
+              onClick={onClearUser}
+              aria-label={t(
+                'annolist.anno-list-panel.aria-label-remove-filter',
+                'Remove filter: {{filterToRemove}}',
+                { filterToRemove: queryUser.email }
+              )}
+            >
+              {queryUser.email}
+            </Button>
+          )}
+          {queryTags.length > 0 && (
+            <TagList
+              icon="times"
+              tags={queryTags}
+              onClick={(tag) => onTagClick(tag, true)}
+              getAriaLabel={(name) => `Remove ${name} tag`}
+              className={styles.tagList}
+              ref={tagListRef}
+            />
+          )}
+        </div>
+      )}
+
+      {annotations.length < 1 && (
+        <div className={styles.noneFound}>
+          <Trans i18nKey="annolist.anno-list-panel.no-annotations-found">No annotations found</Trans>
+        </div>
+      )}
+
+      <AbstractList items={annotations} renderItem={renderItem} getItemKey={(item) => `${item.id}`} />
+    </ScrollContainer>
+  );
+});
+
+AnnoListPanel.displayName = 'AnnoListPanel';
+
+const getStyles = (theme: GrafanaTheme2) => ({
   noneFound: css({
     display: 'flex',
     alignItems: 'center',
@@ -345,4 +364,4 @@ const getStyles = stylesFactory((theme: GrafanaTheme2) => ({
       paddingLeft: '3px',
     },
   }),
-}));
+});

@@ -3107,11 +3107,6 @@
       "count": 1
     }
   },
-  "public/app/plugins/panel/annolist/AnnoListPanel.tsx": {
-    "react-prefer-function-component/react-prefer-function-component": {
-      "count": 1
-    }
-  },
   "public/app/plugins/panel/barchart/bars.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1
@@ -3142,11 +3137,6 @@
   },
   "public/app/plugins/panel/debug/StateView.tsx": {
     "no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "public/app/plugins/panel/geomap/GeomapPanel.tsx": {
-    "react-prefer-function-component/react-prefer-function-component": {
       "count": 1
     }
   },
@@ -3233,27 +3223,9 @@
       "count": 1
     }
   },
-  "public/app/plugins/panel/timeseries/plugins/AnnotationsPlugin2.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "public/app/plugins/panel/timeseries/plugins/annotations2/AnnotationEditor2.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    },
     "no-restricted-syntax": {
       "count": 2
-    }
-  },
-  "public/app/plugins/panel/timeseries/plugins/annotations2/AnnotationMarker2.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
-  "public/app/plugins/panel/timeseries/plugins/annotations2/AnnotationTooltip2.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
     }
   },
   "public/app/plugins/panel/xychart/SeriesEditor.tsx": {

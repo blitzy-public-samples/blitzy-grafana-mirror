@@ -15,7 +15,7 @@ import {
 } from '@grafana/ui';
 
 import { AnnotationMarker2 } from './annotations2/AnnotationMarker2';
-import { ANNOTATION_LANE_SIZE, getXAnnotationFrames, getXYAnnotationFrames } from './utils';
+import { ANNOTATION_LANE_SIZE, getXAnnotationFrames, getXYAnnotationFrames, type AnnoVals } from './utils';
 
 // (copied from TooltipPlugin2)
 interface TimeRange2 {
@@ -55,8 +55,12 @@ const renderLine = (ctx: CanvasRenderingContext2D, y0: number, y1: number, x: nu
 
 const DEFAULT_ANNOTATION_COLOR_HEX8 = tinycolor(DEFAULT_ANNOTATION_COLOR).toHex8String();
 
-function getVals(frame: DataFrame) {
-  let vals: Record<string, any[]> = {};
+function getVals(frame: DataFrame): AnnoVals {
+  // Annotation frames are guaranteed by upstream to carry a `time` field, but
+  // we initialize `time` defensively here so TypeScript can verify the
+  // required `time: number[]` member of `AnnoVals`. The `forEach` below will
+  // overwrite it with the frame's actual time values via the index signature.
+  const vals: AnnoVals = { time: [] };
   frame.fields.forEach((f) => {
     vals[f.name] = f.values;
   });
@@ -208,17 +212,24 @@ export const AnnotationsPlugin2 = ({
         for (let i = 0; i < frame.length; i++) {
           let color = getColorByName(vals.color?.[i] || DEFAULT_ANNOTATION_COLOR_HEX8);
 
-          let x0 = u.valToPos(vals.xMin[i], xKey, true);
-          let x1 = u.valToPos(vals.xMax[i], xKey, true);
-          let y0 = u.valToPos(vals.yMax[i], yKey, true);
-          let y1 = u.valToPos(vals.yMin[i], yKey, true);
+          // xMin/xMax/yMin/yMax/fillOpacity/lineWidth/lineStyle are typed as
+          // optional on `AnnoVals` to support shared use across both X and XY
+          // annotation frames, but they are structurally guaranteed for XY
+          // annotation frames returned by `getXYAnnotationFrames(...)`.
+          // Non-null assertion preserves the prior runtime behavior (the same
+          // code with `Record<string, any[]>` silently relied on these fields
+          // being present and would throw at runtime if they were missing).
+          let x0 = u.valToPos(vals.xMin![i], xKey, true);
+          let x1 = u.valToPos(vals.xMax![i], xKey, true);
+          let y0 = u.valToPos(vals.yMax![i], yKey, true);
+          let y1 = u.valToPos(vals.yMin![i], yKey, true);
 
-          ctx.fillStyle = colorManipulator.alpha(color, vals.fillOpacity[i]);
+          ctx.fillStyle = colorManipulator.alpha(color, vals.fillOpacity![i]);
           ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
 
-          ctx.lineWidth = Math.round(vals.lineWidth[i] * uPlot.pxRatio);
+          ctx.lineWidth = Math.round(vals.lineWidth![i] * uPlot.pxRatio);
 
-          if (vals.lineStyle[i] === 'dash') {
+          if (vals.lineStyle![i] === 'dash') {
             // maybe extract this to vals.lineDash[i] in future?
             ctx.setLineDash([5, 5]);
           } else {
@@ -253,7 +264,12 @@ export const AnnotationsPlugin2 = ({
     const plot = plotRef.current;
     const wipFrame = xAnnos.filter((fr) => fr.meta?.custom?.isWip)?.[0];
     const wipVals = wipFrame ? getVals(wipFrame) : null;
-    const isWipVisible = wipFrame?.meta?.custom?.isWip && wipVals?.time[0] > 0;
+    // `wipVals.time[0]` may be `undefined` when the optional-chained access on
+    // `wipVals?.time[0]` short-circuits (preserving original semantics that
+    // depended on JS truthiness coercion via the looser `Record<string, any[]>`
+    // typing). Coerce with `?? 0` so the `> 0` comparison preserves the prior
+    // falsy-when-absent behavior under strict typing.
+    const isWipVisible = wipFrame?.meta?.custom?.isWip && (wipVals?.time[0] ?? 0) > 0;
 
     let markers = xAnnos.flatMap((frame, frameIdx) => {
       const isWipFrame = frame?.meta?.custom?.isWip;
@@ -271,7 +287,11 @@ export const AnnotationsPlugin2 = ({
         let isVisible = true;
 
         if (vals.isRegion?.[i]) {
-          let right = Math.round(plot.valToPos(vals.timeEnd?.[i], 'x')) || 0; // handles -0
+          // `timeEnd` is optional on AnnoVals; the prior `Record<string, any[]>`
+          // typing implicitly allowed `undefined` here and uPlot's `valToPos`
+          // coerces `undefined` to `NaN`/`0`. Coerce to `0` explicitly to
+          // preserve the prior runtime behavior under strict typing.
+          let right = Math.round(plot.valToPos(vals.timeEnd?.[i] ?? 0, 'x')) || 0; // handles -0
 
           isVisible = left < plot.rect.width && right > 0;
 
