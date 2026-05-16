@@ -3240,11 +3240,6 @@
       "count": 2
     }
   },
-  "public/app/plugins/panel/geomap/migrations.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    }
-  },
   "public/app/plugins/panel/geomap/utils/tooltip.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 2

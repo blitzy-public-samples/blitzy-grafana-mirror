@@ -39,7 +39,35 @@ export const mapPanelChangedHandler: PanelTypeChangedHandler = (panel, prevPlugi
   return {};
 };
 
-export function worldmapToGeomapOptions(angular: any): {
+/**
+ * Shape of the legacy Grafana Worldmap panel's options blob that is fed into
+ * {@link worldmapToGeomapOptions} during a panel-type migration. The Worldmap
+ * options were authored against AngularJS without an explicit TypeScript
+ * surface, so every property is optional — callers (notably
+ * {@link mapPanelChangedHandler}) spread arbitrary `prevOptions.angular`
+ * payloads, and the body of {@link worldmapToGeomapOptions} guards each access
+ * before consuming it. The fields listed here are exactly the ones read by the
+ * migration logic in this file; any unknown extras carried over from a
+ * historical dashboard remain harmlessly attached via the spread but are
+ * intentionally not modelled here.
+ */
+interface LegacyWorldmapOptions {
+  decimals?: number;
+  circleMaxSize?: number;
+  circleMinSize?: number;
+  locationData?: string;
+  valueName?: string;
+  thresholds?: string;
+  colors?: string[];
+  initialZoom?: number;
+  mapCenter?: string;
+  mapCenterLatitude?: number;
+  mapCenterLongitude?: number;
+  mouseWheelZoom?: boolean;
+  fieldConfig?: FieldConfigSource;
+}
+
+export function worldmapToGeomapOptions(angular: LegacyWorldmapOptions): {
   fieldConfig: FieldConfigSource;
   options: Options;
   xform?: DataTransformerConfig;
@@ -145,7 +173,7 @@ export function worldmapToGeomapOptions(angular: any): {
   // mapCenterLongitude: 14,
   //
   // Map center (from worldmap)
-  const mapCenters: any = {
+  const mapCenters: Record<string, string> = {
     '(0°, 0°)': MapCenterID.Zero,
     'North America': 'north-america',
     Europe: 'europe',
@@ -153,7 +181,11 @@ export function worldmapToGeomapOptions(angular: any): {
     'SE Asia': 'se-asia',
     'Last GeoHash': MapCenterID.Coordinates, // MapCenterID.LastPoint,
   };
-  options.view.id = mapCenters[angular.mapCenter];
+  // Fall back to '' (which yields `undefined` on lookup, matching the
+  // original behavior when `angular.mapCenter` was undefined) — required to
+  // satisfy TypeScript's `Record<string, string>` index signature now that
+  // `angular` is no longer typed as `any`.
+  options.view.id = mapCenters[angular.mapCenter ?? ''];
   options.view.lat = asNumber(angular.mapCenterLatitude);
   options.view.lon = asNumber(angular.mapCenterLongitude);
   return { fieldConfig, options, xform };
