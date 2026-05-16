@@ -1,13 +1,28 @@
-import { FieldColorModeId, FieldConfigProperty, FieldMatcherID, type PanelModel } from '@grafana/data';
+import {
+  FieldColorModeId,
+  type FieldConfigSource,
+  FieldConfigProperty,
+  FieldMatcherID,
+  type PanelModel,
+} from '@grafana/data';
 
 import { PieChartPanelChangedHandler } from './migrations';
 import { PieChartLabels } from './panelcfg.gen';
 
 describe('PieChart -> PieChartV2 migrations', () => {
+  let prevFieldConfig: FieldConfigSource;
+
+  beforeEach(() => {
+    prevFieldConfig = {
+      defaults: {},
+      overrides: [],
+    };
+  });
+
   it('only migrates old piechart', () => {
     const panel = {} as PanelModel;
 
-    const options = PieChartPanelChangedHandler(panel, 'some-panel-id', {});
+    const options = PieChartPanelChangedHandler(panel, 'some-panel-id', {}, prevFieldConfig);
     expect(options).toEqual({});
   });
 
@@ -19,7 +34,7 @@ describe('PieChart -> PieChartV2 migrations', () => {
         aliasColors: { x: '#fff' },
       },
     };
-    PieChartPanelChangedHandler(panel, 'grafana-piechart-panel', oldPieChartOptions);
+    PieChartPanelChangedHandler(panel, 'grafana-piechart-panel', oldPieChartOptions, prevFieldConfig);
     expect(panel.fieldConfig.overrides).toContainEqual({
       matcher: {
         id: FieldMatcherID.byName,
@@ -43,7 +58,12 @@ describe('PieChart -> PieChartV2 migrations', () => {
     const oldPieChartOptions = {
       angular: { valueName: 'total' },
     };
-    const options = PieChartPanelChangedHandler(panel, 'grafana-piechart-panel', oldPieChartOptions);
+    const options = PieChartPanelChangedHandler(
+      panel,
+      'grafana-piechart-panel',
+      oldPieChartOptions,
+      prevFieldConfig
+    );
     expect(options).toMatchObject({ reduceOptions: { calcs: ['sum'] } });
   });
 
@@ -56,7 +76,12 @@ describe('PieChart -> PieChartV2 migrations', () => {
         legend: { values: true },
       },
     };
-    const options = PieChartPanelChangedHandler(panel, 'grafana-piechart-panel', oldPieChartOptions);
+    const options = PieChartPanelChangedHandler(
+      panel,
+      'grafana-piechart-panel',
+      oldPieChartOptions,
+      prevFieldConfig
+    );
     expect(options).toMatchObject({ displayLabels: [PieChartLabels.Name, PieChartLabels.Value] });
   });
 
@@ -69,7 +94,12 @@ describe('PieChart -> PieChartV2 migrations', () => {
         legend: { show: false },
       },
     };
-    const options = PieChartPanelChangedHandler(panel, 'grafana-piechart-panel', oldPieChartOptions);
+    const options = PieChartPanelChangedHandler(
+      panel,
+      'grafana-piechart-panel',
+      oldPieChartOptions,
+      prevFieldConfig
+    );
     expect(options).toMatchObject({ legend: { showLegend: false } });
   });
 });
