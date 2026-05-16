@@ -8,7 +8,7 @@ import { type Options } from './panelcfg.gen';
 export const statPanelChangedHandler = (
   panel: PanelModel<Partial<Options>>,
   prevPluginId: string,
-  prevOptions: any
+  prevOptions: LegacySinglestatOptions
 ) => {
   // This handles most config changes
   const options: Options = sharedSingleStatPanelChangedHandler(panel, prevPluginId, prevOptions);
@@ -45,3 +45,26 @@ export const statPanelChangedHandler = (
 
   return options;
 };
+
+/**
+ * Shape of the legacy singlestat (angular) panel options that may be passed to
+ * `statPanelChangedHandler` when migrating from the old `singlestat` /
+ * `grafana-singlestat-panel` plugin. Only the properties the migration logic
+ * actually reads are modeled here; the rest of `prevOptions` is forwarded to
+ * `sharedSingleStatPanelChangedHandler` (which still accepts `any`).
+ */
+interface LegacySinglestatOptions {
+  angular?: LegacySinglestatAngularOptions;
+}
+
+interface LegacySinglestatAngularOptions {
+  format?: string;
+  decimals?: number;
+  sparkline?: {
+    show?: boolean;
+    lineColor?: string;
+  };
+  colorBackground?: boolean;
+  colorValue?: boolean;
+  valueName?: string;
+}
