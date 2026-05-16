@@ -175,9 +175,11 @@ export function useServices(
 
 type OptionsState = {
   [serviceName: string]: {
-    [spanName: string]: {
-      [traceId: string]: string;
-    };
+    [spanName: string]:
+      | {
+          [traceId: string]: string;
+        }
+      | undefined;
   };
 };
 
@@ -198,7 +200,7 @@ export function useLoadOptions(datasource: ZipkinDatasource, setErrorText: (text
             const spanOptions = fromPairs(response.map((span: string) => [span, undefined]));
             return {
               ...state,
-              [service]: spanOptions as any,
+              [service]: spanOptions,
             };
           });
         }
@@ -290,10 +292,10 @@ function useMapToCascaderOptions(services: AsyncState<CascaderOption[]>, allOpti
                 isLeaf: false,
                 children:
                   allOptions[services.value][spanName] &&
-                  Object.keys(allOptions[services.value][spanName]).map((traceName) => {
+                  Object.keys(allOptions[services.value][spanName]!).map((traceName) => {
                     return {
                       label: traceName,
-                      value: allOptions[services.value][spanName][traceName],
+                      value: allOptions[services.value][spanName]![traceName],
                     };
                   }),
               };
