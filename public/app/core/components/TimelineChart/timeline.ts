@@ -457,7 +457,7 @@ export function getConfig(opts: TimelineCoreOptions) {
         setHovered(cx, cy, u.cursor.event == null);
       }
 
-      return hovered[seriesIdx]?.didx;
+      return hovered[seriesIdx]?.didx ?? null;
     },
     focus: {
       prox: 1e3,

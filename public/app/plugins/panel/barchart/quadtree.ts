@@ -2,7 +2,7 @@ const MAX_OBJECTS = 10;
 const MAX_LEVELS = 4;
 
 export type Quads = [Quadtree, Quadtree, Quadtree, Quadtree];
-export type Rect = { x: number; y: number; w: number; h: number; [_: string]: any };
+export type Rect = { x: number; y: number; w: number; h: number; sidx: number; didx: number };
 
 /**
  * @internal
