@@ -84,7 +84,7 @@ export interface PromQueryRequest extends PromQuery {
   requestId?: string;
   start: number;
   end: number;
-  headers?: any;
+  headers?: Record<string, string>;
 }
 
 export interface PromMetricsMetadataItem {
@@ -97,12 +97,12 @@ export interface PromMetricsMetadata {
   [metric: string]: PromMetricsMetadataItem;
 }
 
-export type PromValue = [number, any];
+export type PromValue = [number, string];
 
 export interface PromMetric {
   __name__?: string;
 
-  [index: string]: any;
+  [index: string]: string | undefined;
 }
 
 export interface PromBuildInfoResponse {
