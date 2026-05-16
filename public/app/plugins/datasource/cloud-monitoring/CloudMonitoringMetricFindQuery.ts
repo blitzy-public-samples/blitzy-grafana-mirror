@@ -173,7 +173,7 @@ export default class CloudMonitoringMetricFindQuery {
     return ALIGNMENT_PERIODS.map(this.toFindQueryResult);
   }
 
-  toFindQueryResult(x: any) {
+  toFindQueryResult(x: string | { text?: string; label?: string; value?: string }) {
     return isString(x) ? { text: x, expandable: true } : { ...x, text: x.label || x.value, expandable: true };
   }
 }
