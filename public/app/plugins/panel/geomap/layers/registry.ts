@@ -44,8 +44,18 @@ export const defaultBaseLayer: MapLayerRegistryItem = {
 };
 
 /**
- * Registry for layer handlers
+ * Registry for layer handlers.
+ *
+ * Each `MapLayerRegistryItem<TConfig>` has its own concrete `TConfig` (e.g.,
+ * `MarkerConfig`, `HeatmapConfig`, `GeoJSONLayerOptions`). The registry stores these
+ * as a heterogeneous collection. TypeScript's `strictFunctionTypes` makes
+ * `MapLayerRegistryItem<unknown>` unassignable from concrete instances because the
+ * `create(options: MapLayerOptions<TConfig>, ...)` callback uses `TConfig` in a
+ * contravariant position, so `any` is genuinely the only type that works here in
+ * both consumer and producer positions for this generic. Consumers narrow the
+ * config shape when they call `geomapLayerRegistry.getIfExists(typeId).create(...)`.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- heterogeneous registry; see comment above
 export const geomapLayerRegistry = new Registry<MapLayerRegistryItem<any>>(() => [
   defaultBaseLayer,
   ...basemapLayers, // simple basemaps
@@ -57,6 +67,7 @@ interface RegistrySelectInfo {
   current: Array<SelectableValue<string>>;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- heterogeneous registry; matches geomapLayerRegistry's parameterization
 function getLayersSelection(items: Array<MapLayerRegistryItem<any>>, current?: string): RegistrySelectInfo {
   const registry: RegistrySelectInfo = { options: [], current: [] };
   const alpha: Array<SelectableValue<string>> = [];
