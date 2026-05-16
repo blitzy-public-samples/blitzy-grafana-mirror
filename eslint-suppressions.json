@@ -3014,9 +3014,6 @@
   "public/app/plugins/datasource/tempo/datasource.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1
-    },
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
     }
   },
   "public/app/plugins/datasource/tempo/resultTransformer.ts": {

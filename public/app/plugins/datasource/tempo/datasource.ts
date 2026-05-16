@@ -1338,7 +1338,7 @@ function getServiceGraphViewDataFrames(
   tempoDatasourceUid: string,
   useNativeHistogram?: boolean
 ) {
-  let df: any = { fields: [] };
+  let df: DataFrameDTO = { fields: [] };
 
   const rate = rateResponse.rates.filter((x) => {
     return x.refId === buildExpr(rateMetric, defaultTableFilter, request);
@@ -1378,7 +1378,7 @@ function getServiceGraphViewDataFrames(
     df.fields.push({
       ...rate[0].fields[2],
       name: '  ',
-      labels: null,
+      labels: undefined,
       config: {
         color: {
           mode: 'continuous-BlPu',
@@ -1430,7 +1430,7 @@ function getServiceGraphViewDataFrames(
       ...errorRate[0].fields[2],
       name: '   ',
       values: values,
-      labels: null,
+      labels: undefined,
       config: {
         color: {
           mode: 'continuous-RdYlGr',
