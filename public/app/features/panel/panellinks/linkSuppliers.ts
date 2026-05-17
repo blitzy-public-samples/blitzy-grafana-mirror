@@ -29,7 +29,7 @@ interface FieldVars {
 }
 
 interface ValueVars {
-  raw: any;
+  raw: unknown;
   numeric: number;
   text: string;
   time?: number;
