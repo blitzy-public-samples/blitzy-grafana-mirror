@@ -1,10 +1,10 @@
 import { of } from 'rxjs';
 
-import { type DataQueryRequest, dateTime } from '@grafana/data';
+import { type DataQueryRequest, type DataSourceInstanceSettings, dateTime } from '@grafana/data';
 import { type BackendSrv, type FetchResponse, type TemplateSrv } from '@grafana/runtime';
 
 import OpenTsDatasource from '../datasource';
-import { type OpenTsdbQuery } from '../types';
+import { type OpenTsdbOptions, type OpenTsdbQuery } from '../types';
 
 export function createFetchResponse<T>(data: T): FetchResponse<T> {
   return {
@@ -45,7 +45,7 @@ describe('opentsdb', () => {
     const fetchMock = jest.spyOn(mockBackendSrv, 'fetch');
     fetchMock.mockImplementation(() => of(createFetchResponse(data)));
 
-    const instanceSettings = { url: '', jsonData: { tsdbVersion: 1 } };
+    const instanceSettings = { url: '', jsonData: { tsdbVersion: 1 } } as unknown as DataSourceInstanceSettings<OpenTsdbOptions>;
     const replace = jest.fn((value) => value);
     const templateSrv = {
       replace,

@@ -39,8 +39,7 @@ export const ConfigEditor = (props: Props) => {
 
   useEffect(() => {
     updateDatasourcePluginJsonDataOption(props, 'graphiteVersion', currentGraphiteVersion);
-    // intentionally run only once on mount per original componentDidMount semantics
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally run only once on mount per original componentDidMount semantics
   }, []);
 
   const currentVersion = graphiteVersions.find((item) => item.value === currentGraphiteVersion);

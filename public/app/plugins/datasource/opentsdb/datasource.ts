@@ -21,6 +21,7 @@ import {
   type DataFrame,
   type DataQueryRequest,
   type DataQueryResponse,
+  type DataSourceInstanceSettings,
   dateMath,
   type DateTime,
   type ScopedVars,
@@ -37,33 +38,15 @@ import {
 
 import { AnnotationEditor } from './components/AnnotationEditor';
 import { prepareAnnotation } from './migrations';
-import { type OpenTsdbFilter, type OpenTsdbOptions, type OpenTsdbQuery } from './types';
-
-// Shape of an individual OpenTSDB metric data point returned by the /api/query endpoint.
-// The OpenTSDB API contract permits heterogeneous tag values and aggregateTags, so several
-// properties remain typed as `any` with a per-field eslint-disable for the upstream-untyped
-// portions; the structural keys themselves are stable.
-interface OpenTsdbMetricData {
-  metric: string | number;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- upstream OpenTSDB tag value shape is dynamic per metric
-  tags: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- upstream OpenTSDB aggregateTags shape is dynamic
-  aggregateTags: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- upstream OpenTSDB dps shape is a sparse time-indexed numeric map
-  dps: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- annotation payload shape varies per OpenTSDB version
-  annotations?: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- global annotation payload shape varies per OpenTSDB version
-  globalAnnotations?: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- per-target query echo only present in TSDB v3
-  query?: any;
-}
-
-// Shape of OpenTSDB /api/search/lookup endpoint response.
-interface OpenTsdbLookupResponse {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- upstream OpenTSDB lookup results are heterogeneous
-  results: any;
-}
+import {
+  type OpenTsdbApiRequest,
+  type OpenTsdbFilter,
+  type OpenTsdbInternalQuery,
+  type OpenTsdbLookupResultItem,
+  type OpenTsdbMetricData,
+  type OpenTsdbOptions,
+  type OpenTsdbQuery,
+} from './types';
 
 export default class OpenTsDatasource extends DataSourceWithBackend<OpenTsdbQuery, OpenTsdbOptions> {
   type: 'opentsdb';
@@ -74,21 +57,24 @@ export default class OpenTsDatasource extends DataSourceWithBackend<OpenTsdbQuer
   tsdbVersion: number;
   tsdbResolution: number;
   lookupLimit: number;
-  tagKeys: Record<string | number, string[]>;
+  tagKeys: Record<string, string[]>;
 
   aggregatorsPromise: Promise<string[]> | null;
   filterTypesPromise: Promise<string[]> | null;
 
   constructor(
-    instanceSettings: any,
+    instanceSettings: DataSourceInstanceSettings<OpenTsdbOptions>,
     private readonly templateSrv: TemplateSrv = getTemplateSrv()
   ) {
     super(instanceSettings);
     this.type = 'opentsdb';
-    this.url = instanceSettings.url;
+    // The following four fields are declared as required on the class but are optional on
+    // `DataSourceInstanceSettings`; non-null assertions preserve the pre-existing runtime
+    // semantics (the previous `any`-typed parameter accepted whatever shape the caller supplied).
+    this.url = instanceSettings.url!;
     this.name = instanceSettings.name;
-    this.withCredentials = instanceSettings.withCredentials;
-    this.basicAuth = instanceSettings.basicAuth;
+    this.withCredentials = instanceSettings.withCredentials!;
+    this.basicAuth = instanceSettings.basicAuth!;
     instanceSettings.jsonData = instanceSettings.jsonData || {};
     this.tsdbVersion = instanceSettings.jsonData.tsdbVersion || 1;
     this.tsdbResolution = instanceSettings.jsonData.tsdbResolution || 1;
@@ -141,7 +127,7 @@ export default class OpenTsDatasource extends DataSourceWithBackend<OpenTsdbQuer
 
     const start = this.convertToTSDBTime(options.range.raw.from, false, options.timezone);
     const end = this.convertToTSDBTime(options.range.raw.to, true, options.timezone);
-    const qs: any[] = [];
+    const qs: Array<OpenTsdbInternalQuery | null> = [];
 
     each(options.targets, (target) => {
       if (!target.metric) {
@@ -252,10 +238,10 @@ export default class OpenTsDatasource extends DataSourceWithBackend<OpenTsdbQuer
 
     const start = this.convertToTSDBTime(options.range.raw.from, false, options.timezone);
     const end = this.convertToTSDBTime(options.range.raw.to, true, options.timezone);
-    const qs = [];
+    const qs: OpenTsdbInternalQuery[] = [];
     const eventList: AnnotationEvent[] = [];
 
-    qs.push({ aggregator: 'sum', metric: annotation.target });
+    qs.push({ refId: annotation.refId ?? 'Anno', aggregator: 'sum', metric: annotation.target });
 
     const queries = compact(qs);
 
@@ -305,13 +291,16 @@ export default class OpenTsDatasource extends DataSourceWithBackend<OpenTsdbQuer
     return false;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- upstream OpenTSDB metric data shape is heterogeneous and untyped at the API contract level
-  performTimeSeriesQuery(queries: any[], start: number | null, end: number | null): Observable<FetchResponse<OpenTsdbMetricData[]>> {
+  performTimeSeriesQuery(
+    queries: OpenTsdbInternalQuery[],
+    start: number | null,
+    end: number | null
+  ): Observable<FetchResponse<OpenTsdbMetricData[]>> {
     let msResolution = false;
     if (this.tsdbResolution === 2) {
       msResolution = true;
     }
-    const reqBody: any = {
+    const reqBody: OpenTsdbApiRequest = {
       start: start,
       queries: queries,
       msResolution: msResolution,
@@ -341,7 +330,7 @@ export default class OpenTsDatasource extends DataSourceWithBackend<OpenTsdbQuer
     return Promise.resolve(this.tagKeys[metric] || []);
   }
 
-  _saveTagKeys(metricData: { tags: {}; aggregateTags: any; metric: string | number }) {
+  _saveTagKeys(metricData: OpenTsdbMetricData) {
     const tagKeys = Object.keys(metricData.tags);
     each(metricData.aggregateTags, (tag) => {
       tagKeys.push(tag);
@@ -359,25 +348,25 @@ export default class OpenTsDatasource extends DataSourceWithBackend<OpenTsdbQuer
     }
   }
 
-  _performSuggestQuery(query: string, type: string) {
+  _performSuggestQuery(query: string, type: string): Observable<string[]> {
     if (config.featureToggles.opentsdbBackendMigration) {
-      return from(this.getResource('api/suggest', { type, q: query, max: this.lookupLimit }));
+      return from(this.getResource<string[]>('api/suggest', { type, q: query, max: this.lookupLimit }));
     }
 
-    return this._get('/api/suggest', { type, q: query, max: this.lookupLimit }).pipe(
+    return this._get<string[]>('/api/suggest', { type, q: query, max: this.lookupLimit }).pipe(
       map((result) => {
         return result.data;
       })
     );
   }
 
-  _performMetricKeyValueLookup(metric: string, keys: string) {
+  _performMetricKeyValueLookup(metric: string, keys: string): Observable<string[]> {
     if (!metric || !keys) {
       return of([]);
     }
 
     if (config.featureToggles.opentsdbBackendMigration) {
-      return from(this.getResource('api/search/lookup', { type: 'keyvalue', metric, keys }));
+      return from(this.getResource<string[]>('api/search/lookup', { type: 'keyvalue', metric, keys }));
     }
 
     const keysArray = keys.split(',').map((key) => {
@@ -392,10 +381,13 @@ export default class OpenTsDatasource extends DataSourceWithBackend<OpenTsdbQuer
 
     const m = metric + '{' + keysQuery + '}';
 
-    return this._get<OpenTsdbLookupResponse>('/api/search/lookup', { m: m, limit: this.lookupLimit }).pipe(
+    return this._get<{ results: OpenTsdbLookupResultItem[] }>('/api/search/lookup', {
+      m: m,
+      limit: this.lookupLimit,
+    }).pipe(
       map((response) => {
         const result = response.data.results;
-        const tagvs: any[] = [];
+        const tagvs: string[] = [];
         each(result, (r) => {
           if (tagvs.indexOf(r.tags[key]) === -1) {
             tagvs.push(r.tags[key]);
@@ -406,19 +398,19 @@ export default class OpenTsDatasource extends DataSourceWithBackend<OpenTsdbQuer
     );
   }
 
-  _performMetricKeyLookup(metric: string) {
+  _performMetricKeyLookup(metric: string): Observable<string[]> {
     if (!metric) {
       return of([]);
     }
 
     if (config.featureToggles.opentsdbBackendMigration) {
-      return from(this.getResource('api/search/lookup', { type: 'key', metric }));
+      return from(this.getResource<string[]>('api/search/lookup', { type: 'key', metric }));
     }
 
-    return this._get<OpenTsdbLookupResponse>('/api/search/lookup', { m: metric, limit: 1000 }).pipe(
+    return this._get<{ results: OpenTsdbLookupResultItem[] }>('/api/search/lookup', { m: metric, limit: 1000 }).pipe(
       map((response) => {
         const result = response.data.results;
-        const tagks: any[] = [];
+        const tagks: string[] = [];
         each(result, (r) => {
           each(r.tags, (tagv: unknown, tagk: string) => {
             if (tagks.indexOf(tagk) === -1) {
@@ -467,7 +459,7 @@ export default class OpenTsDatasource extends DataSourceWithBackend<OpenTsdbQuer
       return Promise.reject(err);
     }
 
-    const responseTransform = (result: any) => {
+    const responseTransform = (result: string[]): Array<{ text: string }> => {
       return _map(result, (value) => {
         return { text: value };
       });
@@ -523,18 +515,18 @@ export default class OpenTsDatasource extends DataSourceWithBackend<OpenTsdbQuer
     );
   }
 
-  getAggregators() {
+  getAggregators(): Promise<string[]> {
     if (this.aggregatorsPromise) {
       return this.aggregatorsPromise;
     }
 
     if (config.featureToggles.opentsdbBackendMigration) {
-      this.aggregatorsPromise = this.getResource('api/aggregators');
+      this.aggregatorsPromise = this.getResource<string[]>('api/aggregators');
       return this.aggregatorsPromise;
     }
 
     this.aggregatorsPromise = lastValueFrom(
-      this._get('/api/aggregators').pipe(
+      this._get<string[]>('/api/aggregators').pipe(
         map((result) => {
           if (result.data && isArray(result.data)) {
             return result.data.sort();
@@ -546,18 +538,18 @@ export default class OpenTsDatasource extends DataSourceWithBackend<OpenTsdbQuer
     return this.aggregatorsPromise;
   }
 
-  getFilterTypes() {
+  getFilterTypes(): Promise<string[]> {
     if (this.filterTypesPromise) {
       return this.filterTypesPromise;
     }
 
     if (config.featureToggles.opentsdbBackendMigration) {
-      this.filterTypesPromise = this.getResource('api/config/filters');
+      this.filterTypesPromise = this.getResource<string[]>('api/config/filters');
       return this.filterTypesPromise;
     }
 
     this.filterTypesPromise = lastValueFrom(
-      this._get('/api/config/filters').pipe(
+      this._get<Record<string, unknown>>('/api/config/filters').pipe(
         map((result) => {
           if (result.data) {
             return Object.keys(result.data).sort();
@@ -570,22 +562,24 @@ export default class OpenTsDatasource extends DataSourceWithBackend<OpenTsdbQuer
   }
 
   transformMetricData(
-    md: { dps: any },
+    md: OpenTsdbMetricData,
     groupByTags: Record<string, boolean>,
     target: OpenTsdbQuery,
     options: DataQueryRequest<OpenTsdbQuery>,
     tsdbResolution: number
   ) {
     const metricLabel = this.createMetricLabel(md, target, groupByTags, options);
-    const dps: any[] = [];
+    const dps: Array<[number, number]> = [];
 
     // TSDB returns datapoints has a hash of ts => value.
-    // Can't use pairs(invert()) because it stringifies keys/values
-    each(md.dps, (v, k: number) => {
+    // Can't use pairs(invert()) because it stringifies keys/values.
+    // Lodash `each` passes object keys as strings; coerce explicitly with `Number(k)`.
+    each(md.dps, (v, k) => {
+      const timestamp = Number(k);
       if (tsdbResolution === 2) {
-        dps.push([v, k * 1]);
+        dps.push([v, timestamp]);
       } else {
-        dps.push([v, k * 1000]);
+        dps.push([v, timestamp * 1000]);
       }
     });
 
@@ -593,7 +587,7 @@ export default class OpenTsDatasource extends DataSourceWithBackend<OpenTsdbQuer
   }
 
   createMetricLabel(
-    md: { dps?: any; tags?: any; metric?: any },
+    md: OpenTsdbMetricData,
     target: OpenTsdbQuery,
     groupByTags: Record<string, boolean>,
     options: DataQueryRequest<OpenTsdbQuery>
@@ -607,7 +601,7 @@ export default class OpenTsDatasource extends DataSourceWithBackend<OpenTsdbQuer
     }
 
     let label = md.metric;
-    const tagData: any[] = [];
+    const tagData: string[] = [];
 
     if (!isEmpty(md.tags)) {
       each(toPairs(md.tags), (tag) => {
@@ -686,11 +680,13 @@ export default class OpenTsDatasource extends DataSourceWithBackend<OpenTsdbQuer
     return this.templateSrv.getVariables().map((v) => `$${v.name}`);
   }
 
-  mapMetricsToTargets(metrics: any, options: DataQueryRequest<OpenTsdbQuery>, tsdbVersion: number) {
+  mapMetricsToTargets(metrics: OpenTsdbMetricData[], options: DataQueryRequest<OpenTsdbQuery>, tsdbVersion: number) {
     let interpolatedTagValue, arrTagV;
     return _map(metrics, (metricData) => {
       if (tsdbVersion === 3) {
-        return metricData.query.index;
+        // `query` is optional on the API metric data shape; fall back to -1 (no target match)
+        // to preserve the pre-existing behavior when the upstream payload omits it.
+        return metricData.query?.index ?? -1;
       } else {
         return findIndex(options.targets, (target) => {
           if (target.filters && target.filters.length > 0) {
@@ -718,8 +714,8 @@ export default class OpenTsDatasource extends DataSourceWithBackend<OpenTsdbQuer
     return queries.map((query) => this.interpolateVariablesInQuery(query, scopedVars));
   }
 
-  interpolateVariablesInQuery(target: OpenTsdbQuery, scopedVars: ScopedVars): any {
-    const query = cloneDeep(target);
+  interpolateVariablesInQuery(target: OpenTsdbQuery, scopedVars: ScopedVars): OpenTsdbInternalQuery {
+    const query: OpenTsdbInternalQuery = cloneDeep(target);
 
     query.metric = this.templateSrv.replace(target.metric, scopedVars, 'pipe');
 

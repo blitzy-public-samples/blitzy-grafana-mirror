@@ -2755,9 +2755,6 @@
     },
     "no-restricted-syntax": {
       "count": 1
-    },
-    "react-prefer-function-component/react-prefer-function-component": {
-      "count": 1
     }
   },
   "public/app/plugins/datasource/influxdb/components/editor/config/InfluxSQLConfig.tsx": {
@@ -2828,11 +2825,6 @@
   "public/app/plugins/datasource/opentsdb/datasource.d.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1
-    }
-  },
-  "public/app/plugins/datasource/opentsdb/datasource.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 15
     }
   },
   "public/app/plugins/datasource/parca/QueryEditor/QueryOptions.tsx": {

@@ -2,7 +2,7 @@ import { css } from '@emotion/css';
 import { memo, useEffect, useRef, useState } from 'react';
 
 import { QueryWithAssistantButton } from '@grafana/assistant';
-import { CoreApp, type QueryEditorProps, type SelectableValue } from '@grafana/data';
+import { CoreApp, type GrafanaTheme2, type QueryEditorProps, type SelectableValue } from '@grafana/data';
 import { config, reportInteraction } from '@grafana/runtime';
 import {
   Button,
@@ -12,7 +12,7 @@ import {
   InlineFieldRow,
   Modal,
   RadioButtonGroup,
-  useTheme2,
+  useStyles2,
 } from '@grafana/ui';
 
 import TraceQLSearch from './SearchTraceQLEditor/TraceQLSearch';
@@ -36,7 +36,7 @@ const DEFAULT_QUERY_TYPE: TempoQueryType = 'traceql';
 // `PureComponent` so that the functional rewrite remains behavior-equivalent for callers
 // that rely on referentially stable props to avoid unnecessary re-renders.
 const TempoQueryField = memo(function TempoQueryField(props: Props) {
-  const theme = useTheme2();
+  const styles = useStyles2(getStyles);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   // Mirrors the class component's `_isMounted` instance flag. The original code used this
   // to bail out of post-await state updates when the component unmounted during the
@@ -146,7 +146,7 @@ const TempoQueryField = memo(function TempoQueryField(props: Props) {
         isOpen={uploadModalOpen}
         onDismiss={() => setUploadModalOpen(false)}
       >
-        <div className={css({ padding: theme.spacing(2) })}>
+        <div className={styles.modalContent}>
           <FileDropzone
             options={{ multiple: false }}
             onLoad={(result) => {
@@ -165,7 +165,7 @@ const TempoQueryField = memo(function TempoQueryField(props: Props) {
         </div>
       </Modal>
       {!isAlerting && showAssistant && (
-        <InlineFieldRow className={css({ marginBottom: theme.spacing(1) })}>
+        <InlineFieldRow className={styles.assistantRow}>
           <QueryWithAssistantButton
             currentQuery={query}
             queries={[query]}
@@ -243,5 +243,17 @@ const TempoQueryField = memo(function TempoQueryField(props: Props) {
 });
 
 TempoQueryField.displayName = 'TempoQueryField';
+
+// `getStyles` placed at the file tail per the contributor styling guide
+// (`contribute/style-guides/styling.md`). Uses `theme.spacing` tokens via the
+// `GrafanaTheme2` argument injected by `useStyles2(getStyles)`.
+const getStyles = (theme: GrafanaTheme2) => ({
+  modalContent: css({
+    padding: theme.spacing(2),
+  }),
+  assistantRow: css({
+    marginBottom: theme.spacing(1),
+  }),
+});
 
 export default TempoQueryField;

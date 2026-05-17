@@ -193,8 +193,7 @@ const FluxQueryEditorInternal = ({ query, onChange }: Props) => {
       {/*
         The Stack below replaces the legacy `gf-form-inline` div wrapper.
         Stack omits `className` from its props (by design), so the
-        marginTop styling lives on a thin `div` wrapper that preserves
-        the previous `marginTop: '6px'` value exactly.
+        marginTop styling lives on a thin `div` wrapper.
       */}
       <div className={styles.editorActions}>
         <Stack direction="row" wrap="wrap" alignItems="flex-start" gap={0.5}>
@@ -233,7 +232,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     paddingBottom: theme.spacing(1),
   }),
   editorActions: css({
-    marginTop: '6px',
+    marginTop: theme.spacing(0.75),
   }),
   segmentStyle: css({
     marginTop: theme.spacing(-0.5),
