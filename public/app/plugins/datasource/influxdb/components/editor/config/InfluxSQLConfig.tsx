@@ -32,7 +32,7 @@ export const InfluxSqlConfig = (props: Props) => {
       >
         <Input
           id={`${htmlPrefix}-dbName`}
-          className="width-20"
+          width={40}
           aria-label="Database or bucket name"
           value={jsonData.dbName}
           onChange={(event) => {
@@ -51,7 +51,7 @@ export const InfluxSqlConfig = (props: Props) => {
         <SecretInput
           label="Token"
           aria-label="Token"
-          className="width-20"
+          width={40}
           value={secureJsonData?.token || ''}
           onReset={() => updateDatasourcePluginResetOption(props, 'token')}
           onChange={onUpdateDatasourceSecureJsonDataOption(props, 'token')}
