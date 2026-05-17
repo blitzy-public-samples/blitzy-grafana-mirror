@@ -19,7 +19,10 @@ import { type GenericDataSourcePlugin } from '../types';
 
 const loadingDSType = 'Loading';
 
-export function buildNavModel(dataSource: DataSourceSettings, plugin: GenericDataSourcePlugin): NavModelItem {
+export function buildNavModel(
+  dataSource: DataSourceSettings,
+  plugin: Pick<GenericDataSourcePlugin, 'meta' | 'configPages'>
+): NavModelItem {
   const pluginMeta = plugin.meta;
   const highlightsEnabled = config.featureToggles.featureHighlights;
   const navModel: NavModelItem = {
@@ -215,7 +218,7 @@ export function getDataSourceLoadingNav(pageName: string): NavModel {
         module: '',
         baseUrl: '',
       },
-    } as any
+    }
   );
 
   return getDataSourceNav(main, pageName);
