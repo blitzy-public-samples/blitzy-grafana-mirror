@@ -176,6 +176,10 @@ export function EditDataSourceView({
   }
 
   return (
+    // Design system gap: this form uses imperative submit logic shared with ButtonRow's onSubmit
+    // button-click handler (not react-hook-form's render-prop API as @grafana/ui's <Form> requires);
+    // its children are pre-composed components rather than raw inputs that would benefit from
+    // <Field>/<FieldSet> wrapping. Keeping native <form> per AAP §0.4.2 / §0.4.4.
     <form onSubmit={onSubmit}>
       {!hasWriteRights && <DataSourceMissingRightsMessage />}
       {readOnly && <DataSourceReadOnlyMessage />}
