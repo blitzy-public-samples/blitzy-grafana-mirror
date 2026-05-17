@@ -2748,11 +2748,6 @@
       "count": 9
     }
   },
-  "public/app/plugins/datasource/graphite/migrations.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "public/app/plugins/datasource/graphite/specs/graphite_query.test.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1
