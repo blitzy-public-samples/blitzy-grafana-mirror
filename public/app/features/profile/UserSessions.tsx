@@ -1,9 +1,9 @@
 import { css } from '@emotion/css';
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 
 import { selectors } from '@grafana/e2e-selectors';
 import { Trans, t } from '@grafana/i18n';
-import { Button, Icon, LoadingPlaceholder, ScrollContainer, useStyles2 } from '@grafana/ui';
+import { Button, type Column, Icon, InteractiveTable, LoadingPlaceholder, useStyles2 } from '@grafana/ui';
 import { TagBadge } from 'app/core/components/TagFilter/TagBadge';
 import { formatDate } from 'app/core/internationalization/dates';
 import { type UserSession } from 'app/types/user';
@@ -17,6 +17,62 @@ interface Props {
 const UserSessions = memo<Props>(({ isLoading, sessions, revokeUserSession }) => {
   const styles = useStyles2(getStyles);
 
+  const columns = useMemo<Array<Column<UserSession>>>(
+    () => [
+      {
+        id: 'seenAt',
+        header: t('user-session.seen-at-column', 'Last seen'),
+        cell: ({ row: { original } }) =>
+          original.isActive ? <Trans i18nKey="profile.user-sessions.now">Now</Trans> : original.seenAt,
+      },
+      {
+        id: 'createdAt',
+        header: t('user-session.created-at-column', 'Logged on'),
+        cell: ({ row: { original } }) => formatDate(original.createdAt, { dateStyle: 'long' }),
+      },
+      {
+        id: 'clientIp',
+        header: t('user-session.ip-column', 'IP address'),
+        cell: ({ row: { original } }) => original.clientIp,
+      },
+      {
+        id: 'browser',
+        header: t('user-session.browser-column', 'Browser & OS'),
+        cell: ({ row: { original } }) => (
+          <Trans
+            i18nKey="profile.user-sessions.browser-details"
+            values={{ browser: original.browser, os: original.os, osVersion: original.osVersion }}
+          >
+            {'{{browser}}'} on {'{{os}}'} {'{{osVersion}}'}
+          </Trans>
+        ),
+      },
+      {
+        id: 'authModule',
+        header: t('user-session.identity-provider-column', 'Identity Provider'),
+        cell: ({ row: { original } }) =>
+          original.authModule ? <TagBadge label={original.authModule} removeIcon={false} count={0} /> : null,
+      },
+      {
+        id: 'actions',
+        header: '',
+        disableGrow: true,
+        cell: ({ row: { original } }) => (
+          <Button
+            size="sm"
+            variant="destructive"
+            tooltip={t('user-session.revoke', 'Revoke user session')}
+            onClick={() => revokeUserSession(original.id)}
+            aria-label={t('user-session.revoke', 'Revoke user session')}
+          >
+            <Icon name="power" />
+          </Button>
+        ),
+      },
+    ],
+    [revokeUserSession]
+  );
+
   if (isLoading) {
     return <LoadingPlaceholder text={<Trans i18nKey="user-sessions.loading">Loading sessions...</Trans>} />;
   }
@@ -28,68 +84,9 @@ const UserSessions = memo<Props>(({ isLoading, sessions, revokeUserSession }) =>
           <h3 className="page-sub-heading">
             <Trans i18nKey="profile.user-sessions.sessions">Sessions</Trans>
           </h3>
-          <ScrollContainer overflowY="visible" overflowX="auto" width="100%">
-            <table className="filter-table form-inline" data-testid={selectors.components.UserProfile.sessionsTable}>
-              <thead>
-                <tr>
-                  <th>
-                    <Trans i18nKey="user-session.seen-at-column">Last seen</Trans>
-                  </th>
-                  <th>
-                    <Trans i18nKey="user-session.created-at-column">Logged on</Trans>
-                  </th>
-                  <th>
-                    <Trans i18nKey="user-session.ip-column">IP address</Trans>
-                  </th>
-                  <th>
-                    <Trans i18nKey="user-session.browser-column">Browser & OS</Trans>
-                  </th>
-                  <th>
-                    <Trans i18nKey="user-session.identity-provider-column">Identity Provider</Trans>
-                  </th>
-                  <th></th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {sessions.map((session: UserSession, index) => (
-                  <tr key={index}>
-                    {session.isActive ? (
-                      <td>
-                        <Trans i18nKey="profile.user-sessions.now">Now</Trans>
-                      </td>
-                    ) : (
-                      <td>{session.seenAt}</td>
-                    )}
-                    <td>{formatDate(session.createdAt, { dateStyle: 'long' })}</td>
-                    <td>{session.clientIp}</td>
-                    <td>
-                      <Trans
-                        i18nKey="profile.user-sessions.browser-details"
-                        values={{ browser: session.browser, os: session.os, osVersion: session.osVersion }}
-                      >
-                        {'{{browser}}'} on {'{{os}}'} {'{{osVersion}}'}
-                      </Trans>
-                    </td>
-                    <td>
-                      {session.authModule && <TagBadge label={session.authModule} removeIcon={false} count={0} />}
-                    </td>
-                    <td>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        tooltip={t('user-session.revoke', 'Revoke user session')}
-                        onClick={() => revokeUserSession(session.id)}
-                        aria-label={t('user-session.revoke', 'Revoke user session')}
-                      >
-                        <Icon name="power" />
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </ScrollContainer>
+          <div data-testid={selectors.components.UserProfile.sessionsTable}>
+            <InteractiveTable columns={columns} data={sessions} getRowId={(session) => String(session.id)} />
+          </div>
         </>
       )}
     </div>
