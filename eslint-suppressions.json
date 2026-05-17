@@ -2821,11 +2821,6 @@
       "count": 8
     }
   },
-  "public/app/plugins/datasource/influxdb/query_part.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 12
-    }
-  },
   "public/app/plugins/datasource/influxdb/response_parser.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1
