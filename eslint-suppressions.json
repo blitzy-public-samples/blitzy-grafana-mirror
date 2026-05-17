@@ -1908,11 +1908,6 @@
       "count": 1
     }
   },
-  "public/app/features/live/centrifuge/channel.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "public/app/features/logs/components/LogDetailsRow.tsx": {
     "react-prefer-function-component/react-prefer-function-component": {
       "count": 1
