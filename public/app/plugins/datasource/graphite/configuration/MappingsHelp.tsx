@@ -1,10 +1,100 @@
 import type { JSX } from 'react';
 
-import { Alert } from '@grafana/ui';
+import { Alert, type Column, InteractiveTable } from '@grafana/ui';
 
 type Props = {
   onDismiss: () => void;
 };
+
+type MappingExample = {
+  id: string;
+  graphite: string;
+  loki: string;
+  /** Substrings within the Graphite query to highlight via <u>...</u>. Empty array = no highlights. */
+  graphiteHighlight?: string[];
+  /** Substrings within the Loki query to highlight via <u>...</u>. */
+  lokiHighlight?: string[];
+};
+
+const mappingExamples: MappingExample[] = [
+  {
+    id: 'cluster-server',
+    graphite: 'alias(servers.west.001.cpu,1,2)',
+    loki: '{cluster="west", server="001"}',
+    graphiteHighlight: ['west', '001'],
+    lokiHighlight: ['west', '001'],
+  },
+  {
+    id: 'glob-server',
+    graphite: 'alias(servers.*.{001,002}.*,1,2)',
+    loki: '{server=~"(001|002)"}',
+    graphiteHighlight: ['{001,002}'],
+    lokiHighlight: ['(001|002)'],
+  },
+  {
+    id: 'tags',
+    graphite: "interpolate(seriesByTag('foo=bar', 'server=002'), inf))",
+    loki: '{foo="bar", server="002"}',
+  },
+];
+
+/**
+ * Renders a string as a <code> block, wrapping each occurrence of any string
+ * in `highlights` with a <u>...</u> element to preserve the underline emphasis
+ * used in the original static documentation table.
+ */
+function renderHighlightedCode(text: string, highlights: string[] = []): JSX.Element {
+  if (highlights.length === 0) {
+    return <code>{text}</code>;
+  }
+
+  // Split text into parts; each highlight string is replaced with an underlined node.
+  let parts: Array<{ value: string; highlighted: boolean }> = [{ value: text, highlighted: false }];
+  for (const highlight of highlights) {
+    const newParts: Array<{ value: string; highlighted: boolean }> = [];
+    for (const part of parts) {
+      if (part.highlighted) {
+        newParts.push(part);
+        continue;
+      }
+      const idx = part.value.indexOf(highlight);
+      if (idx === -1) {
+        newParts.push(part);
+        continue;
+      }
+      if (idx > 0) {
+        newParts.push({ value: part.value.slice(0, idx), highlighted: false });
+      }
+      newParts.push({ value: highlight, highlighted: true });
+      const after = part.value.slice(idx + highlight.length);
+      if (after) {
+        newParts.push({ value: after, highlighted: false });
+      }
+    }
+    parts = newParts;
+  }
+
+  return (
+    <code>
+      {parts.map((part, index) =>
+        part.highlighted ? <u key={index}>{part.value}</u> : <span key={index}>{part.value}</span>
+      )}
+    </code>
+  );
+}
+
+const mappingExampleColumns: Array<Column<MappingExample>> = [
+  {
+    id: 'graphite',
+    header: 'Graphite query',
+    cell: ({ row }) => renderHighlightedCode(row.original.graphite, row.original.graphiteHighlight),
+  },
+  {
+    id: 'loki',
+    header: 'Mapped to Loki query',
+    cell: ({ row }) => renderHighlightedCode(row.original.loki, row.original.lokiHighlight),
+  },
+];
 
 export default function MappingsHelp(props: Props): JSX.Element {
   return (
@@ -24,48 +114,7 @@ export default function MappingsHelp(props: Props): JSX.Element {
       <p>
         Example: for a mapping = <code>servers.(cluster).(server).*</code>:
       </p>
-      <table>
-        <thead>
-          <tr>
-            <th>Graphite query</th>
-            <th>Mapped to Loki query</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>
-              <code>
-                alias(servers.<u>west</u>.<u>001</u>.cpu,1,2)
-              </code>
-            </td>
-            <td>
-              <code>
-                &#123;cluster=&quot;<u>west</u>&quot;, server=&quot;<u>001</u>&quot;&#125;
-              </code>
-            </td>
-          </tr>
-          <tr>
-            <td>
-              <code>
-                alias(servers.*.<u>&#123;001,002&#125;</u>.*,1,2)
-              </code>
-            </td>
-            <td>
-              <code>
-                &#123;server=~&quot;<u>(001|002)</u>&quot;&#125;
-              </code>
-            </td>
-          </tr>
-          <tr>
-            <td>
-              <code>interpolate(seriesByTag(&apos;foo=bar&apos;, &apos;server=002&apos;), inf))</code>
-            </td>
-            <td>
-              <code>&#123;foo=&quot;bar&quot;, server=&quot;002&quot;&#125;</code>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <InteractiveTable columns={mappingExampleColumns} data={mappingExamples} getRowId={(row) => row.id} />
     </Alert>
   );
 }
