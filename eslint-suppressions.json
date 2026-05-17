@@ -2866,7 +2866,7 @@
   },
   "public/app/plugins/datasource/loki/configuration/DerivedField.tsx": {
     "no-restricted-syntax": {
-      "count": 13
+      "count": 9
     }
   },
   "public/app/plugins/datasource/loki/querybuilder/components/LokiQueryBuilder.tsx": {

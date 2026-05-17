@@ -5,7 +5,19 @@ import { usePrevious } from 'react-use';
 
 import { type GrafanaTheme2, type DataSourceInstanceSettings, type VariableSuggestion } from '@grafana/data';
 import { DataSourcePicker } from '@grafana/runtime';
-import { Button, DataLinkInput, Field, Icon, Input, Label, Tooltip, useStyles2, Select, Switch } from '@grafana/ui';
+import {
+  Button,
+  DataLinkInput,
+  Field,
+  Icon,
+  Input,
+  Label,
+  Tooltip,
+  useStyles2,
+  Select,
+  Stack,
+  Switch,
+} from '@grafana/ui';
 
 import { type DerivedFieldConfig } from '../types';
 
@@ -41,6 +53,9 @@ const getStyles = (theme: GrafanaTheme2) => ({
   nameMatcherField: css({
     width: theme.spacing(20),
     marginRight: theme.spacing(0.5),
+  }),
+  infoIcon: css({
+    marginLeft: theme.spacing(1.25),
   }),
 });
 
@@ -81,7 +96,7 @@ export const DerivedField = (props: Props) => {
 
   return (
     <div className={className} data-testid="derived-field">
-      <div className="gf-form">
+      <Stack direction="row" gap={0.5} alignItems="flex-start">
         <Field className={styles.nameField} label="Name" invalid={invalidName} error="The name is already in use">
           <Input value={value.name} onChange={handleChange('name')} placeholder="Field name" invalid={invalidName} />
         </Field>
@@ -140,9 +155,9 @@ export const DerivedField = (props: Props) => {
             }}
           />
         </Field>
-      </div>
+      </Stack>
 
-      <div className="gf-form">
+      <Stack direction="row" gap={0.5} alignItems="flex-start">
         <Field label={showInternalLink ? 'Query' : 'URL'} className={styles.urlField}>
           <DataLinkInput
             placeholder={showInternalLink ? '${__value.raw}' : 'http://example.com/${__value.raw}'}
@@ -167,9 +182,9 @@ export const DerivedField = (props: Props) => {
         >
           <Input value={value.urlDisplayLabel} onChange={handleChange('urlDisplayLabel')} />
         </Field>
-      </div>
+      </Stack>
 
-      <div className="gf-form">
+      <Stack direction="row" gap={0.5} alignItems="flex-start">
         <Field label="Internal link" className={styles.internalLink}>
           <Switch
             value={showInternalLink}
@@ -201,9 +216,9 @@ export const DerivedField = (props: Props) => {
             />
           </Field>
         )}
-      </div>
+      </Stack>
 
-      <div className="gf-form">
+      <Stack direction="row" gap={0.5} alignItems="flex-start">
         <Field label="Open in new tab" className={styles.openNewTab}>
           <Switch
             value={openInNewTab}
@@ -217,16 +232,19 @@ export const DerivedField = (props: Props) => {
             }}
           />
         </Field>
-      </div>
+      </Stack>
     </div>
   );
 };
 
-const TooltipLabel = ({ content, label }: { content: string; label: string }) => (
-  <Label>
-    {label}
-    <Tooltip placement="top" content={content} theme="info">
-      <Icon tabIndex={0} name="info-circle" size="sm" style={{ marginLeft: '10px' }} />
-    </Tooltip>
-  </Label>
-);
+const TooltipLabel = ({ content, label }: { content: string; label: string }) => {
+  const styles = useStyles2(getStyles);
+  return (
+    <Label>
+      {label}
+      <Tooltip placement="top" content={content} theme="info">
+        <Icon tabIndex={0} name="info-circle" size="sm" className={styles.infoIcon} />
+      </Tooltip>
+    </Label>
+  );
+};
