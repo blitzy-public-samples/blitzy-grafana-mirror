@@ -1,11 +1,12 @@
+import { css } from '@emotion/css';
 import { useMemo, type JSX } from 'react';
 
 import { type AadCurrentUserCredentials, type AzureCredentials, instanceOfAzureCredential } from '@grafana/azure-sdk';
-import { type SelectableValue } from '@grafana/data';
+import { type GrafanaTheme2, type SelectableValue } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
 import { ConfigSection } from '@grafana/plugin-ui';
 import { config } from '@grafana/runtime';
-import { Select, Field, RadioButtonGroup, Alert, Stack, TextLink } from '@grafana/ui';
+import { Alert, Field, RadioButtonGroup, Select, Stack, TextLink, useStyles2 } from '@grafana/ui';
 
 import { selectors } from '../../e2e/selectors';
 
@@ -30,6 +31,7 @@ export const CurrentUserFallbackCredentials = (props: Props) => {
     managedIdentityEnabled,
     workloadIdentityEnabled,
   } = props;
+  const styles = useStyles2(getStyles);
 
   type FallbackCredentialAuthTypeOptions = 'clientsecret' | 'msi' | 'workloadidentity';
   const authTypeOptions = useMemo(() => {
@@ -176,7 +178,7 @@ export const CurrentUserFallbackCredentials = (props: Props) => {
               htmlFor="authentication-type"
             >
               <Select
-                className="width-15"
+                className={styles.width15}
                 value={authTypeOptions.find((opt) => opt.value === credentials.serviceCredentials?.authType)}
                 options={authTypeOptions}
                 onChange={onAuthTypeChange}
@@ -198,5 +200,11 @@ export const CurrentUserFallbackCredentials = (props: Props) => {
     </ConfigSection>
   );
 };
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  width15: css({
+    width: theme.spacing(30),
+  }),
+});
 
 export default CurrentUserFallbackCredentials;
