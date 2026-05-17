@@ -75,20 +75,22 @@ export const ParamsEditor = ({ value, onChange, suggestions, contentTypeHeader =
   return (
     <div>
       <Stack direction="row" key={entryKey}>
-        <SuggestionsInput
-          value={paramName}
-          onChange={changeParamName}
-          suggestions={suggestions}
-          placeholder={t('actions.params-editor.placeholder-key', 'Key')}
-          style={{ width: 332 }}
-        />
-        <SuggestionsInput
-          value={paramValue}
-          onChange={changeParamValue}
-          suggestions={suggestions}
-          placeholder={t('actions.params-editor.placeholder-value', 'Value')}
-          style={{ width: 332 }}
-        />
+        <div className={styles.suggestionsInputWidth}>
+          <SuggestionsInput
+            value={paramName}
+            onChange={changeParamName}
+            suggestions={suggestions}
+            placeholder={t('actions.params-editor.placeholder-key', 'Key')}
+          />
+        </div>
+        <div className={styles.suggestionsInputWidth}>
+          <SuggestionsInput
+            value={paramValue}
+            onChange={changeParamValue}
+            suggestions={suggestions}
+            placeholder={t('actions.params-editor.placeholder-value', 'Value')}
+          />
+        </div>
         <IconButton
           aria-label={t('actions.params-editor.aria-label-add', 'Add')}
           name="plus-circle"
@@ -132,5 +134,11 @@ const getStyles = (theme: GrafanaTheme2) => ({
     marginTop: theme.spacing(1),
     marginBottom: theme.spacing(1),
     maxWidth: 673,
+  }),
+  // Design system gap: 332px is intentionally non-token-aligned for the
+  // SuggestionsInput key/value entry rows. theme.spacing values do not
+  // produce 332px and Box's width prop is theme-spacing-only.
+  suggestionsInputWidth: css({
+    width: '332px',
   }),
 });
