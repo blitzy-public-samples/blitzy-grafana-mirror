@@ -3,7 +3,7 @@ import { connect, type ConnectedProps } from 'react-redux';
 
 import { Trans, t } from '@grafana/i18n';
 import { reportInteraction } from '@grafana/runtime';
-import { RadioButtonGroup, LinkButton, FilterInput, InlineField } from '@grafana/ui';
+import { Box, RadioButtonGroup, LinkButton, FilterInput, InlineField } from '@grafana/ui';
 import { type StoreState } from 'app/types/store';
 
 import { selectTotal } from '../invites/state/selectors';
@@ -65,9 +65,9 @@ export const UsersActionBarUnconnected = ({
         />
       </InlineField>
       {pendingInvitesCount > 0 && (
-        <div style={{ marginLeft: '1rem' }}>
+        <Box marginLeft={2}>
           <RadioButtonGroup value={showInvites ? 'invites' : 'users'} options={options} onChange={onShowInvites} />
-        </div>
+        </Box>
       )}
       {getCanInviteUsersToOrg() && (
         <LinkButton href="org/users/invite">
