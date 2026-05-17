@@ -1,10 +1,11 @@
+import { css } from '@emotion/css';
 import { useEffect, useState } from 'react';
 
-import { type PanelData, type TimeRange } from '@grafana/data';
+import { type GrafanaTheme2, type PanelData, type TimeRange } from '@grafana/data';
 import { Trans } from '@grafana/i18n';
 import { EditorFieldGroup, EditorRow, EditorRows } from '@grafana/plugin-ui';
 import { config, getTemplateSrv } from '@grafana/runtime';
-import { Alert, LinkButton, Space, Text, TextLink } from '@grafana/ui';
+import { Alert, LinkButton, Space, Text, TextLink, useStyles2 } from '@grafana/ui';
 
 import { LogsEditorMode, ResultFormat } from '../../dataquery.gen';
 import type Datasource from '../../datasource';
@@ -64,6 +65,7 @@ const LogsQueryEditor = ({
   const templateVariableOptions = templateSrv.getVariables();
   const isBasicLogsQuery = (basicLogsEnabled && query.azureLogAnalytics?.basicLogsQuery) ?? false;
   const [isLoadingSchema, setIsLoadingSchema] = useState<boolean>(false);
+  const styles = useStyles2(getStyles);
 
   const disableRow = (row: ResourceRow, selectedRows: ResourceRowGroup) => {
     if (selectedRows.length === 0) {
@@ -209,7 +211,7 @@ const LogsQueryEditor = ({
           <LinkButton
             size="md"
             target="_blank"
-            style={{ marginTop: '22px' }}
+            className={styles.alignWithFields}
             href={querySeries.meta?.custom?.azurePortalLink}
           >
             <Trans i18nKey="components.logs-query-editor.view-query">View query in Azure Portal</Trans>
@@ -329,5 +331,11 @@ const LogsQueryEditor = ({
     </span>
   );
 };
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  alignWithFields: css({
+    marginTop: theme.spacing(2.75),
+  }),
+});
 
 export default LogsQueryEditor;
