@@ -1,9 +1,7 @@
 import { css, cx } from '@emotion/css';
-import { PureComponent } from 'react';
 
-import { type MetadataInspectorProps, rangeUtil } from '@grafana/data';
-import { config } from '@grafana/runtime';
-import { stylesFactory } from '@grafana/ui';
+import { type GrafanaTheme2, type MetadataInspectorProps, rangeUtil } from '@grafana/data';
+import { Text, useStyles2 } from '@grafana/ui';
 
 import { type GraphiteDatasource } from '../datasource';
 import { getRollupNotice, getRuntimeConsolidationNotice, parseSchemaRetentions } from '../meta';
@@ -11,13 +9,11 @@ import { type GraphiteOptions, type GraphiteQuery, type MetricTankSeriesMeta } f
 
 export type Props = MetadataInspectorProps<GraphiteDatasource, GraphiteQuery, GraphiteOptions>;
 
-export interface State {
-  index: number;
-}
+export const MetricTankMetaInspector = (props: Props) => {
+  const styles = useStyles2(getStyles);
+  const { data } = props;
 
-export class MetricTankMetaInspector extends PureComponent<Props, State> {
-  renderMeta(meta: MetricTankSeriesMeta, key: string) {
-    const styles = getStyles();
+  const renderMeta = (meta: MetricTankSeriesMeta, key: string) => {
     const buckets = parseSchemaRetentions(meta['schema-retentions']);
     const rollupNotice = getRollupNotice([meta]);
     const runtimeNotice = getRuntimeConsolidationNotice([meta]);
@@ -32,7 +28,7 @@ export class MetricTankMetaInspector extends PureComponent<Props, State> {
       <div className={styles.metaItem} key={key}>
         <div className={styles.metaItemHeader}>
           Schema: {meta['schema-name']}
-          <div className="small muted">Series count: {meta.count}</div>
+          <div className={styles.smallMuted}>Series count: {meta.count}</div>
         </div>
         <div className={styles.metaItemBody}>
           <div className={styles.step}>
@@ -55,8 +51,10 @@ export class MetricTankMetaInspector extends PureComponent<Props, State> {
                     <div className={styles.bucketInterval}>{bucket.interval}</div>
                     <div
                       className={cx(styles.bucketRetention, { [styles.bucketRetentionActive]: isActive })}
+                      // Design system gap: dynamic per-render flex-grow value cannot move to getStyles factory
                       style={{ flexGrow: lengthPercent }}
                     />
+                    {/* Design system gap: dynamic per-render flex-grow value cannot move to getStyles factory */}
                     <div style={{ flexGrow: 100 - lengthPercent }}>{bucket.retention}</div>
                   </div>
                 );
@@ -87,98 +85,93 @@ export class MetricTankMetaInspector extends PureComponent<Props, State> {
         </div>
       </div>
     );
-  }
+  };
 
-  render() {
-    const { data } = this.props;
+  // away to dedupe them
+  const seriesMetas: Record<string, MetricTankSeriesMeta> = {};
 
-    // away to dedupe them
-    const seriesMetas: Record<string, MetricTankSeriesMeta> = {};
+  for (const series of data) {
+    const seriesMetaList: MetricTankSeriesMeta[] | undefined = series?.meta?.custom?.seriesMetaList;
+    if (seriesMetaList) {
+      for (const metaItem of seriesMetaList) {
+        // key is to dedupe as many series will have identitical meta
+        const key = `${JSON.stringify(metaItem)}`;
 
-    for (const series of data) {
-      const seriesMetaList: MetricTankSeriesMeta[] | undefined = series?.meta?.custom?.seriesMetaList;
-      if (seriesMetaList) {
-        for (const metaItem of seriesMetaList) {
-          // key is to dedupe as many series will have identitical meta
-          const key = `${JSON.stringify(metaItem)}`;
-
-          if (seriesMetas[key]) {
-            seriesMetas[key].count += metaItem.count;
-          } else {
-            seriesMetas[key] = metaItem;
-          }
+        if (seriesMetas[key]) {
+          seriesMetas[key].count += metaItem.count;
+        } else {
+          seriesMetas[key] = metaItem;
         }
       }
     }
-
-    if (Object.keys(seriesMetas).length === 0) {
-      return <div>No response meta data</div>;
-    }
-
-    return (
-      <div>
-        <h2 className="page-heading">Metrictank Lineage</h2>
-        {Object.keys(seriesMetas).map((key) => this.renderMeta(seriesMetas[key], key))}
-      </div>
-    );
   }
-}
 
-const getStyles = stylesFactory(() => {
-  const { theme } = config;
-  const borderColor = theme.isDark ? theme.palette.gray25 : theme.palette.gray85;
-  const background = theme.isDark ? theme.palette.dark1 : theme.palette.white;
-  const headerBg = theme.isDark ? theme.palette.gray15 : theme.palette.gray85;
+  if (Object.keys(seriesMetas).length === 0) {
+    return <div>No response meta data</div>;
+  }
 
-  return {
-    metaItem: css({
-      background: background,
-      border: `1px solid ${borderColor}`,
-      marginBottom: theme.spacing.md,
-    }),
-    metaItemHeader: css({
-      background: headerBg,
-      padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-      fontSize: theme.typography.size.md,
-      display: 'flex',
-      justifyContent: 'space-between',
-    }),
-    metaItemBody: css({
-      padding: theme.spacing.md,
-    }),
-    stepHeading: css({
-      fontSize: theme.typography.size.md,
-    }),
-    stepDescription: css({
-      fontSize: theme.typography.size.sm,
-      color: theme.colors.textWeak,
-      marginBottom: theme.spacing.sm,
-    }),
-    step: css({
-      marginBottom: theme.spacing.lg,
+  return (
+    <div>
+      <Text element="h2" variant="h4">
+        Metrictank Lineage
+      </Text>
+      {Object.keys(seriesMetas).map((key) => renderMeta(seriesMetas[key], key))}
+    </div>
+  );
+};
 
-      '&:last-child': {
-        marginBottom: 0,
-      },
-    }),
-    bucket: css({
-      display: 'flex',
-      marginBottom: theme.spacing.sm,
-      borderRadius: theme.border.radius.sm,
-    }),
-    bucketInterval: css({
-      flexGrow: 0,
-      width: '60px',
-    }),
-    bucketRetention: css({
-      background: `linear-gradient(0deg, ${theme.palette.blue85}, ${theme.palette.blue95})`,
-      textAlign: 'center',
-      color: theme.palette.white,
-      marginRight: theme.spacing.md,
-      borderRadius: theme.border.radius.sm,
-    }),
-    bucketRetentionActive: css({
-      background: `linear-gradient(0deg, ${theme.palette.greenBase}, ${theme.palette.greenShade})`,
-    }),
-  };
+const getStyles = (theme: GrafanaTheme2) => ({
+  metaItem: css({
+    background: theme.colors.background.primary,
+    border: `1px solid ${theme.colors.border.weak}`,
+    marginBottom: theme.spacing(2),
+  }),
+  metaItemHeader: css({
+    background: theme.colors.background.secondary,
+    padding: theme.spacing(0.5, 2),
+    fontSize: theme.typography.body.fontSize,
+    display: 'flex',
+    justifyContent: 'space-between',
+  }),
+  metaItemBody: css({
+    padding: theme.spacing(2),
+  }),
+  stepHeading: css({
+    fontSize: theme.typography.body.fontSize,
+  }),
+  stepDescription: css({
+    fontSize: theme.typography.bodySmall.fontSize,
+    color: theme.colors.text.secondary,
+    marginBottom: theme.spacing(1),
+  }),
+  step: css({
+    marginBottom: theme.spacing(3),
+
+    '&:last-child': {
+      marginBottom: 0,
+    },
+  }),
+  bucket: css({
+    display: 'flex',
+    marginBottom: theme.spacing(1),
+    borderRadius: theme.shape.radius.default,
+  }),
+  bucketInterval: css({
+    flexGrow: 0,
+    width: '60px',
+  }),
+  bucketRetention: css({
+    background: `linear-gradient(0deg, ${theme.colors.primary.main}, ${theme.colors.primary.shade})`,
+    textAlign: 'center',
+    color: theme.colors.primary.contrastText,
+    marginRight: theme.spacing(2),
+    borderRadius: theme.shape.radius.default,
+  }),
+  bucketRetentionActive: css({
+    background: `linear-gradient(0deg, ${theme.colors.success.main}, ${theme.colors.success.shade})`,
+  }),
+  smallMuted: css({
+    fontSize: theme.typography.bodySmall.fontSize,
+    color: theme.colors.text.secondary,
+  }),
 });
