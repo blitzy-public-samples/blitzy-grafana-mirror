@@ -33,7 +33,7 @@ export const LimitSection: React.FC<LimitSectionProps> = (props) => {
           )}
         >
           <Input
-            className="width-5"
+            width={10}
             type="number"
             placeholder={t('components.limit-section.placeholder-limit', 'Enter limit')}
             value={limit}
