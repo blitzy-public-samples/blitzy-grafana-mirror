@@ -14,6 +14,7 @@ import {
 import { type SQLQuery } from '@grafana/sql';
 import { backendSrv } from 'app/core/services/backend_srv';
 import { TemplateSrv } from 'app/features/templating/template_srv';
+import { createQueryVariable } from 'app/features/variables/state/__tests__/fixtures';
 
 import { initialCustomVariableModelState } from '../../../features/variables/custom/reducer';
 
@@ -433,8 +434,8 @@ describe('MSSQLDatasource', () => {
         refId: 'A',
       };
       templateSrv.init([
-        { type: 'query', name: 'summarize', current: { value: '1m' } },
-        { type: 'query', name: 'host', current: { value: 'a' } },
+        createQueryVariable({ name: 'summarize', current: { value: '1m', text: '1m', selected: false } }),
+        createQueryVariable({ name: 'host', current: { value: 'a', text: 'a', selected: false } }),
       ]);
       const ds = new MssqlDatasource(instanceSettings);
 
@@ -460,8 +461,8 @@ describe('MSSQLDatasource', () => {
         refId: 'A',
       };
       templateSrv.init([
-        { type: 'query', name: 'summarize', current: { value: '1m' } },
-        { type: 'query', name: 'host', current: { value: 'a' } },
+        createQueryVariable({ name: 'summarize', current: { value: '1m', text: '1m', selected: false } }),
+        createQueryVariable({ name: 'host', current: { value: 'a', text: 'a', selected: false } }),
       ]);
       const ds = new MssqlDatasource(instanceSettings);
       Reflect.set(ds, 'templateSrv', templateSrv);

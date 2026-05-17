@@ -8,6 +8,8 @@ import {
   type AdHocVariableModel,
   type TypedVariableModel,
   type ScopedVar,
+  type VariableOption,
+  type VariableType,
 } from '@grafana/data';
 import {
   getDataSourceSrv,
@@ -34,6 +36,25 @@ import { macroRegistry } from './macroRegistry';
  */
 type ReplaceFunction = (fullMatch: string, variableName: string, fieldPath: string, format: string) => string;
 
+/**
+ * Internal storage shape for the variable index. Captures both proper
+ * TypedVariableModel entries (the common case populated by init() and
+ * variableInitialized()) AND the lighter shapes used for synthetic
+ * system variables (__from / __to populated in updateIndex) and entries
+ * from the deprecated setGlobalVariable() code path. All fields are
+ * optional because the union of the storage shapes does not share
+ * required fields, and downstream lookups only access defined properties
+ * via inline guards or optional chaining.
+ */
+interface IndexedVariable {
+  name?: string;
+  type?: VariableType;
+  id?: string;
+  current?: { value?: unknown; text?: unknown; isNone?: boolean };
+  allValue?: string | null;
+  options?: VariableOption[];
+}
+
 export interface TemplateSrvDependencies {
   getFilteredVariables: typeof getFilteredVariables;
   getVariables: typeof getVariables;
@@ -47,10 +68,10 @@ const runtimeDependencies: TemplateSrvDependencies = {
 };
 
 export class TemplateSrv implements BaseTemplateSrv {
-  private _variables: any[];
+  private _variables: TypedVariableModel[];
   private regex = variableRegex;
-  private index: any = {};
-  private grafanaVariables = new Map<string, any>();
+  private index: Record<string, IndexedVariable> = {};
+  private grafanaVariables = new Map<string, unknown>();
   private _timeRange?: TimeRange | null = null;
   private _adhocFiltersDeprecationWarningLogged = new Map<string, boolean>();
 
@@ -58,7 +79,7 @@ export class TemplateSrv implements BaseTemplateSrv {
     this._variables = [];
   }
 
-  init(variables: any, timeRange?: TimeRange) {
+  init(variables: TypedVariableModel[], timeRange?: TimeRange) {
     this._variables = variables;
     this._timeRange = timeRange;
     this.updateIndex();
@@ -96,8 +117,13 @@ export class TemplateSrv implements BaseTemplateSrv {
   updateIndex() {
     const existsOrEmpty = (value: unknown) => value || value === '';
 
-    this.index = this._variables.reduce((acc, currentValue) => {
-      if (currentValue.current && (currentValue.current.isNone || existsOrEmpty(currentValue.current.value))) {
+    this.index = this._variables.reduce<Record<string, IndexedVariable>>((acc, currentValue) => {
+      if (
+        'current' in currentValue &&
+        currentValue.current &&
+        (('isNone' in currentValue.current && currentValue.current.isNone) ||
+          ('value' in currentValue.current && existsOrEmpty(currentValue.current.value)))
+      ) {
         acc[currentValue.name] = currentValue;
       }
       return acc;
@@ -124,7 +150,7 @@ export class TemplateSrv implements BaseTemplateSrv {
     this.updateIndex();
   }
 
-  variableInitialized(variable: any) {
+  variableInitialized(variable: TypedVariableModel) {
     this.index[variable.name] = variable;
   }
 
@@ -167,7 +193,7 @@ export class TemplateSrv implements BaseTemplateSrv {
     return filters;
   }
 
-  setGrafanaVariable(name: string, value: any) {
+  setGrafanaVariable(name: string, value: unknown) {
     this.grafanaVariables.set(name, value);
   }
 
@@ -176,7 +202,7 @@ export class TemplateSrv implements BaseTemplateSrv {
    *
    * Use addVariable action to add variables to Redux instead
    */
-  setGlobalVariable(name: string, variable: any) {
+  setGlobalVariable(name: string, variable: { value: unknown; text?: unknown }) {
     deprecationWarning('template_srv.ts', 'setGlobalVariable', '');
     this.index = {
       ...this.index,
@@ -233,18 +259,24 @@ export class TemplateSrv implements BaseTemplateSrv {
     });
   }
 
-  getAllValue(variable: any) {
+  getAllValue(variable: IndexedVariable) {
     if (variable.allValue) {
       return variable.allValue;
     }
-    const values = [];
-    for (let i = 1; i < variable.options.length; i++) {
-      values.push(variable.options[i].value);
+    const values: Array<string | string[]> = [];
+    // Non-null assertion preserves original runtime behavior: getAllValue is only
+    // called from _evaluateVariableExpression after this.isAllValue(value) returns
+    // true, which implies a multi-support variable with options defined. If options
+    // were ever undefined, the original `variable.options.length` access threw a
+    // TypeError; this preserves that behavior.
+    const options = variable.options!;
+    for (let i = 1; i < options.length; i++) {
+      values.push(options[i].value);
     }
     return values;
   }
 
-  private getVariableValue(scopedVar: ScopedVar, fieldPath: string | undefined) {
+  private getVariableValue(scopedVar: ScopedVar, fieldPath: string | undefined): unknown {
     if (fieldPath) {
       return getFieldAccessor(fieldPath)(scopedVar.value);
     }
@@ -252,7 +284,7 @@ export class TemplateSrv implements BaseTemplateSrv {
     return scopedVar.value;
   }
 
-  private getVariableText(scopedVar: ScopedVar, value: any) {
+  private getVariableText(scopedVar: ScopedVar, value: unknown) {
     if (scopedVar.value === value || typeof value !== 'string') {
       return scopedVar.text;
     }
@@ -336,28 +368,45 @@ export class TemplateSrv implements BaseTemplateSrv {
       return match;
     }
 
-    if (format === VariableFormatID.QueryParam || isAdHoc(variable)) {
-      const value = variableAdapters.get(variable.type).getValueForUrl(variable);
-      const text = isAdHoc(variable) ? variable.id : variable.current.text;
+    // Inline check (semantically identical to isAdHoc(variable) which internally
+    // only checks model.type === 'adhoc'). The inline form is required because
+    // IndexedVariable has optional `type` and `name` fields and cannot be passed
+    // to isAdHoc which requires a VariableModel with both required.
+    const isAdhocVariable = variable.type === 'adhoc';
+
+    if (format === VariableFormatID.QueryParam || isAdhocVariable) {
+      // variable.type is required when reaching here: either QueryParam route is
+      // taken with a proper variable, or the inline isAdhoc check confirmed type === 'adhoc'.
+      // The non-null assertion mirrors the runtime contract that the original any-typed code relied on.
+      const value = variableAdapters.get(variable.type!).getValueForUrl(variable);
+      const text = isAdhocVariable ? variable.id : variable.current?.text;
 
       return formatVariableValue(value, format, variable, text);
     }
 
-    const systemValue = this.grafanaVariables.get(variable.current.value);
+    // Map<string, unknown>.get requires a string key; narrow before lookup.
+    // Non-string current values (e.g., from setGlobalVariable's variant that stores objects) yield undefined,
+    // matching the original Map.get behavior with non-string keys.
+    const currentValue = variable.current?.value;
+    const systemValue = typeof currentValue === 'string' ? this.grafanaVariables.get(currentValue) : undefined;
     if (systemValue) {
       return formatVariableValue(systemValue, format, variable);
     }
 
-    let value = variable.current.value;
-    let text = variable.current.text;
+    let value = variable.current?.value;
+    let text = variable.current?.text;
 
     if (this.isAllValue(value)) {
-      value = this.getAllValue(variable);
       text = ALL_VARIABLE_TEXT;
-      // skip formatting of custom all values unless format set to text or percentencode
+      // Skip formatting of custom all values unless format set to text or percentencode.
+      // We use variable.allValue directly here (rather than getAllValue's return value) because:
+      // 1. When variable.allValue is truthy, getAllValue returns variable.allValue (a string).
+      // 2. Using variable.allValue avoids the getAllValue call and its return-type union narrowing.
+      // 3. Behavior is identical to original which called getAllValue first then checked variable.allValue.
       if (variable.allValue && format !== VariableFormatID.Text && format !== VariableFormatID.PercentEncode) {
-        return this.replace(value);
+        return this.replace(variable.allValue);
       }
+      value = this.getAllValue(variable);
     }
 
     if (fieldPath) {
@@ -392,7 +441,23 @@ export class TemplateSrv implements BaseTemplateSrv {
     return this.replace(target, scopedVars, 'text');
   }
 
-  private getVariableAtIndex(name: string) {
+  /**
+   * Returns the cached index entry for `name`, falling back to the store via
+   * `dependencies.getVariableWithName(name)` when not cached. The return type is
+   * narrowed to `IndexedVariable | undefined` because every consumer of this
+   * method only reads fields that are present in `IndexedVariable` (name, type,
+   * id, current.value/text/isNone, allValue, options). `TypedVariableModel` is
+   * structurally assignable to `IndexedVariable`: every required field on
+   * `IndexedVariable` is optional, and the `current` field's union of variant
+   * shapes (VariableOption | Record<string, never> | { value: TProps }) is
+   * assignable to `IndexedVariable.current?: { value?: unknown; text?: unknown;
+   * isNone?: boolean }` because all target fields are optional. This widening
+   * preserves the original any-typed runtime behavior while satisfying strict
+   * type narrowing in `_evaluateVariableExpression` where `variable.current?.text`
+   * and `variable.allValue` are accessed (these properties don't exist on every
+   * `TypedVariableModel` variant, but they do exist as optional on `IndexedVariable`).
+   */
+  private getVariableAtIndex(name: string): IndexedVariable | undefined {
     if (!name) {
       return;
     }

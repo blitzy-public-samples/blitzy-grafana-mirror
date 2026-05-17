@@ -2171,9 +2171,6 @@
   "public/app/features/templating/template_srv.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 3
-    },
-    "@typescript-eslint/no-explicit-any": {
-      "count": 9
     }
   },
   "public/app/features/transformers/FilterByValueTransformer/ValueMatchers/types.ts": {

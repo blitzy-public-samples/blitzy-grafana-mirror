@@ -6,6 +6,7 @@ import {
 import { ExpressionDatasourceRef } from '@grafana/runtime/internal';
 import { type DataQuery } from '@grafana/schema';
 import { TemplateSrv } from 'app/features/templating/template_srv';
+import { createDatasourceVariable } from 'app/features/variables/state/__tests__/fixtures';
 
 import { updateQueries } from './updateQueries';
 
@@ -260,15 +261,11 @@ describe('updateQueries', () => {
 
   it('should preserve query when switching from mixed to a datasource where a query exists for the new datasource - when using datasource template variable', async () => {
     templateSrv.init([
-      {
-        current: {
-          text: 'Azure Monitor',
-          value: 'ds-uid',
-        },
+      createDatasourceVariable({
         name: 'ds',
-        type: 'datasource',
         id: 'ds',
-      },
+        current: { value: 'ds-uid', text: 'Azure Monitor', selected: false },
+      }),
     ]);
     const updated = await updateQueries(
       newUidDS,
@@ -298,15 +295,11 @@ describe('updateQueries', () => {
 
   it('will not preserve query when switch from mixed with a ds variable query to the same datasource (non-variable)', async () => {
     templateSrv.init([
-      {
-        current: {
-          text: 'Azure Monitor',
-          value: 'ds-uid',
-        },
+      createDatasourceVariable({
         name: 'ds',
-        type: 'datasource',
         id: 'ds',
-      },
+        current: { value: 'ds-uid', text: 'Azure Monitor', selected: false },
+      }),
     ]);
     const updated = await updateQueries(
       newUidDS,
