@@ -40,7 +40,8 @@ describe('DashboardsTable', () => {
 
   it('should render with no dashboards provided', () => {
     expect(() => setup()).not.toThrow();
-    expect(screen.queryAllByRole('row').length).toEqual(0);
+    // InteractiveTable always renders a header row, even when columns omit `header` text.
+    expect(screen.queryAllByRole('row').length).toEqual(1);
   });
 
   it('should render a row for each dashboard provided', () => {
@@ -49,7 +50,9 @@ describe('DashboardsTable', () => {
       dashboards: mockDashboards,
     });
 
-    expect(screen.getAllByRole('row').length).toEqual(2);
+    // InteractiveTable always renders a header row, even when columns omit `header` text.
+    // Header row + 2 data rows = 3 total rows.
+    expect(screen.getAllByRole('row').length).toEqual(3);
     mockDashboards.forEach((dashboard) => {
       expect(screen.getByRole('cell', { name: dashboard.title })).toBeInTheDocument();
     });
