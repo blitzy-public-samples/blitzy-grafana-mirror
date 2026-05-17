@@ -2869,11 +2869,6 @@
       "count": 13
     }
   },
-  "public/app/plugins/datasource/loki/datasource.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    }
-  },
   "public/app/plugins/datasource/loki/querybuilder/components/LokiQueryBuilder.tsx": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1
