@@ -1,8 +1,8 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useAsync, useDebounce } from 'react-use';
 
 import { Trans, t } from '@grafana/i18n';
-import { Button, Icon, Input, Modal, useStyles2 } from '@grafana/ui';
+import { type Column, Button, Icon, InteractiveTable, Input, Modal, useStyles2 } from '@grafana/ui';
 
 import { getConnectedDashboards } from '../../state/api';
 import { getModalStyles } from '../../styles';
@@ -57,6 +57,17 @@ export const SaveLibraryPanelModal = ({
     onDiscard();
   }, [onDiscard]);
 
+  const tableData = useMemo(() => filteredDashboards.map((name) => ({ name })), [filteredDashboards]);
+  const columns = useMemo<Array<Column<{ name: string }>>>(
+    () => [
+      {
+        id: 'name',
+        header: t('library-panels.save-library-panel-modal.dashboard-name', 'Dashboard name'),
+      },
+    ],
+    []
+  );
+
   const title = isUnsavedPrompt ? 'Unsaved library panel changes' : 'Save library panel';
 
   return (
@@ -90,22 +101,7 @@ export const SaveLibraryPanelModal = ({
             </Trans>
           </p>
         ) : (
-          <table className={styles.myTable}>
-            <thead>
-              <tr>
-                <th>
-                  <Trans i18nKey="library-panels.save-library-panel-modal.dashboard-name">Dashboard name</Trans>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredDashboards.map((dashName, i) => (
-                <tr key={`dashrow-${i}`}>
-                  <td>{dashName}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <InteractiveTable columns={columns} data={tableData} getRowId={(row) => row.name} />
         )}
         <Modal.ButtonRow>
           <Button variant="secondary" onClick={onDismiss} fill="outline">
