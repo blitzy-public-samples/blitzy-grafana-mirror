@@ -1,8 +1,9 @@
+import { css } from '@emotion/css';
 import React from 'react';
 
-import { type SelectableValue } from '@grafana/data';
+import { type GrafanaTheme2, type SelectableValue } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
-import { Button, Combobox, type ComboboxOption, Label, Select } from '@grafana/ui';
+import { Button, Combobox, type ComboboxOption, Label, Select, Stack, useStyles2 } from '@grafana/ui';
 
 import { type BuilderQueryEditorWhereExpressionItems } from '../../dataquery.gen';
 
@@ -34,8 +35,9 @@ export const FilterItem: React.FC<FilterItemProps> = ({
   getFilterValues,
   showOr,
 }) => {
+  const styles = useStyles2(getStyles);
   return (
-    <div style={{ display: 'flex', alignItems: 'center' }}>
+    <Stack direction="row" alignItems="center" gap={0}>
       <Select
         aria-label={t('components.filter-item.aria-label-column', 'Column')}
         width={inputFieldSize}
@@ -68,10 +70,16 @@ export const FilterItem: React.FC<FilterItemProps> = ({
         onClick={() => onDelete(groupIndex, filterIndex)}
       />
       {showOr && (
-        <Label style={{ padding: '9px 14px' }}>
+        <Label className={styles.orLabel}>
           <Trans i18nKey="components.filter-item.label-or">OR</Trans>
         </Label>
       )}
-    </div>
+    </Stack>
   );
 };
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  orLabel: css({
+    padding: theme.spacing(1.125, 1.75),
+  }),
+});
