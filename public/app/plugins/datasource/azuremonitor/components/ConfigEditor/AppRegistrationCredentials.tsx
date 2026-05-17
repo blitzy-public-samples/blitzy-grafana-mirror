@@ -1,3 +1,4 @@
+import { css } from '@emotion/css';
 import { type ChangeEvent } from 'react';
 
 import {
@@ -6,9 +7,9 @@ import {
   type AzureCredentials,
   CertificateFormat,
 } from '@grafana/azure-sdk';
-import { type SelectableValue } from '@grafana/data';
+import { type GrafanaTheme2, type SelectableValue } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
-import { Button, Field, Input, SecretTextArea, Select } from '@grafana/ui';
+import { Button, Field, Input, SecretTextArea, Select, Stack, useStyles2 } from '@grafana/ui';
 
 import { selectors } from '../../e2e/selectors';
 
@@ -20,6 +21,7 @@ export interface AppRegistrationCredentialsProps {
 }
 
 export const AppRegistrationCredentials = (props: AppRegistrationCredentialsProps) => {
+  const styles = useStyles2(getStyles);
   const { azureCloudOptions, disabled, credentials, onCredentialsChange } = props;
 
   const onAzureCloudChange = (selected: SelectableValue<string>) => {
@@ -59,7 +61,7 @@ export const AppRegistrationCredentials = (props: AppRegistrationCredentialsProp
           <Select
             inputId="azure-cloud-type"
             aria-label={t('components.app-registration-credentials.aria-label-azure-cloud', 'Azure Cloud')}
-            className="width-15"
+            className={styles.width15}
             value={azureCloudOptions.find((opt) => opt.value === credentials.azureCloud)}
             options={azureCloudOptions}
             onChange={onAzureCloudChange}
@@ -77,7 +79,7 @@ export const AppRegistrationCredentials = (props: AppRegistrationCredentialsProp
       >
         <Input
           aria-label={t('components.app-registration-credentials.aria-label-tenant-id', 'Tenant ID')}
-          className="width-30"
+          className={styles.width30}
           // eslint-disable-next-line @grafana/i18n/no-untranslated-strings
           placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
           value={credentials.tenantId || ''}
@@ -95,7 +97,7 @@ export const AppRegistrationCredentials = (props: AppRegistrationCredentialsProp
         noMargin
       >
         <Input
-          className="width-30"
+          className={styles.width30}
           aria-label={t('components.app-registration-credentials.aria-label-client-id', 'Client ID')}
           // eslint-disable-next-line @grafana/i18n/no-untranslated-strings
           placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
@@ -131,6 +133,7 @@ const AppRegistrationClientSecretCredentials = ({
   credentials: AzureClientSecretCredentials;
   onCredentialsChange: (updatedCredentials: AzureCredentials) => void;
 }) => {
+  const styles = useStyles2(getStyles);
   const onClientSecretChange = (event: ChangeEvent<HTMLInputElement>) => {
     const updated: AzureClientSecretCredentials = {
       ...credentials,
@@ -159,7 +162,7 @@ const AppRegistrationClientSecretCredentials = ({
             required
             noMargin
           >
-            <div className="width-30" style={{ display: 'flex', gap: '4px' }}>
+            <Stack direction="row" gap={0.5} width={60}>
               <Input
                 aria-label={t(
                   'components.app-registration-credentials.aria-label-symbol-client-secret',
@@ -175,7 +178,7 @@ const AppRegistrationClientSecretCredentials = ({
               <Button variant="secondary" type="button" onClick={onClientSecretReset} disabled={disabled}>
                 <Trans i18nKey="components.app-registration-credentials.reset-symbol-client-secret">Reset</Trans>
               </Button>
-            </div>
+            </Stack>
           </Field>
         ) : (
           <Field
@@ -188,7 +191,7 @@ const AppRegistrationClientSecretCredentials = ({
             noMargin
           >
             <Input
-              className="width-30"
+              className={styles.width30}
               aria-label={t('components.app-registration-credentials.aria-label-client-secret', 'Client Secret')}
               // eslint-disable-next-line @grafana/i18n/no-untranslated-strings
               placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
@@ -212,6 +215,7 @@ const AppRegistrationClientCertificateCredentials = ({
   credentials: AzureClientCertificateCredentials;
   onCredentialsChange: (updatedCredentials: AzureCredentials) => void;
 }) => {
+  const styles = useStyles2(getStyles);
   const onCertificateFormatChange = (selected: SelectableValue<CertificateFormat>) => {
     const updated: AzureClientCertificateCredentials = {
       ...credentials,
@@ -284,7 +288,7 @@ const AppRegistrationClientCertificateCredentials = ({
         noMargin
       >
         <Select
-          className="width-15"
+          className={styles.width15}
           value={certificateFormatOptions.find((opt) => opt.value === credentials.certificateFormat)}
           options={certificateFormatOptions}
           onChange={onCertificateFormatChange}
@@ -306,7 +310,7 @@ const AppRegistrationClientCertificateCredentials = ({
             placeholder="-----BEGIN CERTIFICATE-----"
             cols={45}
             rows={7}
-            className="width-30"
+            className={styles.width30}
             aria-label={t(
               'components.app-registration-credentials.aria-label-client-certificate',
               'Client Certificate'
@@ -334,7 +338,7 @@ const AppRegistrationClientCertificateCredentials = ({
             placeholder="-----BEGIN PRIVATE KEY-----"
             cols={45}
             rows={7}
-            className="width-30"
+            className={styles.width30}
             aria-label={t('components.app-registration-credentials.aria-label-private-key', 'Private Key')}
             onChange={onPrivateKeyChange}
             id="private-key"
@@ -355,7 +359,7 @@ const AppRegistrationClientCertificateCredentials = ({
             placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
             cols={45}
             rows={1}
-            className="width-30"
+            className={styles.width30}
             aria-label={t(
               'components.app-registration-credentials.aria-label-private-key-password',
               'Certificate Password'
@@ -371,3 +375,13 @@ const AppRegistrationClientCertificateCredentials = ({
     </>
   );
 };
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  width15: css({
+    width: theme.spacing(30),
+  }),
+  width30: css({
+    width: theme.spacing(60),
+  }),
+});
+
