@@ -1084,7 +1084,7 @@ export class GraphiteDatasource
 
     if (config.featureToggles.graphiteBackendMode) {
       try {
-        const functions = await this.getResource<string>('functions');
+        const functions = await this.getResource<Parameters<typeof gfunc.parseFuncDefs>[0]>('functions');
         this.funcDefs = gfunc.parseFuncDefs(functions);
         return this.funcDefs;
       } catch (error) {

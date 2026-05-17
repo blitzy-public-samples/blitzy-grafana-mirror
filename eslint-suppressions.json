@@ -2735,9 +2735,6 @@
   "public/app/plugins/datasource/graphite/gfunc.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 2
-    },
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
     }
   },
   "public/app/plugins/datasource/graphite/graphite_query.ts": {
