@@ -18,7 +18,7 @@ export const QueryEditor = ({ query, onChange, onRunQuery, datasource }: Props) 
   switch (datasource.version) {
     case InfluxVersion.Flux:
       return (
-        <div className="gf-form-query-content">
+        <div>
           <FluxQueryEditor query={query} onChange={onChange} datasource={datasource} />
         </div>
       );
