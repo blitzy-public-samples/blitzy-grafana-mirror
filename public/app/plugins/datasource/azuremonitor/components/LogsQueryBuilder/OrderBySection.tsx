@@ -1,9 +1,10 @@
+import { css } from '@emotion/css';
 import React, { useEffect, useRef, useState } from 'react';
 
-import { type SelectableValue } from '@grafana/data';
+import { type GrafanaTheme2, type SelectableValue } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
 import { EditorField, EditorFieldGroup, EditorRow, InputGroup } from '@grafana/plugin-ui';
-import { Button, Select, Label } from '@grafana/ui';
+import { Button, Select, Label, useStyles2 } from '@grafana/ui';
 
 import {
   BuilderQueryEditorExpressionType,
@@ -23,6 +24,7 @@ interface OrderBySectionProps {
 }
 
 export const OrderBySection: React.FC<OrderBySectionProps> = ({ query, allColumns, buildAndUpdateQuery }) => {
+  const styles = useStyles2(getStyles);
   const builderQuery = query.azureLogAnalytics?.builderQuery;
   const prevTable = useRef<string | null>(builderQuery?.from?.property.name || null);
   const hasLoadedOrderBy = useRef(false);
@@ -148,7 +150,7 @@ export const OrderBySection: React.FC<OrderBySectionProps> = ({ query, allColumn
                     options={columnOptions}
                     onChange={(e) => e.value && handleOrderByChange(index, 'column', e.value)}
                   />
-                  <Label style={{ margin: '9px 9px 0 9px' }}>
+                  <Label className={styles.byLabel}>
                     <Trans i18nKey="components.order-by-section.label-by">BY</Trans>
                   </Label>
                   <Select
@@ -170,7 +172,7 @@ export const OrderBySection: React.FC<OrderBySectionProps> = ({ query, allColumn
                       variant="secondary"
                       onClick={() => handleOrderByChange(-1, 'column', '')}
                       icon="plus"
-                      style={{ marginLeft: '15px' }}
+                      className={styles.addOrderByButton}
                     />
                   ) : (
                     <></>
@@ -193,3 +195,12 @@ export const OrderBySection: React.FC<OrderBySectionProps> = ({ query, allColumn
     </EditorRow>
   );
 };
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  byLabel: css({
+    margin: theme.spacing(1.125, 1.125, 0, 1.125),
+  }),
+  addOrderByButton: css({
+    marginLeft: theme.spacing(1.875),
+  }),
+});
