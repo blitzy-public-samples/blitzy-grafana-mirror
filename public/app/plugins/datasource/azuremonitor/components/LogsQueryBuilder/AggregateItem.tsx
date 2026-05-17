@@ -1,9 +1,10 @@
+import { css } from '@emotion/css';
 import React, { useState } from 'react';
 
-import { type SelectableValue } from '@grafana/data';
+import { type GrafanaTheme2, type SelectableValue } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
 import { InputGroup, AccessoryButton } from '@grafana/plugin-ui';
-import { Select, Label, Input } from '@grafana/ui';
+import { Select, Label, Input, useStyles2 } from '@grafana/ui';
 
 import {
   BuilderQueryEditorExpressionType,
@@ -29,6 +30,7 @@ const AggregateItem: React.FC<AggregateItemProps> = ({
   columns,
   templateVariableOptions,
 }) => {
+  const styles = useStyles2(getStyles);
   const isPercentile = aggregate.reduce?.name === 'percentile';
   const isCountAggregate = aggregate.reduce?.name === 'count';
 
@@ -136,7 +138,7 @@ const AggregateItem: React.FC<AggregateItemProps> = ({
               }
             }}
           />
-          <Label style={{ margin: '9px 9px 0 9px' }}>
+          <Label className={styles.aggregateItemLabel}>
             <Trans i18nKey="components.aggregate-item.label-percentile">OF</Trans>
           </Label>
         </>
@@ -167,3 +169,9 @@ const AggregateItem: React.FC<AggregateItemProps> = ({
 };
 
 export default AggregateItem;
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  aggregateItemLabel: css({
+    margin: theme.spacing(1.125, 1.125, 0, 1.125),
+  }),
+});
