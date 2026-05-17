@@ -1,7 +1,8 @@
+import { css } from '@emotion/css';
 import { useState } from 'react';
 
-import { type QueryEditorProps } from '@grafana/data';
-import { InlineFormLabel, Input, Stack } from '@grafana/ui';
+import { type GrafanaTheme2, type QueryEditorProps } from '@grafana/data';
+import { InlineFormLabel, Input, Stack, useStyles2 } from '@grafana/ui';
 
 import type InfluxDatasource from '../../../datasource';
 import { type InfluxOptions, type InfluxQuery } from '../../../types';
@@ -14,6 +15,7 @@ export const AnnotationEditor = (props: QueryEditorProps<InfluxDatasource, Influ
   const [tagsColumn, setTagsColumn] = useState<string>(query.tagsColumn ?? '');
   const [timeEndColumn, setTimeEndColumn] = useState<string>(query?.timeEndColumn ?? '');
   const [titleColumn] = useState<string>(query?.titleColumn ?? '');
+  const styles = useStyles2(getStyles);
   const updateValue = <K extends keyof InfluxQuery, V extends InfluxQuery[K]>(key: K, val: V) => {
     onChange({
       ...query,
@@ -73,7 +75,7 @@ export const AnnotationEditor = (props: QueryEditorProps<InfluxDatasource, Influ
               onBlur={() => updateValue('timeEndColumn', timeEndColumn)}
             />
           </Stack>
-          <div className="gf-form ng-hide">
+          <div className={styles.hidden}>
             <InlineFormLabel width={12}>Title</InlineFormLabel>
             <Input defaultValue={titleColumn} />
           </div>
@@ -84,3 +86,9 @@ export const AnnotationEditor = (props: QueryEditorProps<InfluxDatasource, Influ
     </Stack>
   );
 };
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  hidden: css({
+    display: 'none',
+  }),
+});
