@@ -2806,9 +2806,6 @@
   "public/app/plugins/datasource/influxdb/datasource.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 2
-    },
-    "@typescript-eslint/no-explicit-any": {
-      "count": 10
     }
   },
   "public/app/plugins/datasource/jaeger/datasource.ts": {
