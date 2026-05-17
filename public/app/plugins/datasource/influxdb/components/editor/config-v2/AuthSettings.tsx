@@ -1,8 +1,9 @@
-import { cx } from '@emotion/css';
+import { css, cx } from '@emotion/css';
 import { useCallback, useMemo, useState } from 'react';
 import { useWindowSize } from 'react-use';
 
 import {
+  type GrafanaTheme2,
   onUpdateDatasourceOption,
   onUpdateDatasourceSecureJsonDataOption,
   updateDatasourcePluginResetOption,
@@ -50,6 +51,7 @@ type AuthOptionState = {
 export const AuthSettings = (props: Props) => {
   const { options, onOptionsChange } = props;
   const styles = useStyles2(getInlineLabelStyles);
+  const widthStyles = useStyles2(getStyles);
   const { width } = useWindowSize();
 
   const authProps = useMemo(
@@ -183,7 +185,7 @@ export const AuthSettings = (props: Props) => {
           )}
           <Box display="flex" direction="row" alignItems="center" marginBottom={2}>
             <InlineLabel
-              style={{ width: '150px' }}
+              className={widthStyles.width150}
               tooltip={'Whether credentials such as cookies or auth headers should be sent with cross-site requests.'}
             >
               With Credentials
@@ -221,7 +223,7 @@ export const AuthSettings = (props: Props) => {
                   data-testid="influxdb-v2-config-auth-settings-tls-client-auth-toggle"
                   marginTop={2}
                 >
-                  <Label style={{ width: '125px' }}>TLS Client Auth</Label>
+                  <Label className={widthStyles.width125}>TLS Client Auth</Label>
                   <RadioButtonGroup
                     options={RADIO_BUTTON_OPTIONS}
                     value={authOptions.tlsClientAuth}
@@ -265,7 +267,7 @@ export const AuthSettings = (props: Props) => {
             <Field noMargin>
               <>
                 <Box display="flex" alignItems="center" data-testid="influxdb-v2-config-auth-settings-ca-cert-toggle">
-                  <Label style={{ width: '125px' }}>CA Cert</Label>
+                  <Label className={widthStyles.width125}>CA Cert</Label>
                   <RadioButtonGroup
                     options={RADIO_BUTTON_OPTIONS}
                     value={authOptions.caCert}
@@ -290,7 +292,7 @@ export const AuthSettings = (props: Props) => {
           </Box>
 
           <Box display="flex" direction="row" alignItems="center">
-            <InlineLabel style={{ width: '150px' }}>Skip TLS Verify</InlineLabel>
+            <InlineLabel className={widthStyles.width150}>Skip TLS Verify</InlineLabel>
             <InlineSwitch
               data-testid="influxdb-v2-config-auth-settings-skip-tls-verify"
               value={authOptions.skipTLS}
@@ -302,3 +304,11 @@ export const AuthSettings = (props: Props) => {
     </Stack>
   );
 };
+
+// Fixed pixel widths preserve the original inline-style label widths exactly.
+// Per AAP §0.4.3 / §0.5.4, visual-fidelity-critical fixed widths may use literal
+// pixel values when they don't cleanly map to `theme.spacing(n)` multiples.
+const getStyles = (theme: GrafanaTheme2) => ({
+  width150: css({ width: '150px' }),
+  width125: css({ width: '125px' }),
+});
