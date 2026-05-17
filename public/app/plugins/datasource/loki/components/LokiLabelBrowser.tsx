@@ -1,6 +1,6 @@
 import { css, cx } from '@emotion/css';
 import { sortBy } from 'lodash';
-import { type ChangeEvent } from 'react';
+import { type ChangeEvent, useCallback, useEffect, useRef, useState } from 'react';
 import * as React from 'react';
 import { FixedSizeList } from 'react-window';
 
@@ -12,7 +12,7 @@ import {
   Input,
   Label,
   LoadingPlaceholder,
-  withTheme2,
+  useTheme2,
   BrowserLabel as LokiLabel,
   fuzzyMatch,
   Stack,
@@ -39,14 +39,6 @@ export interface BrowserProps {
   lastUsedLabels: string[];
   storeLastUsedLabels: (labels: string[]) => void;
   deleteLastUsedLabels: () => void;
-}
-
-interface BrowserState {
-  labels: SelectableLabel[];
-  searchTerm: string;
-  status: string;
-  error: string;
-  validationStatus: string;
 }
 
 interface FacettableValue {
@@ -198,382 +190,478 @@ const getStyles = (theme: GrafanaTheme2) => ({
   }),
 });
 
-export class UnthemedLokiLabelBrowser extends React.Component<BrowserProps, BrowserState> {
-  state: BrowserState = {
-    labels: [],
-    searchTerm: '',
-    status: 'Ready',
-    error: '',
-    validationStatus: '',
-  };
+export const UnthemedLokiLabelBrowser = (props: BrowserProps) => {
+  const [labels, setLabels] = useState<SelectableLabel[]>([]);
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [status, setStatus] = useState<string>('Ready');
+  const [error, setError] = useState<string>('');
+  const [validationStatus, setValidationStatus] = useState<string>('');
 
-  onChangeSearch = (event: ChangeEvent<HTMLInputElement>) => {
-    this.setState({ searchTerm: event.target.value });
-  };
+  // Mirror of the `labels` state used by async callbacks to read the latest
+  // snapshot after `await` completions. This implements the AAP §0.8.2 Subtlety 6
+  // pattern: "The Blitzy platform resolves this with `useRef` mirrors of
+  // frequently-updating values when the callback cannot practically be recreated."
+  // The class implementation relied on `this.state.labels` returning the current
+  // store; the functional rewrite preserves that semantic via this ref.
+  const labelsRef = useRef<SelectableLabel[]>([]);
+  useEffect(() => {
+    labelsRef.current = labels;
+  }, [labels]);
 
-  onClickRunLogsQuery = () => {
+  const { languageProvider, timeRange } = props;
+
+  // Helper that updates a specific label's fields, sets status/error/validationStatus,
+  // and optionally invokes a follow-on callback after React schedules the state update.
+  // This preserves the original `setState((state) => ({...}), cb)` semantics: the callback
+  // observes the JUST-updated labels array via the `nextLabels` argument that is computed
+  // synchronously inside the functional setter. We use `queueMicrotask` to defer the
+  // callback to after React has applied the state update, matching the class behavior
+  // where the second `setState` argument fires post-commit.
+  const updateLabelState = useCallback(
+    (
+      name: string,
+      updatedFields: Partial<SelectableLabel>,
+      newStatus = '',
+      cb?: (nextLabels: SelectableLabel[]) => void
+    ) => {
+      setLabels((currentLabels) => {
+        const nextLabels = currentLabels.map((label) => (label.name === name ? { ...label, ...updatedFields } : label));
+        if (cb) {
+          queueMicrotask(() => cb(nextLabels));
+        }
+        return nextLabels;
+      });
+      setStatus(newStatus);
+      // New status overrides errors (matches original behavior).
+      if (newStatus) {
+        setError('');
+      }
+      setValidationStatus('');
+    },
+    []
+  );
+
+  // Async fetcher for label values. After the `await`, the current labels snapshot
+  // is read from `labelsRef.current` (kept in sync by the effect above). This matches
+  // the class implementation, which read `this.state.labels` post-await — always
+  // returning the latest committed state. AAP §0.8.2 Subtlety 6 prescribes this
+  // useRef pattern as the canonical fix for stale-closure issues in async callbacks.
+  const fetchValues = useCallback(
+    async (name: string, selector: string) => {
+      updateLabelState(name, { loading: true }, `Fetching values for ${name}`);
+      try {
+        let rawValues = await languageProvider.fetchLabelValues(name, { timeRange });
+        // Read the latest labels snapshot via the ref to compute the current selector.
+        const currentSelector = buildSelector(labelsRef.current);
+        // If selector changed, clear loading state and discard result by returning early
+        if (selector !== currentSelector) {
+          updateLabelState(name, { loading: false }, '');
+          return;
+        }
+        if (rawValues.length > MAX_VALUE_COUNT) {
+          const errorMsg = `Too many values for ${name} (showing only ${MAX_VALUE_COUNT} of ${rawValues.length})`;
+          rawValues = rawValues.slice(0, MAX_VALUE_COUNT);
+          setError(errorMsg);
+        }
+        const values: FacettableValue[] = rawValues.map((value) => ({ name: value }));
+        updateLabelState(name, { values, loading: false });
+      } catch (err) {
+        console.error(err);
+      }
+    },
+    [languageProvider, timeRange, updateLabelState]
+  );
+
+  // Async fetcher for facetted series labels. Same useRef-mirror pattern as
+  // `fetchValues` — reads `labelsRef.current` post-await to capture the latest
+  // labels snapshot for the facetLabels merge. AAP §0.8.2 Subtlety 6.
+  const fetchSeries = useCallback(
+    async (selector: string, lastFacetted?: string) => {
+      if (lastFacetted) {
+        updateLabelState(lastFacetted, { loading: true }, `Loading labels for ${selector}`);
+      }
+      try {
+        const possibleLabels = await languageProvider.fetchSeriesLabels(selector, { timeRange });
+        // Read the latest labels snapshot via the ref.
+        const currentLabelsSnapshot = labelsRef.current;
+        const currentSelector = buildSelector(currentLabelsSnapshot);
+        // If selector changed, clear loading state and discard result by returning early
+        if (selector !== currentSelector) {
+          if (lastFacetted) {
+            updateLabelState(lastFacetted, { loading: false });
+          }
+          return;
+        }
+        if (Object.keys(possibleLabels).length === 0) {
+          setError(`Empty results, no matching label for ${selector}`);
+          return;
+        }
+        const newLabels: SelectableLabel[] = facetLabels(currentLabelsSnapshot, possibleLabels, lastFacetted);
+        setLabels(newLabels);
+        setError('');
+        if (lastFacetted) {
+          updateLabelState(lastFacetted, { loading: false });
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    },
+    [languageProvider, timeRange, updateLabelState]
+  );
+
+  // doFacetting reads the latest labels snapshot via the functional setLabels pattern
+  // because it is invoked from queued microtasks where the closure may be stale.
+  // Side-effects (fetchValues/fetchSeries) are scheduled with queueMicrotask so they
+  // run AFTER React commits the state update returned from the setter.
+  const doFacetting = useCallback(
+    (lastFacetted?: string) => {
+      setLabels((currentLabels) => {
+        const selector = buildSelector(currentLabels);
+        if (selector === EMPTY_SELECTOR) {
+          // Clear up facetting
+          const cleared: SelectableLabel[] = currentLabels.map((label) => ({
+            ...label,
+            facets: 0,
+            values: undefined,
+            hidden: false,
+          }));
+          // Schedule fetchValues for all selected labels after state update
+          queueMicrotask(() => {
+            cleared.forEach((label) => {
+              if (label.selected) {
+                fetchValues(label.name, selector);
+              }
+            });
+          });
+          return cleared;
+        } else {
+          // Do facetting via fetchSeries — defer to microtask so callers can chain.
+          queueMicrotask(() => {
+            fetchSeries(selector, lastFacetted);
+          });
+          return currentLabels;
+        }
+      });
+    },
+    [fetchValues, fetchSeries]
+  );
+
+  // doFacettingForLabel — invoked from the `updateLabelState` callback in onClickLabel.
+  // It reads the latest labels through functional setLabels (since the chain runs from
+  // a microtask) and decides whether to refetch the values or to re-facet.
+  const doFacettingForLabel = useCallback(
+    (name: string) => {
+      setLabels((currentLabels) => {
+        const label = currentLabels.find((l) => l.name === name);
+        if (!label) {
+          return currentLabels;
+        }
+        const selectedLabels = currentLabels.filter((l) => l.selected).map((l) => l.name);
+        props.storeLastUsedLabels(selectedLabels);
+        if (label.selected) {
+          // Refetch values for newly selected label...
+          if (!label.values) {
+            queueMicrotask(() => fetchValues(name, buildSelector(currentLabels)));
+          }
+        } else {
+          // Only need to facet when deselecting labels
+          queueMicrotask(() => doFacetting());
+        }
+        return currentLabels;
+      });
+    },
+    [props, fetchValues, doFacetting]
+  );
+
+  const onChangeSearch = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(event.target.value);
+  }, []);
+
+  const onClickRunLogsQuery = useCallback(() => {
     reportInteraction('grafana_loki_label_browser_closed', {
-      app: this.props.app,
+      app: props.app,
       closeType: 'showLogsButton',
     });
-    const selector = buildSelector(this.state.labels);
-    this.props.onChange(selector);
-  };
+    const selector = buildSelector(labels);
+    props.onChange(selector);
+  }, [props, labels]);
 
-  onClickRunMetricsQuery = () => {
+  const onClickRunMetricsQuery = useCallback(() => {
     reportInteraction('grafana_loki_label_browser_closed', {
-      app: this.props.app,
+      app: props.app,
       closeType: 'showLogsRateButton',
     });
-    const selector = buildSelector(this.state.labels);
+    const selector = buildSelector(labels);
     const query = `rate(${selector}[$__auto])`;
-    this.props.onChange(query);
-  };
+    props.onChange(query);
+  }, [props, labels]);
 
-  onClickClear = () => {
-    this.setState((state) => {
-      const labels: SelectableLabel[] = state.labels.map((label) => ({
+  const onClickClear = useCallback(() => {
+    setLabels((currentLabels) =>
+      currentLabels.map((label) => ({
         ...label,
         values: undefined,
         selected: false,
         loading: false,
         hidden: false,
         facets: undefined,
-      }));
-      return { labels, searchTerm: '', status: '', error: '', validationStatus: '' };
-    });
-    this.props.deleteLastUsedLabels();
-  };
+      }))
+    );
+    setSearchTerm('');
+    setStatus('');
+    setError('');
+    setValidationStatus('');
+    props.deleteLastUsedLabels();
+  }, [props]);
 
-  onClickLabel = (name: string, value: string | undefined, event: React.MouseEvent<HTMLElement>) => {
-    const label = this.state.labels.find((l) => l.name === name);
-    if (!label) {
-      return;
-    }
-    // Toggle selected state
-    const selected = !label.selected;
-    let nextValue: Partial<SelectableLabel> = { selected };
-    if (label.values && !selected) {
-      // Deselect all values if label was deselected
-      const values = label.values.map((value) => ({ ...value, selected: false }));
-      nextValue = { ...nextValue, facets: 0, values };
-    }
-    // Resetting search to prevent empty results
-    this.setState({ searchTerm: '' });
-    this.updateLabelState(name, nextValue, '', () => this.doFacettingForLabel(name));
-  };
+  const onClickLabel = useCallback(
+    (name: string, value: string | undefined, event: React.MouseEvent<HTMLElement>) => {
+      const label = labels.find((l) => l.name === name);
+      if (!label) {
+        return;
+      }
+      // Toggle selected state
+      const selected = !label.selected;
+      let nextValue: Partial<SelectableLabel> = { selected };
+      if (label.values && !selected) {
+        // Deselect all values if label was deselected
+        const values = label.values.map((v) => ({ ...v, selected: false }));
+        nextValue = { ...nextValue, facets: 0, values };
+      }
+      // Resetting search to prevent empty results
+      setSearchTerm('');
+      updateLabelState(name, nextValue, '', () => doFacettingForLabel(name));
+    },
+    [labels, updateLabelState, doFacettingForLabel]
+  );
 
-  onClickValue = (name: string, value: string | undefined, event: React.MouseEvent<HTMLElement>) => {
-    const label = this.state.labels.find((l) => l.name === name);
-    if (!label || !label.values) {
-      return;
-    }
-    // Resetting search to prevent empty results
-    this.setState({ searchTerm: '' });
-    // Toggling value for selected label, leaving other values intact
-    const values = label.values.map((v) => ({ ...v, selected: v.name === value ? !v.selected : v.selected }));
-    this.updateLabelState(name, { values }, '', () => this.doFacetting(name));
-  };
+  const onClickValue = useCallback(
+    (name: string, value: string | undefined, event: React.MouseEvent<HTMLElement>) => {
+      const label = labels.find((l) => l.name === name);
+      if (!label || !label.values) {
+        return;
+      }
+      // Resetting search to prevent empty results
+      setSearchTerm('');
+      // Toggling value for selected label, leaving other values intact
+      const values = label.values.map((v) => ({ ...v, selected: v.name === value ? !v.selected : v.selected }));
+      updateLabelState(name, { values }, '', () => doFacetting(name));
+    },
+    [labels, updateLabelState, doFacetting]
+  );
 
-  onClickValidate = () => {
-    const selector = buildSelector(this.state.labels);
-    this.validateSelector(selector);
-  };
+  const validateSelector = useCallback(
+    async (selector: string) => {
+      setValidationStatus(`Validating selector ${selector}`);
+      setError('');
+      const streams = await languageProvider.fetchSeries(selector, { timeRange });
+      setValidationStatus(`Selector is valid (${streams.length} streams found)`);
+    },
+    [languageProvider, timeRange]
+  );
 
-  updateLabelState(name: string, updatedFields: Partial<SelectableLabel>, status = '', cb?: () => void) {
-    this.setState((state) => {
-      const labels: SelectableLabel[] = state.labels.map((label) => {
-        if (label.name === name) {
-          return { ...label, ...updatedFields };
-        }
-        return label;
-      });
-      // New status overrides errors
-      const error = status ? '' : state.error;
-      return { labels, status, error, validationStatus: '' };
-    }, cb);
-  }
+  const onClickValidate = useCallback(() => {
+    const selector = buildSelector(labels);
+    validateSelector(selector);
+  }, [labels, validateSelector]);
 
-  componentDidMount() {
-    const { languageProvider, autoSelect = MAX_AUTO_SELECT, lastUsedLabels, timeRange } = this.props;
+  // componentDidMount equivalent — runs once on mount with initial props.
+  // The original componentDidMount only ran once at mount time, so we use an empty
+  // dependency array. This is the canonical Class→Functional translation per AAP §0.8.2
+  // (Subtlety 1) and §0.8.5: the eslint-disable for exhaustive-deps is justified by the
+  // explicit one-shot lifecycle semantics of componentDidMount.
+  useEffect(() => {
+    const { languageProvider, autoSelect = MAX_AUTO_SELECT, lastUsedLabels, timeRange } = props;
     if (languageProvider) {
       const selectedLabels: string[] = lastUsedLabels;
       languageProvider.start(timeRange).then(() => {
         let rawLabels: string[] = languageProvider.getLabelKeys();
         if (rawLabels.length > MAX_LABEL_COUNT) {
-          const error = `Too many labels found (showing only ${MAX_LABEL_COUNT} of ${rawLabels.length})`;
+          const errorMsg = `Too many labels found (showing only ${MAX_LABEL_COUNT} of ${rawLabels.length})`;
           rawLabels = rawLabels.slice(0, MAX_LABEL_COUNT);
-          this.setState({ error });
+          setError(errorMsg);
         }
         // Auto-select all labels if label list is small enough
-        const labels: SelectableLabel[] = rawLabels.map((label, i, arr) => ({
+        const initialLabels: SelectableLabel[] = rawLabels.map((label, i, arr) => ({
           name: label,
           selected: (arr.length <= autoSelect && selectedLabels.length === 0) || selectedLabels.includes(label),
           loading: false,
         }));
-        // Pre-fetch values for selected labels
-        this.setState({ labels }, () => {
-          this.state.labels.forEach((label) => {
+        setLabels(initialLabels);
+        // Pre-fetch values for selected labels — defer so setLabels commits first.
+        queueMicrotask(() => {
+          initialLabels.forEach((label) => {
             if (label.selected) {
-              this.fetchValues(label.name, EMPTY_SELECTOR);
+              fetchValues(label.name, EMPTY_SELECTOR);
             }
           });
         });
       });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Render body — preserves the original render method's logic verbatim.
+  const { theme } = props;
+  if (labels.length === 0) {
+    return <LoadingPlaceholder text="Loading labels..." />;
   }
+  const styles = getStyles(theme);
+  const selector = buildSelector(labels);
+  const empty = selector === EMPTY_SELECTOR;
 
-  doFacettingForLabel(name: string) {
-    const label = this.state.labels.find((l) => l.name === name);
-    if (!label) {
-      return;
-    }
-    const selectedLabels = this.state.labels.filter((label) => label.selected).map((label) => label.name);
-    this.props.storeLastUsedLabels(selectedLabels);
-    if (label.selected) {
-      // Refetch values for newly selected label...
-      if (!label.values) {
-        this.fetchValues(name, buildSelector(this.state.labels));
-      }
-    } else {
-      // Only need to facet when deselecting labels
-      this.doFacetting();
-    }
-  }
-
-  doFacetting = (lastFacetted?: string) => {
-    const selector = buildSelector(this.state.labels);
-    if (selector === EMPTY_SELECTOR) {
-      // Clear up facetting
-      const labels: SelectableLabel[] = this.state.labels.map((label) => {
-        return { ...label, facets: 0, values: undefined, hidden: false };
-      });
-      this.setState({ labels }, () => {
-        // Get fresh set of values
-        this.state.labels.forEach((label) => label.selected && this.fetchValues(label.name, selector));
-      });
-    } else {
-      // Do facetting
-      this.fetchSeries(selector, lastFacetted);
-    }
-  };
-
-  async fetchValues(name: string, selector: string) {
-    const { languageProvider, timeRange } = this.props;
-    this.updateLabelState(name, { loading: true }, `Fetching values for ${name}`);
-    try {
-      let rawValues = await languageProvider.fetchLabelValues(name, { timeRange });
-      // If selector changed, clear loading state and discard result by returning early
-      if (selector !== buildSelector(this.state.labels)) {
-        this.updateLabelState(name, { loading: false }, '');
-        return;
-      }
-      if (rawValues.length > MAX_VALUE_COUNT) {
-        const error = `Too many values for ${name} (showing only ${MAX_VALUE_COUNT} of ${rawValues.length})`;
-        rawValues = rawValues.slice(0, MAX_VALUE_COUNT);
-        this.setState({ error });
-      }
-      const values: FacettableValue[] = rawValues.map((value) => ({ name: value }));
-      this.updateLabelState(name, { values, loading: false });
-    } catch (error) {
-      console.error(error);
-    }
-  }
-
-  async fetchSeries(selector: string, lastFacetted?: string) {
-    const { languageProvider, timeRange } = this.props;
-    if (lastFacetted) {
-      this.updateLabelState(lastFacetted, { loading: true }, `Loading labels for ${selector}`);
-    }
-    try {
-      const possibleLabels = await languageProvider.fetchSeriesLabels(selector, { timeRange });
-      // If selector changed, clear loading state and discard result by returning early
-      if (selector !== buildSelector(this.state.labels)) {
-        if (lastFacetted) {
-          this.updateLabelState(lastFacetted, { loading: false });
+  let selectedLabels = labels.filter((label) => label.selected && label.values);
+  if (searchTerm) {
+    selectedLabels = selectedLabels.map((label) => {
+      const searchResults = label.values!.filter((value) => {
+        // Always return selected values
+        if (value.selected) {
+          value.highlightParts = undefined;
+          return true;
         }
-        return;
-      }
-      if (Object.keys(possibleLabels).length === 0) {
-        this.setState({ error: `Empty results, no matching label for ${selector}` });
-        return;
-      }
-      const labels: SelectableLabel[] = facetLabels(this.state.labels, possibleLabels, lastFacetted);
-      this.setState({ labels, error: '' });
-      if (lastFacetted) {
-        this.updateLabelState(lastFacetted, { loading: false });
-      }
-    } catch (error) {
-      console.error(error);
-    }
-  }
-
-  async validateSelector(selector: string) {
-    const { languageProvider, timeRange } = this.props;
-    this.setState({ validationStatus: `Validating selector ${selector}`, error: '' });
-    const streams = await languageProvider.fetchSeries(selector, { timeRange });
-    this.setState({ validationStatus: `Selector is valid (${streams.length} streams found)` });
-  }
-
-  render() {
-    const { theme } = this.props;
-    const { labels, searchTerm, status, error, validationStatus } = this.state;
-    if (labels.length === 0) {
-      return <LoadingPlaceholder text="Loading labels..." />;
-    }
-    const styles = getStyles(theme);
-    const selector = buildSelector(this.state.labels);
-    const empty = selector === EMPTY_SELECTOR;
-
-    let selectedLabels = labels.filter((label) => label.selected && label.values);
-    if (searchTerm) {
-      selectedLabels = selectedLabels.map((label) => {
-        const searchResults = label.values!.filter((value) => {
-          // Always return selected values
-          if (value.selected) {
-            value.highlightParts = undefined;
-            return true;
-          }
-          const fuzzyMatchResult = fuzzyMatch(value.name.toLowerCase(), searchTerm.toLowerCase());
-          if (fuzzyMatchResult.found) {
-            value.highlightParts = fuzzyMatchResult.ranges;
-            value.order = fuzzyMatchResult.distance;
-            return true;
-          } else {
-            return false;
-          }
-        });
-        return {
-          ...label,
-          values: sortBy(searchResults, (value) => (value.selected ? -Infinity : value.order)),
-        };
+        const fuzzyMatchResult = fuzzyMatch(value.name.toLowerCase(), searchTerm.toLowerCase());
+        if (fuzzyMatchResult.found) {
+          value.highlightParts = fuzzyMatchResult.ranges;
+          value.order = fuzzyMatchResult.distance;
+          return true;
+        } else {
+          return false;
+        }
       });
-    } else {
-      // Clear highlight parts when searchTerm is cleared
-      selectedLabels = this.state.labels
-        .filter((label) => label.selected && label.values)
-        .map((label) => ({
-          ...label,
-          values: label?.values ? label.values.map((value) => ({ ...value, highlightParts: undefined })) : [],
-        }));
-    }
-
-    return (
-      <>
-        <div className={styles.wrapper}>
-          <div className={cx(styles.section, styles.wrapperPadding)}>
-            <Label description="Which labels would you like to consider for your search?">
-              1. Select labels to search in
-            </Label>
-            <div className={styles.list}>
-              {labels.map((label) => (
-                <LokiLabel
-                  key={label.name}
-                  name={label.name}
-                  loading={label.loading}
-                  active={label.selected}
-                  hidden={label.hidden}
-                  facets={label.facets}
-                  onClick={this.onClickLabel}
-                />
-              ))}
-            </div>
-          </div>
-          <div className={cx(styles.section, styles.wrapperPadding)}>
-            <Label description="Choose the label values that you would like to use for the query. Use the search field to find values across selected labels.">
-              2. Find values for the selected labels
-            </Label>
-            <div>
-              <Input
-                onChange={this.onChangeSearch}
-                aria-label="Filter expression for values"
-                value={searchTerm}
-                placeholder={'Enter a label value'}
-              />
-            </div>
-            <div className={styles.valueListArea}>
-              {selectedLabels.map((label) => (
-                <div role="list" key={label.name} className={styles.valueListWrapper}>
-                  <div className={styles.valueTitle} aria-label={`Values for ${label.name}`}>
-                    <LokiLabel
-                      name={label.name}
-                      loading={label.loading}
-                      active={label.selected}
-                      hidden={label.hidden}
-                      //If no facets, we want to show number of all label values
-                      facets={label.facets || label.values?.length}
-                      onClick={this.onClickLabel}
-                    />
-                  </div>
-                  <FixedSizeList
-                    height={200}
-                    itemCount={label.values?.length || 0}
-                    itemSize={28}
-                    itemKey={(i) => label.values?.[i].name ?? i}
-                    width={200}
-                    className={styles.valueList}
-                  >
-                    {({ index, style }) => {
-                      const value = label.values?.[index];
-                      if (!value) {
-                        return null;
-                      }
-                      return (
-                        <div style={style}>
-                          <LokiLabel
-                            name={label.name}
-                            value={value?.name}
-                            active={value?.selected}
-                            highlightParts={value?.highlightParts}
-                            onClick={this.onClickValue}
-                            searchTerm={searchTerm}
-                          />
-                        </div>
-                      );
-                    }}
-                  </FixedSizeList>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-        <div className={styles.footerSectionStyles}>
-          <Label>3. Resulting selector</Label>
-          <pre aria-label="selector" className={styles.selector}>
-            {selector}
-          </pre>
-          {validationStatus && <div className={styles.validationStatus}>{validationStatus}</div>}
-          <div className={cx(styles.status, (status || error) && styles.statusShowing)}>
-            <span className={error ? styles.error : ''}>{error || status}</span>
-          </div>
-          <Stack gap={1}>
-            <Button aria-label="Use selector as logs button" disabled={empty} onClick={this.onClickRunLogsQuery}>
-              Show logs
-            </Button>
-            <Button
-              aria-label="Use selector as metrics button"
-              variant="secondary"
-              disabled={empty}
-              onClick={this.onClickRunMetricsQuery}
-            >
-              Show logs rate
-            </Button>
-            <Button
-              aria-label="Validate submit button"
-              variant="secondary"
-              disabled={empty}
-              onClick={this.onClickValidate}
-            >
-              Validate selector
-            </Button>
-            <Button aria-label="Selector clear button" variant="secondary" onClick={this.onClickClear}>
-              Clear
-            </Button>
-          </Stack>
-        </div>
-      </>
-    );
+      return {
+        ...label,
+        values: sortBy(searchResults, (value) => (value.selected ? -Infinity : value.order)),
+      };
+    });
+  } else {
+    // Clear highlight parts when searchTerm is cleared
+    selectedLabels = labels
+      .filter((label) => label.selected && label.values)
+      .map((label) => ({
+        ...label,
+        values: label?.values ? label.values.map((value) => ({ ...value, highlightParts: undefined })) : [],
+      }));
   }
-}
 
-export const LokiLabelBrowser = withTheme2(UnthemedLokiLabelBrowser);
+  return (
+    <>
+      <div className={styles.wrapper}>
+        <div className={cx(styles.section, styles.wrapperPadding)}>
+          <Label description="Which labels would you like to consider for your search?">
+            1. Select labels to search in
+          </Label>
+          <div className={styles.list}>
+            {labels.map((label) => (
+              <LokiLabel
+                key={label.name}
+                name={label.name}
+                loading={label.loading}
+                active={label.selected}
+                hidden={label.hidden}
+                facets={label.facets}
+                onClick={onClickLabel}
+              />
+            ))}
+          </div>
+        </div>
+        <div className={cx(styles.section, styles.wrapperPadding)}>
+          <Label description="Choose the label values that you would like to use for the query. Use the search field to find values across selected labels.">
+            2. Find values for the selected labels
+          </Label>
+          <div>
+            <Input
+              onChange={onChangeSearch}
+              aria-label="Filter expression for values"
+              value={searchTerm}
+              placeholder={'Enter a label value'}
+            />
+          </div>
+          <div className={styles.valueListArea}>
+            {selectedLabels.map((label) => (
+              <div role="list" key={label.name} className={styles.valueListWrapper}>
+                <div className={styles.valueTitle} aria-label={`Values for ${label.name}`}>
+                  <LokiLabel
+                    name={label.name}
+                    loading={label.loading}
+                    active={label.selected}
+                    hidden={label.hidden}
+                    //If no facets, we want to show number of all label values
+                    facets={label.facets || label.values?.length}
+                    onClick={onClickLabel}
+                  />
+                </div>
+                <FixedSizeList
+                  height={200}
+                  itemCount={label.values?.length || 0}
+                  itemSize={28}
+                  itemKey={(i) => label.values?.[i].name ?? i}
+                  width={200}
+                  className={styles.valueList}
+                >
+                  {({ index, style }) => {
+                    const value = label.values?.[index];
+                    if (!value) {
+                      return null;
+                    }
+                    return (
+                      <div style={style}>
+                        <LokiLabel
+                          name={label.name}
+                          value={value?.name}
+                          active={value?.selected}
+                          highlightParts={value?.highlightParts}
+                          onClick={onClickValue}
+                          searchTerm={searchTerm}
+                        />
+                      </div>
+                    );
+                  }}
+                </FixedSizeList>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className={styles.footerSectionStyles}>
+        <Label>3. Resulting selector</Label>
+        <pre aria-label="selector" className={styles.selector}>
+          {selector}
+        </pre>
+        {validationStatus && <div className={styles.validationStatus}>{validationStatus}</div>}
+        <div className={cx(styles.status, (status || error) && styles.statusShowing)}>
+          <span className={error ? styles.error : ''}>{error || status}</span>
+        </div>
+        <Stack gap={1}>
+          <Button aria-label="Use selector as logs button" disabled={empty} onClick={onClickRunLogsQuery}>
+            Show logs
+          </Button>
+          <Button
+            aria-label="Use selector as metrics button"
+            variant="secondary"
+            disabled={empty}
+            onClick={onClickRunMetricsQuery}
+          >
+            Show logs rate
+          </Button>
+          <Button aria-label="Validate submit button" variant="secondary" disabled={empty} onClick={onClickValidate}>
+            Validate selector
+          </Button>
+          <Button aria-label="Selector clear button" variant="secondary" onClick={onClickClear}>
+            Clear
+          </Button>
+        </Stack>
+      </div>
+    </>
+  );
+};
+
+// Themed wrapper that supplies the GrafanaTheme2 via the `useTheme2()` hook and
+// forwards it through `props.theme`. This preserves the public API of the original
+// `withTheme2(UnthemedLokiLabelBrowser)` HOC composition: callers of `LokiLabelBrowser`
+// continue to pass props that do NOT include `theme`, and `BrowserProps` retains its
+// `theme: GrafanaTheme2` field (required by tests that pass `theme: createTheme()`
+// directly to `UnthemedLokiLabelBrowser`).
+export const LokiLabelBrowser = (props: Omit<BrowserProps, 'theme'>) => {
+  const theme = useTheme2();
+  return <UnthemedLokiLabelBrowser {...props} theme={theme} />;
+};

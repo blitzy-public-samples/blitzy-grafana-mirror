@@ -2846,11 +2846,6 @@
       "count": 7
     }
   },
-  "public/app/plugins/datasource/loki/components/LokiLabelBrowser.tsx": {
-    "react-prefer-function-component/react-prefer-function-component": {
-      "count": 1
-    }
-  },
   "public/app/plugins/datasource/loki/components/LokiQueryEditor.tsx": {
     "no-restricted-syntax": {
       "count": 2
