@@ -1,3 +1,4 @@
+import { type DataSourceInstanceSettings } from '@grafana/data';
 import { getTemplateSrv } from '@grafana/runtime';
 
 import { GraphiteDatasource } from '../datasource';
@@ -10,7 +11,7 @@ import {
   getTagValuesSelectables,
 } from '../state/providers';
 import { createStore } from '../state/store';
-import { type GraphiteSegment } from '../types';
+import { type GraphiteOptions, type GraphiteSegment } from '../types';
 
 const mockPublish = jest.fn();
 jest.mock('@grafana/runtime', () => ({
@@ -39,13 +40,15 @@ describe('Graphite actions', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
 
+    // Cast through `unknown` to satisfy the strict-typed constructor parameter while
+    // preserving the existing partial fixture shape that the test relies on at runtime.
     const instanceSettings = {
       url: '/api/datasources/proxy/1',
       name: 'graphiteProd',
       jsonData: {
         rollupIndicatorEnabled: true,
       },
-    };
+    } as unknown as DataSourceInstanceSettings<GraphiteOptions>;
     ctx.datasource = new GraphiteDatasource(instanceSettings);
     ctx.datasource.metricFindQuery = jest.fn(() => Promise.resolve([]));
     ctx.datasource.getFuncDefs = jest.fn(() => Promise.resolve(gfunc.getFuncDefs('1.0')));

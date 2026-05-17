@@ -11,11 +11,13 @@ import {
   type DataFrame,
   type DataQueryRequest,
   type DataQueryResponse,
+  type DataSourceInstanceSettings,
   type DataSourceWithQueryExportSupport,
   dateMath,
   type DateTime,
   dateTime,
   getSearchFilterScopedVar,
+  type LegacyMetricFindQueryOptions,
   type MetricFindValue,
   type QueryResultMetaStat,
   type ScopedVars,
@@ -112,6 +114,18 @@ type GraphiteMetricFindItem = { text: string; expandable: boolean | number };
  */
 type GraphiteMetricExpandResponse = { results: string[] };
 
+/**
+ * Options accepted by the legacy `metricFindQuery` family of methods on this datasource.
+ * Extends the canonical `LegacyMetricFindQueryOptions` shape (`searchFilter`, `scopedVars`,
+ * `range`, `variable`) with the Graphite-specific extras (`requestId`, `timezone`, `limit`)
+ * that the runtime callers and template-variable picker pass through.
+ */
+type GraphiteMetricFindOptions = LegacyMetricFindQueryOptions & {
+  requestId?: string;
+  timezone?: string;
+  limit?: number;
+};
+
 export class GraphiteDatasource
   extends DataSourceWithBackend<GraphiteQuery, GraphiteOptions>
   implements DataSourceWithQueryExportSupport<GraphiteQuery>
@@ -132,12 +146,17 @@ export class GraphiteDatasource
   private readonly metricMappings: GraphiteLokiMapping[];
 
   constructor(
-    instanceSettings: any,
+    // `cacheTimeout` is not declared on `DataSourceInstanceSettings`; Grafana sets it on the
+    // runtime settings object, so it is added here as an optional intersection field.
+    instanceSettings: DataSourceInstanceSettings<GraphiteOptions> & { cacheTimeout?: number },
     private readonly templateSrv: TemplateSrv = getTemplateSrv()
   ) {
     super(instanceSettings);
-    this.basicAuth = instanceSettings.basicAuth;
-    this.url = instanceSettings.url;
+    // The following four fields are declared as required on the class but are optional on
+    // `DataSourceInstanceSettings`; assertions preserve the pre-existing runtime semantics
+    // (the previous `any`-typed parameter accepted whatever shape the caller supplied).
+    this.basicAuth = instanceSettings.basicAuth!;
+    this.url = instanceSettings.url!;
     this.name = instanceSettings.name;
     // graphiteVersion is set when a datasource is created but it hadn't been set in the past so we're
     // still falling back to the default behavior here for backwards compatibility (see also #17429)
@@ -145,9 +164,9 @@ export class GraphiteDatasource
     this.metricMappings = instanceSettings.jsonData.importConfiguration?.loki?.mappings || [];
     this.isMetricTank = instanceSettings.jsonData.graphiteType === GraphiteType.Metrictank;
     this.supportsTags = supportsTags(this.graphiteVersion);
-    this.cacheTimeout = instanceSettings.cacheTimeout;
-    this.rollupIndicatorEnabled = instanceSettings.jsonData.rollupIndicatorEnabled;
-    this.withCredentials = instanceSettings.withCredentials;
+    this.cacheTimeout = instanceSettings.cacheTimeout!;
+    this.rollupIndicatorEnabled = instanceSettings.jsonData.rollupIndicatorEnabled!;
+    this.withCredentials = instanceSettings.withCredentials!;
     this.funcDefs = null;
     this.funcDefsPromise = null;
     this._seriesRefLetters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -699,8 +718,11 @@ export class GraphiteDatasource
     return parsedDate.unix();
   }
 
-  metricFindQuery(findQuery: string | GraphiteQuery, optionalOptions?: any): Promise<MetricFindValue[]> {
-    const options = optionalOptions || {};
+  metricFindQuery(
+    findQuery: string | GraphiteQuery,
+    optionalOptions?: GraphiteMetricFindOptions
+  ): Promise<MetricFindValue[]> {
+    const options: GraphiteMetricFindOptions = optionalOptions || {};
 
     const queryObject = convertToGraphiteQueryObject(findQuery);
     if (queryObject.queryType === GraphiteQueryType.Value || queryObject.queryType === GraphiteQueryType.MetricName) {
@@ -749,9 +771,13 @@ export class GraphiteDatasource
     }
 
     if (useExpand) {
-      return this.requestMetricExpand(interpolatedQuery, options.requestId, range);
+      // Non-null assertions preserve the pre-existing runtime behavior: when the previous
+      // `any`-typed `optionalOptions` was undefined, `undefined` flowed through to
+      // `BackendSrvRequest.requestId` (which is itself optional). Asserting here keeps that
+      // contract intact without altering the private method signatures.
+      return this.requestMetricExpand(interpolatedQuery, options.requestId!, range);
     } else {
-      return this.requestMetricFind(interpolatedQuery, options.requestId, range);
+      return this.requestMetricFind(interpolatedQuery, options.requestId!, range);
     }
   }
 
@@ -770,7 +796,7 @@ export class GraphiteDatasource
    */
   private async requestMetricRender(
     queryObject: GraphiteQuery,
-    options: any,
+    options: GraphiteMetricFindOptions,
     queryType: GraphiteQueryType
   ): Promise<MetricFindValue[]> {
     const requestId: string = options.requestId ?? `Q${this.requestCounter++}`;
@@ -938,8 +964,8 @@ export class GraphiteDatasource
     );
   }
 
-  async getTagsAutoComplete(expressions: string[], tagPrefix?: string, optionalOptions?: any) {
-    const options = optionalOptions || {};
+  async getTagsAutoComplete(expressions: string[], tagPrefix?: string, optionalOptions?: GraphiteMetricFindOptions) {
+    const options: GraphiteMetricFindOptions = optionalOptions || {};
     const params: BackendSrvRequest['params'] = {
       expr: _map(expressions, (expression) => this.templateSrv.replace((expression || '').trim())),
     };
@@ -978,8 +1004,13 @@ export class GraphiteDatasource
     return lastValueFrom(this.doGraphiteRequest(httpOptions).pipe(mapToTags()));
   }
 
-  async getTagValuesAutoComplete(expressions: string[], tag: string, valuePrefix?: string, optionalOptions?: any) {
-    const options = optionalOptions || {};
+  async getTagValuesAutoComplete(
+    expressions: string[],
+    tag: string,
+    valuePrefix?: string,
+    optionalOptions?: GraphiteMetricFindOptions
+  ) {
+    const options: GraphiteMetricFindOptions = optionalOptions || {};
     const params: BackendSrvRequest['params'] = {
       expr: _map(expressions, (expression) => this.templateSrv.replace((expression || '').trim())),
       tag: this.templateSrv.replace((tag || '').trim()),
@@ -1020,7 +1051,7 @@ export class GraphiteDatasource
     return lastValueFrom(this.doGraphiteRequest(httpOptions).pipe(mapToTags()));
   }
 
-  async getVersion(optionalOptions: any) {
+  async getVersion(optionalOptions?: { requestId?: string }) {
     const options = optionalOptions || {};
 
     const httpOptions = {
@@ -1143,7 +1174,7 @@ export class GraphiteDatasource
 
   doGraphiteRequest<T>(
     options: BackendSrvRequest & {
-      inspect?: any;
+      inspect?: { type: string };
     }
   ) {
     if (this.basicAuth || this.withCredentials) {
@@ -1170,7 +1201,11 @@ export class GraphiteDatasource
   }
 
   // Can be removed when the frontend query path is removed
-  buildGraphiteParams(options: any, originalTargetMap: { [key: string]: string }, scopedVars?: ScopedVars): string[] {
+  buildGraphiteParams(
+    options: { targets: GraphiteQuery[]; format?: string; [key: string]: unknown },
+    originalTargetMap: { [key: string]: string },
+    scopedVars?: ScopedVars
+  ): string[] {
     const graphiteOptions = ['from', 'until', 'rawData', 'format', 'maxDataPoints', 'cacheTimeout'];
     const cleanOptions = [],
       targets: Record<string, string> = {};
@@ -1232,7 +1267,13 @@ export class GraphiteDatasource
         return;
       }
       if (value) {
-        cleanOptions.push(key + '=' + encodeURIComponent(value));
+        // `value` is typed `unknown` via the index signature on `options`; at runtime it is
+        // always one of the known graphite-option scalars (string/number/boolean) because
+        // `graphiteOptions` whitelists `from`, `until`, `rawData`, `format`, `maxDataPoints`,
+        // and `cacheTimeout`. `String(value)` performs the same `ToString` conversion that
+        // `encodeURIComponent` would do internally, so runtime behavior is preserved while
+        // satisfying the strict `consistent-type-assertions` rule without a cast.
+        cleanOptions.push(key + '=' + encodeURIComponent(String(value)));
       }
     });
 

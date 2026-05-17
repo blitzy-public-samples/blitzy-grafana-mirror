@@ -1,8 +1,10 @@
 import { of } from 'rxjs';
 
+import { type DataSourceInstanceSettings } from '@grafana/data';
 import { type BackendSrv, getBackendSrv, setBackendSrv } from '@grafana/runtime';
 
 import { GraphiteDatasource } from './datasource';
+import { type GraphiteOptions } from './types';
 
 interface Context {
   ds: GraphiteDatasource;
@@ -15,13 +17,15 @@ describe('graphiteDatasource integration with backendSrv and fetch', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     origBackendSrv = getBackendSrv();
+    // Cast through `unknown` to satisfy the strict-typed constructor parameter while
+    // preserving the existing partial fixture shape that the test relies on at runtime.
     const instanceSettings = {
       url: '/api/datasources/proxy/1',
       name: 'graphiteProd',
       jsonData: {
         rollupIndicatorEnabled: true,
       },
-    };
+    } as unknown as DataSourceInstanceSettings<GraphiteOptions>;
     const ds = new GraphiteDatasource(instanceSettings);
     ctx = { ds };
   });
