@@ -1,4 +1,4 @@
-import { cx } from '@emotion/css';
+import { css, cx } from '@emotion/css';
 import { useCallback, useEffect } from 'react';
 import * as React from 'react';
 
@@ -61,7 +61,7 @@ export const NestedEntry = ({
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className={styles.nestedEntry} style={{ marginLeft: level * (3 * theme.spacing.gridSize) }}>
+    <div className={cx(styles.nestedEntry, css({ marginLeft: level * (3 * theme.spacing.gridSize) }))}>
       {hasChildren ? (
         <IconButton
           className={styles.collapseButton}
