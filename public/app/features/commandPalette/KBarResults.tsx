@@ -1,7 +1,11 @@
+import { css } from '@emotion/css';
 import { type ActionImpl, getListboxItemId, KBAR_LISTBOX, useKBar } from 'kbar';
 import { usePointerMovedSinceMount } from 'kbar/lib/utils';
 import * as React from 'react';
 import { useVirtual } from 'react-virtual';
+
+import { type GrafanaTheme2 } from '@grafana/data';
+import { useStyles2 } from '@grafana/ui';
 
 import { type URLCallback } from './types';
 
@@ -17,8 +21,7 @@ interface RenderParams<T = ActionImpl | string> {
 }
 
 interface KBarResultsProps {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  items: any[];
+  items: Array<ActionImpl | string>;
   onRender: (params: RenderParams) => React.ReactElement<Record<string, unknown>>;
   maxHeight?: number;
 }
@@ -36,6 +39,8 @@ export const KBarResults = (props: KBarResultsProps) => {
     size: itemsRef.current.length,
     parentRef,
   });
+
+  const styles = useStyles2(getStyles, props.maxHeight, rowVirtualizer.totalSize);
 
   const { query, search, currentRootActionId, activeIndex, options } = useKBar((state) => ({
     search: state.searchQuery,
@@ -147,22 +152,8 @@ export const KBarResults = (props: KBarResultsProps) => {
   const pointerMoved = usePointerMovedSinceMount();
 
   return (
-    <div
-      ref={parentRef}
-      style={{
-        maxHeight: props.maxHeight || 400,
-        position: 'relative',
-        overflow: 'auto',
-      }}
-    >
-      <div
-        role="listbox"
-        id={KBAR_LISTBOX}
-        style={{
-          height: `${rowVirtualizer.totalSize}px`,
-          width: '100%',
-        }}
-      >
+    <div ref={parentRef} className={styles.parentContainer}>
+      <div role="listbox" id={KBAR_LISTBOX} className={styles.listbox}>
         {rowVirtualizer.virtualItems.map((virtualRow) => {
           // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
           const item = itemsRef.current[virtualRow.index] as ActionImpl & {
@@ -237,3 +228,15 @@ export const KBarResults = (props: KBarResultsProps) => {
     </div>
   );
 };
+
+const getStyles = (_theme: GrafanaTheme2, maxHeight: number | undefined, totalSize: number) => ({
+  parentContainer: css({
+    maxHeight: maxHeight || 400,
+    position: 'relative',
+    overflow: 'auto',
+  }),
+  listbox: css({
+    height: totalSize,
+    width: '100%',
+  }),
+});
