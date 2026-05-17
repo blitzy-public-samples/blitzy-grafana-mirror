@@ -1,10 +1,10 @@
-import { cx } from '@emotion/css';
+import { css, cx } from '@emotion/css';
 import { uniqBy } from 'lodash';
 import { useCallback, useEffect, useState } from 'react';
 import * as React from 'react';
 import { useEffectOnce } from 'react-use';
 
-import { LocalStorageValueProvider } from '@grafana/data';
+import { LocalStorageValueProvider, type GrafanaTheme2 } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
 import { config, reportInteraction } from '@grafana/runtime';
 import {
@@ -71,6 +71,7 @@ const ResourcePicker = ({
   selectionNotice,
 }: ResourcePickerProps<string | AzureMonitorResource>) => {
   const styles = useStyles2(getStyles);
+  const localStyles = useStyles2(getLocalStyles);
 
   const [isLoading, setIsLoading] = useState(false);
   const [rows, setRows] = useState<ResourceRowGroup>([]);
@@ -307,6 +308,10 @@ const ResourcePicker = ({
   const resourceTable = (resourceRows: ResourceRowGroup) => {
     return (
       <>
+        {/* Design system gap: <InteractiveTable> from @grafana/ui (as of 13.0.0-pre) does not support the
+            recursive tree rendering, lazy child loading, scroll-into-view offsetTop, sticky-header
+            (two-table pattern), and per-row colSpan placeholders required for the Azure resource picker.
+            Kept as raw HTML <table> per refactor protocol (AAP §0.4.4). */}
         <table className={styles.table}>
           <thead>
             <tr className={cx(styles.row, styles.header)}>
@@ -327,6 +332,10 @@ const ResourcePicker = ({
         </table>
 
         <div className={cx(styles.scrollableTable, styles.tableScroller)}>
+          {/* Design system gap: <InteractiveTable> from @grafana/ui (as of 13.0.0-pre) does not support the
+              recursive tree rendering, lazy child loading, scroll-into-view offsetTop, sticky-header
+              (two-table pattern), and per-row colSpan placeholders required for the Azure resource picker.
+              Kept as raw HTML <table> per refactor protocol (AAP §0.4.4). */}
           <table className={styles.table}>
             <tbody>
               {isLoading && (
@@ -375,6 +384,9 @@ const ResourcePicker = ({
               </h5>
 
               <div className={cx(styles.scrollableTable, styles.selectedTableScroller)}>
+                {/* Design system gap: <InteractiveTable> from @grafana/ui (as of 13.0.0-pre) does not support
+                    the recursive tree rendering and the in-row Selection-summary pattern required for the
+                    Azure resource picker. Kept as raw HTML <table> per refactor protocol (AAP §0.4.4). */}
                 <table className={styles.table}>
                   <tbody>
                     {selectedRows.map((row) => (
@@ -552,7 +564,7 @@ const ResourcePicker = ({
                   }}
                 />
               </TabsBar>
-              <TabContent style={{ margin: '10px' }}>
+              <TabContent className={localStyles.tabContent}>
                 {view === 'picker' && baseResourcePicker(recentResources, onRecentResourcesSave)}
                 {view === 'recent' && (
                   <>
@@ -582,5 +594,11 @@ const ResourcePicker = ({
 
   return config.featureToggles.azureResourcePickerUpdates ? tabbedResourcePicker() : baseResourcePicker();
 };
+
+const getLocalStyles = (theme: GrafanaTheme2) => ({
+  tabContent: css({
+    margin: theme.spacing(1.25),
+  }),
+});
 
 export default ResourcePicker;
