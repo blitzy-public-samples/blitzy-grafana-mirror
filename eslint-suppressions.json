@@ -2775,14 +2775,6 @@
       "count": 3
     }
   },
-  "public/app/plugins/datasource/influxdb/components/editor/query/flux/FluxQueryEditor.tsx": {
-    "no-restricted-syntax": {
-      "count": 3
-    },
-    "react-prefer-function-component/react-prefer-function-component": {
-      "count": 1
-    }
-  },
   "public/app/plugins/datasource/influxdb/components/editor/query/fsql/FSQLEditor.tsx": {
     "react-prefer-function-component/react-prefer-function-component": {
       "count": 1
