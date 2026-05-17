@@ -6,8 +6,27 @@ import TableModel from 'app/core/TableModel';
 
 import { type InfluxQuery } from './types';
 
+// Module-private representation of the raw InfluxDB query response shape consumed
+// by `ResponseParser.parse`. These mirror the wire format returned by InfluxDB's
+// HTTP query endpoint and replace a previous `any` annotation. Values inside
+// `series.values` are typed as `unknown[]` because legacy InfluxDB releases (and
+// some defensive callers) can emit non-array entries that are stringified via the
+// `else` branch in `parse`.
+interface InfluxRawSeries {
+  name: string;
+  columns: string[];
+  tags?: Record<string, string>;
+  values?: unknown[];
+}
+
+interface InfluxRawResult {
+  series?: InfluxRawSeries[];
+  error?: string;
+  statement_id?: number;
+}
+
 export default class ResponseParser {
-  parse(query: string, results: { results: any }) {
+  parse(query: string, results: { results: InfluxRawResult[] }) {
     if (!results?.results || results.results.length === 0) {
       return [];
     }
@@ -45,7 +64,11 @@ export default class ResponseParser {
             res.add(value[0].toString());
           }
         } else {
-          res.add(value.toString());
+          // `value` is narrowed to `unknown` here (the non-array branch); use
+          // `String(value)` instead of `value.toString()` to handle null/undefined
+          // safely and to satisfy strict type-checking now that the parameter
+          // type is `unknown[]` rather than `any`.
+          res.add(String(value));
         }
       });
     });
