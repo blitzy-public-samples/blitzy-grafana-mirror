@@ -54,14 +54,6 @@ export function FunctionParamEditor({ editableParam, onChange, onExpandedChange,
           onChange(value.toString());
         }}
         onExpandedChange={onExpandedChange}
-        // input style
-        style={{
-          height: '25px',
-          paddingTop: '2px',
-          marginTop: '2px',
-          paddingLeft: '4px',
-          minWidth: '100px',
-        }}
       ></SegmentInput>
     );
   }
@@ -75,8 +67,9 @@ const getStyles = (theme: GrafanaTheme2) => ({
     height: '100%',
   }),
   input: css({
-    margin: 0,
-    padding: 0,
+    margin: '2px 0 0 0',
+    padding: '2px 0 0 4px',
+    minWidth: '100px',
     input: {
       height: '25px',
     },
