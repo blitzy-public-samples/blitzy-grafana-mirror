@@ -2,7 +2,7 @@ import { type FC, useEffect, useMemo, useReducer } from 'react';
 
 import { LoadingState } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
-import { Button, Modal, useStyles2 } from '@grafana/ui';
+import { Button, type Column, InteractiveTable, Modal, useStyles2 } from '@grafana/ui';
 
 import { getModalStyles } from '../../styles';
 import { type LibraryElementDTO } from '../../types';
@@ -78,6 +78,16 @@ const HasConnectedDashboards: FC<{ dashboardTitles: string[] }> = ({ dashboardTi
   const styles = useStyles2(getModalStyles);
   const suffix = dashboardTitles.length === 1 ? 'dashboard.' : 'dashboards.';
   const message = `${dashboardTitles.length} ${suffix}`;
+  const tableData = useMemo(() => dashboardTitles.map((name) => ({ name })), [dashboardTitles]);
+  const columns = useMemo<Array<Column<{ name: string }>>>(
+    () => [
+      {
+        id: 'name',
+        header: t('library-panels.has-connected-dashboards.dashboard-name', 'Dashboard name'),
+      },
+    ],
+    []
+  );
   if (dashboardTitles.length === 0) {
     return null;
   }
@@ -89,22 +99,7 @@ const HasConnectedDashboards: FC<{ dashboardTitles: string[] }> = ({ dashboardTi
         <strong>{message}</strong>
         {' Remove the library panel from the dashboards listed below and retry.'}
       </p>
-      <table className={styles.myTable}>
-        <thead>
-          <tr>
-            <th>
-              <Trans i18nKey="library-panels.has-connected-dashboards.dashboard-name">Dashboard name</Trans>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {dashboardTitles.map((title, i) => (
-            <tr key={`dash-title-${i}`}>
-              <td>{title}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <InteractiveTable columns={columns} data={tableData} getRowId={(row) => row.name} />
     </div>
   );
 };
