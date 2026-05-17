@@ -155,7 +155,7 @@ export default class InfluxDatasource extends DataSourceWithBackend<InfluxQuery,
   getQueryDisplayText(query: InfluxQuery) {
     switch (this.version) {
       case InfluxVersion.Flux:
-        return query.query;
+        return query.query!;
       case InfluxVersion.SQL:
         return toRawSql(query);
       case InfluxVersion.InfluxQL:
