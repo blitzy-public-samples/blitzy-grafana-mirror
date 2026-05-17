@@ -174,7 +174,7 @@ export const Math = ({ labelWidth, onChange, query, onRunQuery }: Props) => {
           rows={1}
           placeholder={mathPlaceholder}
           onBlur={executeQuery}
-          style={{ minWidth: 250, lineHeight: '26px', minHeight: 32 }}
+          className={styles.expressionTextArea}
         />
       </InlineField>
     </Stack>
@@ -220,6 +220,12 @@ const getStyles = (theme: GrafanaTheme2) => ({
     alignItems: 'center',
     cursor: 'pointer',
     gap: theme.spacing(1),
+  }),
+  expressionTextArea: css({
+    minWidth: 250,
+    // Specific lineHeight to match the original inline style; no exact theme.spacing() equivalent for 26px.
+    lineHeight: '26px',
+    minHeight: 32,
   }),
 });
 
