@@ -84,6 +84,12 @@ export const DataHoverView = ({ data, rowIndex, header, padding = 0 }: Props) =>
           <span className={styles.title}>{header}</span>
         </div>
       )}
+      {/* Design system gap: this is a key-value tooltip layout (used inside VizTooltipContainer
+          by GeomapTooltip, debug CursorView, and search ExplainScorePopup), not a sortable/paginatable
+          data table. InteractiveTable's always-rendered <thead>, container width:100%/overflowX:auto
+          layout, row-hover effect, and theme.spacing(1) cell padding would substantially alter
+          tooltip dimensions and visual appearance, violating the IMMUTABLE pixel-equivalent
+          rendering constraint. Per AAP §0.4.4 judgment-call clause, raw <table> is preserved. */}
       <table className={styles.infoWrap}>
         <tbody>
           {displayValues.map((displayValue, i) => (
