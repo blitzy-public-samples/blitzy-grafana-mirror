@@ -202,6 +202,23 @@ export const ProvisioningWizard = memo(function ProvisioningWizard({
           <Stepper steps={wizardSteps} activeStep={activeStep} visitedSteps={completedSteps} />
           <div className={styles.divider} />
         </>
+        {/*
+         * Raw <form> retained inside a <FormProvider> per AAP §0.6.1. The wizard form
+         * must remain raw because:
+         *   1. Child <WizardStepContent> step components (AuthTypeStep, ConnectionStep,
+         *      RepoStep, etc.) rely on `useFormContext()` to read `control`, `register`,
+         *      `setValue`, and `watch` from the surrounding FormProvider — wrapping in
+         *      @grafana/ui's <Form> render-prop component would not expose that context
+         *      to descendant components.
+         *   2. `reValidateMode: 'onBlur'` is required for the wizard's per-field
+         *      revalidation behavior and is not supported by the @grafana/ui <Form>
+         *      render-prop wrapper.
+         *   3. `formState.isDirty` is consumed by <FormPrompt> sibling to gate
+         *      confirm-on-redirect behavior across the surrounding page, and `onDiscard`
+         *      / cancellation logic invokes useForm reset semantics from outside the form.
+         * Per @grafana/ui's own JSDoc on <Form>: "use the `useForm` hook from
+         * react-hook-form instead" — the pattern below is the recommended replacement.
+         */}
         <form onSubmit={handleSubmit(onFormSubmit)} className={styles.form}>
           <FormPrompt
             onDiscard={onDiscard}
