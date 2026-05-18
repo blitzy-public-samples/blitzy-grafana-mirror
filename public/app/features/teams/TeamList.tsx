@@ -4,6 +4,7 @@ import Skeleton from 'react-loading-skeleton';
 import { type SortingRule } from 'react-table';
 
 import { type DashboardHit } from '@grafana/api-clients/rtkq/dashboard/v0alpha1';
+import { type GrafanaTheme2 } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
 import { config, reportInteraction } from '@grafana/runtime';
 import {
@@ -268,7 +269,7 @@ const TeamList = () => {
           return (
             <Stack direction="row" justifyContent="flex-end" gap={2}>
               {canReadTeam && (
-                <a href={`org/teams/edit/${original.uid}`} style={{ display: 'inline-flex' }}>
+                <a href={`org/teams/edit/${original.uid}`} className={styles.editLink}>
                   <IconButton
                     name="pen"
                     size="md"
@@ -298,7 +299,16 @@ const TeamList = () => {
         },
       },
     ],
-    [displayRolePicker, isLoading, styles.blockSkeleton, roleOptions, deleteTeam, triggerFoldersQuery, notifyApp]
+    [
+      displayRolePicker,
+      isLoading,
+      styles.blockSkeleton,
+      styles.editLink,
+      roleOptions,
+      deleteTeam,
+      triggerFoldersQuery,
+      notifyApp,
+    ]
   );
 
   return (
@@ -332,7 +342,7 @@ const TeamList = () => {
           </EmptyState>
         ) : (
           <>
-            <div className="page-action-bar">
+            <div className={styles.pageActionBar}>
               <InlineField grow>
                 <FilterInput
                   placeholder={t('teams.team-list.placeholder-search-teams', 'Search teams')}
@@ -386,10 +396,19 @@ function shouldDisplayRolePicker(): boolean {
 
 export default TeamList;
 
-const getStyles = () => ({
+const getStyles = (theme: GrafanaTheme2) => ({
   blockSkeleton: css({
     lineHeight: 1,
     // needed for things to align properly in the table
     display: 'flex',
+  }),
+  editLink: css({
+    display: 'inline-flex',
+  }),
+  pageActionBar: css({
+    marginBottom: theme.spacing(2),
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: theme.spacing(2),
   }),
 });
