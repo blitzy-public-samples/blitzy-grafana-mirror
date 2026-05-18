@@ -1,7 +1,8 @@
+import { css } from '@emotion/css';
 import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 
-import { AppEvents } from '@grafana/data';
+import { AppEvents, type GrafanaTheme2 } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
 import {
   type FetchErrorDataProps,
@@ -23,6 +24,7 @@ import {
   Menu,
   Stack,
   Switch,
+  useStyles2,
 } from '@grafana/ui';
 
 import { FormPrompt } from '../../core/components/FormPrompt/FormPrompt';
@@ -42,6 +44,7 @@ interface ProviderConfigProps {
 }
 
 export const ProviderConfigForm = ({ config, provider, isLoading }: ProviderConfigProps) => {
+  const styles = useStyles2(getStyles);
   const {
     register,
     handleSubmit,
@@ -164,7 +167,21 @@ export const ProviderConfigForm = ({ config, provider, isLoading }: ProviderConf
 
   return (
     <Page.Contents isLoading={isLoading}>
-      <form onSubmit={handleSubmit(onSubmit)} style={{ maxWidth: '600px' }}>
+      {/*
+        Raw <form> retained per AAP §0.6.1 ("use react-hook-form's useForm directly for new code,
+        but keep Form for minimal-change refactors when the existing file uses render-prop pattern").
+        This file uses useForm externally so that:
+          (1) `dirtyFields` and `isSubmitted` from formState can be read by <FormPrompt> outside
+              the form for unsaved-change navigation guards;
+          (2) `reset()` is invoked from outside the form (in the discard handler and after submit
+              redirect) — @grafana/ui's <Form> wrapper hides its internal useForm and would lose
+              this contract;
+          (3) `reValidateMode: 'onChange'` is required for the form's UX and is not supported by
+              the @grafana/ui <Form> render-prop wrapper.
+        Inline styling has been migrated from style={{ maxWidth: '600px' }} to useStyles2 +
+        theme-aware Emotion (see getStyles below) per AAP Dimension 3.
+      */}
+      <form onSubmit={handleSubmit(onSubmit)} className={styles.form}>
         <FormPrompt
           confirmRedirect={!!Object.keys(dirtyFields).length && !dataSubmitted}
           onDiscard={() => {
@@ -280,3 +297,17 @@ export const ProviderConfigForm = ({ config, provider, isLoading }: ProviderConf
     </Page.Contents>
   );
 };
+
+// `theme` parameter is accepted by the useStyles2 contract even though the only declared rule
+// here is layout-only. This signature keeps the style block extensible for future theme-aware
+// values without altering the call site.
+const getStyles = (_theme: GrafanaTheme2) => ({
+  // Constrains the SSO provider configuration form to a 600px max width — the same value used by
+  // @grafana/ui's <Form> component as its default `maxWidth` (see packages/grafana-ui/src/
+  // components/Forms/Form.tsx). Migrated from inline style={{ maxWidth: '600px' }} per AAP
+  // Dimension 3 (inline-style → useStyles2). Other team/service-account/migrate forms in this
+  // checkpoint use the same 600 literal for the same reason (e.g., TeamSettings.tsx getStyles).
+  form: css({
+    maxWidth: 600,
+  }),
+});
