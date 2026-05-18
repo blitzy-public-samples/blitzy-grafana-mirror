@@ -48,11 +48,11 @@ const Parallelogram = (props: CanvasElementProps<CanvasElementConfig, CanvasElem
           width="100%"
           height="100%"
           clipPath={`url(#parallelogramClip-${uniqueId})`}
-          style={{ fill: 'none' }}
+          fill="none"
         />
         <polygon
           points="0,150 50,0 250,0 200,150"
-          style={{ fill: data?.backgroundImage ? `url(#image-${uniqueId})` : data?.backgroundColor }}
+          fill={data?.backgroundImage ? `url(#image-${uniqueId})` : data?.backgroundColor}
         />
 
         {/* Border */}
