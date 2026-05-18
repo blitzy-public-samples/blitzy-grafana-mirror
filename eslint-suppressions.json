@@ -1603,11 +1603,6 @@
       "count": 2
     }
   },
-  "public/app/features/datasources/components/ButtonRow.tsx": {
-    "no-restricted-syntax": {
-      "count": 1
-    }
-  },
   "public/app/features/datasources/components/DataSourceTestingStatus.tsx": {
     "no-restricted-syntax": {
       "count": 1
