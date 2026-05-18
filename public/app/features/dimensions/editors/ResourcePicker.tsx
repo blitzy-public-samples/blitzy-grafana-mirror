@@ -13,7 +13,6 @@ import {
   Popover,
   PopoverController,
   useStyles2,
-  useTheme2,
 } from '@grafana/ui';
 import { closePopover } from '@grafana/ui/internal';
 import { SanitizedSVG } from 'app/core/components/SVG/SanitizedSVG';
@@ -40,8 +39,7 @@ interface Props {
 export const ResourcePicker = (props: Props) => {
   const { value, src, name, placeholder, onChange, onClear, mediaType, folderName, size, color, maxFiles } = props;
 
-  const styles = useStyles2(getStyles);
-  const theme = useTheme2();
+  const styles = useStyles2(getStyles, color);
 
   const pickerTriggerRef = useRef<HTMLDivElement>(null);
   const popoverElement = (props: { hidePopper?: () => void }) => {
@@ -62,13 +60,9 @@ export const ResourcePicker = (props: Props) => {
     sanitizedSrc = getPublicOrAbsoluteUrl(value);
   }
 
-  const colorStyle = color && {
-    fill: theme.visualization.getColorByName(color),
-  };
-
   const renderSmallResourcePicker = () => {
     if (value && sanitizedSrc) {
-      return <SanitizedSVG src={sanitizedSrc} className={styles.icon} style={{ ...colorStyle }} />;
+      return <SanitizedSVG src={sanitizedSrc} className={styles.icon} />;
     } else {
       return (
         <LinkButton variant="primary" fill="text" size="sm">
@@ -85,7 +79,7 @@ export const ResourcePicker = (props: Props) => {
           value={getDisplayName(src, name)}
           placeholder={placeholder}
           readOnly={true}
-          prefix={sanitizedSrc && <SanitizedSVG src={sanitizedSrc} className={styles.icon} style={{ ...colorStyle }} />}
+          prefix={sanitizedSrc && <SanitizedSVG src={sanitizedSrc} className={styles.icon} />}
           suffix={
             <Button
               aria-label={t('dimensions.resource-picker.aria-label-clear-value', 'Clear value')}
@@ -151,7 +145,7 @@ function getDisplayName(src?: string, name?: string): string | undefined {
   return name;
 }
 
-const getStyles = (theme: GrafanaTheme2) => ({
+const getStyles = (theme: GrafanaTheme2, color?: string) => ({
   pointer: css({
     cursor: 'pointer',
     'input[readonly]': {
@@ -161,7 +155,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   icon: css({
     verticalAlign: 'middle',
     display: 'inline-block',
-    fill: 'currentColor',
+    fill: color ? theme.visualization.getColorByName(color) : 'currentColor',
     width: '25px',
   }),
 });
