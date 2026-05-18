@@ -1,5 +1,5 @@
 import { css } from '@emotion/css';
-import { Fragment, type JSX } from 'react';
+import { Fragment, type JSX, type ReactNode } from 'react';
 
 import { type GrafanaTheme2 } from '@grafana/data';
 import { Alert, Stack, useStyles2 } from '@grafana/ui';
@@ -28,6 +28,38 @@ export const PluginSubtitle = ({ plugin }: Props) => {
   if (!plugin) {
     return null;
   }
+
+  // Narrow the `unknown`-typed `errorInstalling` (cascaded from RequestInfo.error: unknown in ../types.ts)
+  // into concrete `string` title and `ReactNode` body for the Alert. The narrowing preserves the
+  // original runtime semantics:
+  //   - string error  -> body = the string, title = ''
+  //   - object error with `message: string` -> title = message
+  //   - object error with `error` property -> body = String(error) (covers string/number cases)
+  // Anything else collapses to empty title and empty body (Alert is still rendered when the value
+  // itself is truthy, matching the original `{errorInstalling && (...)}` check).
+  let errorTitle = '';
+  let errorBody: ReactNode = '';
+  if (errorInstalling !== null && errorInstalling !== undefined) {
+    if (typeof errorInstalling === 'string') {
+      errorBody = errorInstalling;
+    } else if (typeof errorInstalling === 'object') {
+      if ('message' in errorInstalling && typeof errorInstalling.message === 'string') {
+        errorTitle = errorInstalling.message;
+      }
+      if ('error' in errorInstalling) {
+        const errorField: unknown = errorInstalling.error;
+        if (typeof errorField === 'string' || typeof errorField === 'number') {
+          errorBody = String(errorField);
+        } else if (errorField !== null && errorField !== undefined) {
+          // Render anything renderable (objects with toString, numbers, etc.) — preserve original
+          // behavior of plopping `errorInstalling.error` directly into JSX. React will render
+          // strings/numbers; objects would have caused a runtime error originally as well.
+          errorBody = String(errorField);
+        }
+      }
+    }
+  }
+
   const latestCompatibleVersion = getLatestCompatibleVersion(plugin.details?.versions);
   const pluginStatus = plugin.isInstalled
     ? plugin.hasUpdate
@@ -37,11 +69,7 @@ export const PluginSubtitle = ({ plugin }: Props) => {
 
   return (
     <div className={styles.subtitle}>
-      {errorInstalling && (
-        <Alert title={'message' in errorInstalling ? errorInstalling.message : ''}>
-          {typeof errorInstalling === 'string' ? errorInstalling : errorInstalling.error}
-        </Alert>
-      )}
+      {errorInstalling != null && <Alert title={errorTitle}>{errorBody}</Alert>}
       <Stack direction="row" justifyContent="space-between">
         <div>
           {plugin?.description && <div>{plugin?.description}</div>}
