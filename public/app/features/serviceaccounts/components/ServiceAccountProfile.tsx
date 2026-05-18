@@ -52,7 +52,17 @@ export function ServiceAccountProfile({ serviceAccount, timeZone, onChange }: Pr
       <h3>
         <Trans i18nKey="serviceaccounts.service-account-profile.information">Information</Trans>
       </h3>
-      <table className="filter-table">
+      {/*
+        Design system gap: <InteractiveTable> from @grafana/ui requires column/data
+        configuration and renders its own <tr>/<td> markup, but the rows here are
+        rendered by <ServiceAccountProfileRow> and <ServiceAccountRoleRow>, which are
+        tightly coupled to <tr>/<td> semantics (and the latter is OUT OF SCOPE per
+        AAP §0.3.2). Per AAP §0.4.4 (Custom tables with row-component coupling
+        beyond InteractiveTable capabilities), the raw <table> is preserved here
+        with theme-aware Emotion styling that reproduces the .filter-table global
+        rules from packages/grafana-ui/src/themes/GlobalStyles/filterTable.ts.
+      */}
+      <table className={styles.table}>
         <tbody>
           {serviceAccount.id && (
             <ServiceAccountProfileRow
@@ -104,5 +114,26 @@ export function ServiceAccountProfile({ serviceAccount, timeZone, onChange }: Pr
 export const getStyles = (theme: GrafanaTheme2) => ({
   section: css({
     marginBottom: theme.spacing(4),
+  }),
+  table: css({
+    width: '100%',
+    borderCollapse: 'separate',
+    'tbody tr:nth-of-type(odd)': {
+      background: theme.colors.emphasize(theme.colors.background.primary, 0.02),
+    },
+    th: {
+      width: 'auto',
+      padding: theme.spacing(0.5, 1),
+      textAlign: 'left',
+      lineHeight: '30px',
+      height: '30px',
+      whiteSpace: 'nowrap',
+    },
+    td: {
+      padding: theme.spacing(0.5, 1),
+      lineHeight: '30px',
+      height: '30px',
+      whiteSpace: 'nowrap',
+    },
   }),
 });
