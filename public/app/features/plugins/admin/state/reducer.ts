@@ -1,6 +1,7 @@
 import { createSlice, createEntityAdapter, type Reducer, type AnyAction, type PayloadAction } from '@reduxjs/toolkit';
 
 import { type PanelPlugin } from '@grafana/data';
+import { type PluginDashboard } from 'app/types/plugins';
 
 import { STATE_PREFIX } from '../constants';
 import { type CatalogPlugin, type ReducerState, RequestStatus } from '../types';
@@ -91,8 +92,15 @@ const slice = createSlice({
       // TODO<remove once the "plugin_admin_enabled" feature flag is removed>
       .addCase(loadPluginDashboards.fulfilled, (state, action) => {
         state.isLoadingPluginDashboards = false;
-        // eslint-disable-next-line
-        state.dashboards = action.payload as any; // WritableDraft<PluginDashboard>[],...>
+        // The `loadPluginDashboards` thunk wraps `getBackendSrv().get(url)` whose default
+        // generic is `unknown`, so `action.payload` is not statically typed as an array.
+        // The runtime contract for `api/plugins/:dataSourceType/dashboards` is
+        // `PluginDashboard[]`; the `Array.isArray` guard narrows the payload at runtime so
+        // it can be assigned to the typed `dashboards` slot without a type assertion.
+        if (Array.isArray(action.payload)) {
+          const dashboards: PluginDashboard[] = action.payload;
+          state.dashboards = dashboards;
+        }
       })
       .addMatcher(isPendingRequest, (state, action) => {
         state.requests[getOriginalActionType(action.type)] = {
