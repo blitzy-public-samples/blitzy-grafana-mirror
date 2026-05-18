@@ -1,7 +1,9 @@
+import { css } from '@emotion/css';
 import { useForm } from 'react-hook-form';
 
+import { type GrafanaTheme2 } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
-import { Button, Field, FieldSet, Input, Stack } from '@grafana/ui';
+import { Button, Field, FieldSet, Input, Stack, useStyles2 } from '@grafana/ui';
 import { TeamRolePicker } from 'app/core/components/RolePicker/TeamRolePicker';
 import { useRoleOptions } from 'app/core/components/RolePicker/hooks';
 import { SharedPreferences } from 'app/core/components/SharedPreferences/SharedPreferences';
@@ -19,6 +21,7 @@ const TeamSettings = ({ team }: Props) => {
   const canWriteTeamSettings = contextSrv.hasPermissionInMetadata(AccessControlAction.ActionTeamsWrite, team);
   const currentOrgId = contextSrv.user.orgId;
   const [updateTeam] = useUpdateTeam();
+  const styles = useStyles2(getStyles);
 
   const [{ roleOptions }] = useRoleOptions(currentOrgId);
   const {
@@ -47,7 +50,7 @@ const TeamSettings = ({ team }: Props) => {
 
   return (
     <Stack direction={'column'} gap={3}>
-      <form onSubmit={handleSubmit(onSubmit)} style={{ maxWidth: '600px' }}>
+      <form onSubmit={handleSubmit(onSubmit)} className={styles.form}>
         <FieldSet label={t('teams.team-settings.label-team-details', 'Team details')}>
           <Stack direction="column" gap={2}>
             <Field
@@ -103,3 +106,10 @@ const TeamSettings = ({ team }: Props) => {
 };
 
 export default TeamSettings;
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  form: css({
+    maxWidth: 600,
+    width: '100%',
+  }),
+});
