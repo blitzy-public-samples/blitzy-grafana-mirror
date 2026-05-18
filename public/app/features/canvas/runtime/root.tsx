@@ -45,6 +45,11 @@ export class RootElement extends FrameState {
 
   renderElement() {
     return (
+      // Design system gap: dynamic class-state spread (this.sizeStyle, this.dataStyle)
+      // populated at runtime by applyStyles in element.tsx; cannot be migrated to a static
+      // or theme-aware css() class because values change per drag/resize/rotate frame.
+      // Class context precludes useStyles2 hook usage (this is RootElement, a state-management
+      // class, not a React function component).
       <div
         onContextMenu={(event) => event.preventDefault()}
         key={this.UID}
