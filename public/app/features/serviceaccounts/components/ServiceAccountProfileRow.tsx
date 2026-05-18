@@ -104,6 +104,13 @@ const getStyles = (theme: GrafanaTheme2) => {
     disabled: css({
       color: theme.colors.text.secondary,
     }),
+    // Migrated from legacy `className="width-25"` per AAP Dimension 3. The
+    // `width-${i}` utility classes are defined in
+    // packages/grafana-ui/src/themes/GlobalStyles/utilityClasses.ts:41 as
+    // `width: ${theme.spacing(2 * i)}`, so `width-25` resolves to
+    // `theme.spacing(2 * 25) = theme.spacing(50)` (400px with the default
+    // 8px grid). This is a pixel-equivalent migration that preserves the
+    // original column width allocated for the editable value cell.
     cellWidth: css({
       width: theme.spacing(50),
     }),
