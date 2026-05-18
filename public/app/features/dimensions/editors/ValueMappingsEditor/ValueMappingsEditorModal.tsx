@@ -121,25 +121,26 @@ export function ValueMappingsEditorModal({ value, onChange, onClose, showIconPic
   return (
     <>
       <div className={styles.tableWrap}>
+        {/* Design system gap: This editor table uses @hello-pangea/dnd's Droppable to wrap the <tbody> for drag-and-drop row reordering, which InteractiveTable's React-Table-based internals do not support. Kept as raw <table> per refactor protocol (AAP §0.4.4). */}
         <table className={styles.editTable}>
           <thead>
             <tr>
-              <th style={{ width: '1%' }}></th>
-              <th style={{ width: '40%', textAlign: 'left' }} colSpan={2}>
+              <th className={styles.colNarrow}></th>
+              <th className={styles.colCondition} colSpan={2}>
                 <Trans i18nKey="dimensions.value-mappings-editor-modal.condition">Condition</Trans>
               </th>
-              <th style={{ textAlign: 'left' }}>
+              <th className={styles.colDisplayText}>
                 <Trans i18nKey="dimensions.value-mappings-editor-modal.display-text">Display text</Trans>
               </th>
-              <th style={{ width: '10%' }}>
+              <th className={styles.colSmall}>
                 <Trans i18nKey="dimensions.value-mappings-editor-modal.color">Color</Trans>
               </th>
               {showIconPicker && (
-                <th style={{ width: '10%' }}>
+                <th className={styles.colSmall}>
                   <Trans i18nKey="dimensions.value-mappings-editor-modal.icon">Icon</Trans>
                 </th>
               )}
-              <th style={{ width: '1%' }}></th>
+              <th className={styles.colNarrow}></th>
             </tr>
           </thead>
           <DragDropContext onDragEnd={onDragEnd}>
@@ -210,6 +211,23 @@ export const getStyles = (theme: GrafanaTheme2) => ({
     ' th, td': {
       padding: theme.spacing(1),
     },
+  }),
+
+  colNarrow: css({
+    width: '1%',
+  }),
+
+  colCondition: css({
+    width: '40%',
+    textAlign: 'left',
+  }),
+
+  colDisplayText: css({
+    textAlign: 'left',
+  }),
+
+  colSmall: css({
+    width: '10%',
   }),
 });
 
