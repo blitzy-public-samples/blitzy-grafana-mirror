@@ -23,7 +23,7 @@ import { type StandardEditorConfig } from './types';
  *
  * @alpha
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- TConfig is element-type-specific (varies per CanvasElementItem); concrete types are provided at every call site (e.g., CanvasElementOptions<TextConfig>, CanvasElementOptions<DroneFrontConfig>). Replacing the default with `unknown` would break the heterogeneous canvasElementRegistry where mixed typed items must be assignable.
 export interface CanvasElementOptions<TConfig = any> {
   name: string; // configured unique display name
   type: string;
@@ -91,7 +91,7 @@ export interface CanvasElementProps<TConfig = unknown, TData = unknown> {
  *
  * @alpha
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- TConfig and TData appear in both input (prepareData, display, registerOptionsUI) and output (getNewOptions) positions, making CanvasElementItem invariant in both type parameters. The `any` defaults are required so that the canvasElementRegistry in registry.ts can hold heterogeneous CanvasElementItem<X, Y> entries (metricValueItem, textItem, droneFrontItem, etc.) under the unparameterized type `CanvasElementItem`. Replacing with `unknown` would break Registry<CanvasElementItem>'s type inference.
 export interface CanvasElementItem<TConfig = any, TData = any> extends RegistryItem {
   /** The default width/height to use when adding  */
   defaultSize?: Placement;
