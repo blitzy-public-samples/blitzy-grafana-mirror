@@ -18,6 +18,11 @@ interface Props {
   onDiscard: () => void;
 }
 
+interface AffectedDashboardRow {
+  id: string;
+  name: string;
+}
+
 export const SaveLibraryPanelModal = ({
   panel,
   folderUid,
@@ -57,8 +62,18 @@ export const SaveLibraryPanelModal = ({
     onDiscard();
   }, [onDiscard]);
 
-  const tableData = useMemo(() => filteredDashboards.map((name) => ({ name })), [filteredDashboards]);
-  const columns = useMemo<Array<Column<{ name: string }>>>(
+  // Use the source array index as the stable row identity. Dashboard titles are not
+  // guaranteed to be unique across folders, and `InteractiveTable`'s underlying
+  // `react-table` requires a unique `id` per row — using the title would collapse
+  // duplicate-name rows into a single row, regressing the original raw-<table>
+  // behavior which keyed rows by `dashrow-${i}`. The connected-dashboards API
+  // does not currently surface dashboard UIDs for this list, so the array index is
+  // the most stable available identifier.
+  const tableData = useMemo<AffectedDashboardRow[]>(
+    () => filteredDashboards.map((name, index) => ({ id: String(index), name })),
+    [filteredDashboards]
+  );
+  const columns = useMemo<Array<Column<AffectedDashboardRow>>>(
     () => [
       {
         id: 'name',
@@ -101,7 +116,7 @@ export const SaveLibraryPanelModal = ({
             </Trans>
           </p>
         ) : (
-          <InteractiveTable columns={columns} data={tableData} getRowId={(row) => row.name} />
+          <InteractiveTable columns={columns} data={tableData} getRowId={(row) => row.id} />
         )}
         <Modal.ButtonRow>
           <Button variant="secondary" onClick={onDismiss} fill="outline">

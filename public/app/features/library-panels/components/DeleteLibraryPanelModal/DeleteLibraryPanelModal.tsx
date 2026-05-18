@@ -74,12 +74,27 @@ const Confirm = () => {
   );
 };
 
+interface ConnectedDashboardRow {
+  id: string;
+  name: string;
+}
+
 const HasConnectedDashboards: FC<{ dashboardTitles: string[] }> = ({ dashboardTitles }) => {
   const styles = useStyles2(getModalStyles);
   const suffix = dashboardTitles.length === 1 ? 'dashboard.' : 'dashboards.';
   const message = `${dashboardTitles.length} ${suffix}`;
-  const tableData = useMemo(() => dashboardTitles.map((name) => ({ name })), [dashboardTitles]);
-  const columns = useMemo<Array<Column<{ name: string }>>>(
+  // Use the source array index as the stable row identity. Dashboard titles are not
+  // guaranteed to be unique across folders, and `InteractiveTable`'s underlying
+  // `react-table` requires a unique `id` per row — using the title would collapse
+  // duplicate-name rows into a single row, regressing the original raw-<table>
+  // behavior which keyed rows by `dash-title-${i}`. The connected-dashboards API
+  // does not currently surface dashboard UIDs for this list, so the array index is
+  // the most stable available identifier.
+  const tableData = useMemo<ConnectedDashboardRow[]>(
+    () => dashboardTitles.map((name, index) => ({ id: String(index), name })),
+    [dashboardTitles]
+  );
+  const columns = useMemo<Array<Column<ConnectedDashboardRow>>>(
     () => [
       {
         id: 'name',
@@ -99,7 +114,7 @@ const HasConnectedDashboards: FC<{ dashboardTitles: string[] }> = ({ dashboardTi
         <strong>{message}</strong>
         {' Remove the library panel from the dashboards listed below and retry.'}
       </p>
-      <InteractiveTable columns={columns} data={tableData} getRowId={(row) => row.name} />
+      <InteractiveTable columns={columns} data={tableData} getRowId={(row) => row.id} />
     </div>
   );
 };
