@@ -44,6 +44,7 @@ export const ValueMappingsEditor = memo((props: Props) => {
 
   return (
     <Stack direction="column">
+      {/* Design system gap: This compact table uses non-uniform columns (color and icon cells appear/disappear per-row based on row.result.color and showIconPicker), which InteractiveTable's uniform-column schema does not support without altering visual output. Kept as raw <table> per refactor protocol (AAP §0.4.4). */}
       <table className={styles.compactTable}>
         <tbody>
           {rows.map((row, rowIndex) => (
