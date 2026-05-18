@@ -66,7 +66,7 @@ export const ServiceAccountProfileRow = ({ label, value, inputType, disabled, on
       <td>
         <Label htmlFor={inputId}>{label}</Label>
       </td>
-      <td className="width-25" colSpan={2}>
+      <td className={styles.cellWidth} colSpan={2}>
         {!disabled && isEditing ? (
           <Input
             id={inputId}
@@ -103,6 +103,9 @@ const getStyles = (theme: GrafanaTheme2) => {
   return {
     disabled: css({
       color: theme.colors.text.secondary,
+    }),
+    cellWidth: css({
+      width: theme.spacing(50),
     }),
   };
 };
