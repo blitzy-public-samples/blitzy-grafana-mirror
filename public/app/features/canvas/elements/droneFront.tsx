@@ -1,4 +1,5 @@
-import { css } from '@emotion/css';
+import { css, cx } from '@emotion/css';
+import { useMemo } from 'react';
 
 import { type GrafanaTheme2 } from '@grafana/data';
 import { t } from '@grafana/i18n';
@@ -22,13 +23,17 @@ const DroneFrontDisplay = ({ data }: CanvasElementProps<DroneFrontConfig, DroneF
 
   const droneFrontTransformStyle = `rotate(${data?.rollAngle ? data.rollAngle : 0}deg)`;
 
+  const droneFrontTransformClass = useMemo(
+    () => css({ transform: droneFrontTransformStyle }),
+    [droneFrontTransformStyle]
+  );
+
   return (
     <svg
-      className={styles.droneFront}
+      className={cx(styles.droneFront, droneFrontTransformClass)}
       xmlns="http://www.w3.org/2000/svg"
       xmlnsXlink="http://www.w3.org/1999/xlink"
       viewBox="0 0 1300 290"
-      style={{ transform: droneFrontTransformStyle, stroke: defaultBgColor }}
     >
       <g className="arms" stroke={defaultBgColor} strokeWidth="28px">
         <line x1="510" x2="320" y1="100" y2="150" />
@@ -123,6 +128,7 @@ export const droneFrontItem: CanvasElementItem = {
 
 const getStyles = (theme: GrafanaTheme2) => ({
   droneFront: css({
+    stroke: defaultBgColor,
     // TODO: figure out what styles to apply when prefers-reduced-motion is set
     // eslint-disable-next-line @grafana/no-unreduced-motion
     transition: 'transform 0.4s',
