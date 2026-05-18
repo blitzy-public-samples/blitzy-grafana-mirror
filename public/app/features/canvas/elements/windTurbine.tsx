@@ -1,4 +1,5 @@
-import { css } from '@emotion/css';
+import { css, cx } from '@emotion/css';
+import { useMemo } from 'react';
 
 import { type GrafanaTheme2, type LinkModel } from '@grafana/data';
 import { t } from '@grafana/i18n';
@@ -23,8 +24,17 @@ const WindTurbineDisplay = ({ data }: CanvasElementProps<WindTurbineConfig, Wind
 
   const windTurbineAnimation = `spin ${data?.rpm ? 60 / Math.abs(data.rpm) : 0}s linear infinite`;
 
+  const windTurbineAnimationClass = useMemo(
+    () =>
+      css({
+        // eslint-disable-next-line @grafana/no-unreduced-motion -- canvas wind turbine blade animation is essential to the visualization; the parent canvas panel surfaces RPM via scalar dimension and motion is the intended user-facing rendering
+        animation: windTurbineAnimation,
+      }),
+    [windTurbineAnimation]
+  );
+
   return (
-    <svg viewBox="0 0 189.326 283.989" preserveAspectRatio="xMidYMid meet" style={{ fill: defaultBgColor }}>
+    <svg viewBox="0 0 189.326 283.989" preserveAspectRatio="xMidYMid meet" className={styles.windTurbineRoot}>
       <symbol id="blade">
         <path
           fill="#e6e6e6"
@@ -55,7 +65,7 @@ const WindTurbineDisplay = ({ data }: CanvasElementProps<WindTurbineConfig, Wind
           <circle id="nacelle" fill="#e6e6e6" cx="36.54" cy="12" r="11.93" />
           <circle id="gearbox" fill="none" stroke="#d0d6d7" strokeWidth="2.75" cx="36.538" cy="11.999" r="5.8" />
         </g>
-        <g className={styles.blade} style={{ animation: windTurbineAnimation }}>
+        <g className={cx(styles.blade, windTurbineAnimationClass)}>
           <use id="blade1" href="#blade" x="83.24" y="0" />
           <use id="blade2" href="#blade" x="83.24" y="0" transform="rotate(120 94.663 94.663)" />
           <use id="blade3" href="#blade" x="83.24" y="0" transform="rotate(-120 94.663 94.663)" />
@@ -118,6 +128,9 @@ export const windTurbineItem: CanvasElementItem = {
 };
 
 const getStyles = (theme: GrafanaTheme2) => ({
+  windTurbineRoot: css({
+    fill: defaultBgColor,
+  }),
   blade: css({
     transformOrigin: '94.663px 94.663px',
     transform: 'rotate(15deg)',
