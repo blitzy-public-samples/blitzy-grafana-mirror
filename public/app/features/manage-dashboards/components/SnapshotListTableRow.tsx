@@ -1,6 +1,7 @@
 import { css } from '@emotion/css';
 import Skeleton from 'react-loading-skeleton';
 
+import { type GrafanaTheme2 } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
 import { Button, LinkButton, useStyles2 } from '@grafana/ui';
 import { type SkeletonComponent, attachSkeleton } from '@grafana/ui/unstable';
@@ -14,6 +15,7 @@ export interface Props {
 }
 
 const SnapshotListTableRowComponent = ({ snapshot, onRemove }: Props) => {
+  const styles = useStyles2(getStyles);
   const url = snapshot.externalUrl || snapshot.url;
   const hasDeletePermission = contextSrv.hasPermission(AccessControlAction.SnapshotsDelete);
   const deleteTooltip = hasDeletePermission
@@ -29,17 +31,17 @@ const SnapshotListTableRowComponent = ({ snapshot, onRemove }: Props) => {
       </td>
       <td>
         {snapshot.external && (
-          <span className="query-keyword">
+          <span className={styles.queryKeyword}>
             <Trans i18nKey="snapshot.external-badge">External</Trans>
           </span>
         )}
       </td>
-      <td className="text-center">
+      <td className={styles.textCenter}>
         <LinkButton href={url} variant="secondary" size="sm" icon="eye">
           <Trans i18nKey="snapshot.view-button">View</Trans>
         </LinkButton>
       </td>
-      <td className="text-right">
+      <td className={styles.textRight}>
         <Button
           variant="destructive"
           size="sm"
@@ -75,6 +77,19 @@ const SnapshotListTableRowSkeleton: SkeletonComponent = ({ rootProps }) => {
 };
 
 export const SnapshotListTableRow = attachSkeleton(SnapshotListTableRowComponent, SnapshotListTableRowSkeleton);
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  queryKeyword: css({
+    fontWeight: theme.typography.fontWeightMedium,
+    color: theme.colors.primary.text,
+  }),
+  textCenter: css({
+    textAlign: 'center',
+  }),
+  textRight: css({
+    textAlign: 'right',
+  }),
+});
 
 const getSkeletonStyles = () => ({
   blockSkeleton: css({
