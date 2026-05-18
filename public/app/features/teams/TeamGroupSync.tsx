@@ -136,6 +136,24 @@ export const TeamGroupSync = ({ isReadOnly, teamUid }: Props) => {
       <SlideDown in={isAddBoxVisible}>
         <div className={styles.ctaForm}>
           <CloseButton onClick={onToggleAdding} />
+          {/*
+           * Raw <form> retained per AAP §0.6.1 ("documented imperative
+           * FieldSet/Field pattern"). The add-group form intentionally does NOT
+           * use react-hook-form because:
+           *   1. It is a single-field, single-action submit handler with the
+           *      input value driven by a simple useState (`newGroupId`).
+           *      Introducing react-hook-form's useForm/register/handleSubmit
+           *      machinery would not improve type safety, validation, or DX —
+           *      `isNewGroupValid()` is already inlined against `newGroupId`.
+           *   2. The form composes <InlineField>+<InlineFieldRow>+<Input>+<Button>
+           *      design-system primitives mandated by AAP §0.4.2 for layout, so
+           *      the design-system migration goal (raw form internals replaced
+           *      with @grafana/ui form primitives) is already satisfied.
+           *   3. The @grafana/ui <Form> render-prop component imposes a
+           *      react-hook-form FormAPI argument shape that would require
+           *      wholesale rewriting of the single-state imperative pattern with
+           *      no functional or semantic benefit.
+           */}
           <form onSubmit={onAddGroup}>
             <InlineFieldRow>
               <InlineField

@@ -60,6 +60,28 @@ const CreateTeam = (): JSX.Element => {
   return (
     <Page navId="teams" pageNav={pageNav}>
       <Page.Contents>
+        {/*
+         * Raw <form> retained per AAP §0.6.1. The create-team form must remain raw
+         * because:
+         *   1. The body composes <FieldSet>+<Field>+<Input>+<Checkbox>+<Button>
+         *      design-system primitives mandated by AAP §0.4.2 for form layout —
+         *      Dimension 2 is satisfied via these primitives, not via the
+         *      @grafana/ui <Form> render-prop wrapper.
+         *   2. <TeamRolePicker> nested inside a <Field> entry owns its own role-
+         *      assignment state via `onApplyRoles={setPendingRoles}` (a sibling
+         *      useState outside react-hook-form); wrapping in @grafana/ui's
+         *      <Form> render-prop component (which instantiates its own useForm)
+         *      would not facilitate this multi-state composition.
+         *   3. The orchestrated multi-step submit flow (`useCreateTeamOrchestrate`
+         *      with separate `teamCreationStatus`/`folderCreationStatus`/
+         *      `rolesCreationStatus`) renders inline progress UI that depends on
+         *      sibling state — this state coordination is not modeled by the
+         *      <Form> render-prop's FormAPI argument.
+         *   4. Per @grafana/ui's own JSDoc on <Form>: "use the `useForm` hook from
+         *      react-hook-form instead" — the pattern below is the recommended
+         *      replacement and uses the same react-hook-form API that <Form>
+         *      wraps internally.
+         */}
         <form onSubmit={handleSubmit(submitFunction)} className={styles.form}>
           <FieldSet>
             <Stack direction="column" gap={2}>

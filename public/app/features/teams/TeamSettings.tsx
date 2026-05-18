@@ -50,6 +50,23 @@ const TeamSettings = ({ team }: Props) => {
 
   return (
     <Stack direction={'column'} gap={3}>
+      {/*
+       * Raw <form> retained per AAP §0.6.1. The team-settings form must remain raw
+       * because:
+       *   1. The body composes <FieldSet>+<Field>+<Input>+<Button> design-system
+       *      primitives mandated by AAP §0.4.2 for form layout — Dimension 2 is
+       *      satisfied via these primitives, not via the @grafana/ui <Form>
+       *      render-prop wrapper.
+       *   2. <TeamRolePicker> nested inside one of the <Field> entries owns its
+       *      own internal RTK Query state for role assignments and does not
+       *      participate in the parent useForm; wrapping in @grafana/ui's <Form>
+       *      render-prop component (which instantiates its own useForm) would
+       *      duplicate form state machinery without functional benefit.
+       *   3. Per @grafana/ui's own JSDoc on <Form>: "use the `useForm` hook from
+       *      react-hook-form instead" — the pattern below is the recommended
+       *      replacement and uses the same react-hook-form API that <Form>
+       *      wraps internally.
+       */}
       <form onSubmit={handleSubmit(onSubmit)} className={styles.form}>
         <FieldSet label={t('teams.team-settings.label-team-details', 'Team details')}>
           <Stack direction="column" gap={2}>
