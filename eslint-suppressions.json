@@ -1991,9 +1991,6 @@
   "public/app/features/plugins/datasource_srv.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 3
-    },
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
     }
   },
   "public/app/features/plugins/sandbox/distortions.ts": {

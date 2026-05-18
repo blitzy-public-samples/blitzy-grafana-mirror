@@ -2,6 +2,7 @@ import {
   AppEvents,
   DataSourceApi,
   type DataSourceInstanceSettings,
+  type DataSourcePluginMeta,
   type DataSourceRef,
   type ScopedVars,
   isObject,
@@ -230,15 +231,25 @@ export class DatasourceSrv implements DataSourceService {
         instance.userStorage = new UserStorage(instanceSettings.type);
       }
 
-      // Some old plugins does not extend DataSourceApi so we need to manually patch them
+      // Some old plugins does not extend DataSourceApi so we need to manually patch them.
+      // The base DataSourceApi has these fields as `readonly`, so we bind the instance to
+      // a typed alias that restates the same fields as writable, which lets us assign to them
+      // without a cast.
       if (!(instance instanceof DataSourceApi)) {
-        const anyInstance: any = instance;
-        anyInstance.name = instanceSettings.name;
-        anyInstance.id = instanceSettings.id;
-        anyInstance.type = instanceSettings.type;
-        anyInstance.meta = instanceSettings.meta;
-        anyInstance.uid = instanceSettings.uid;
-        anyInstance.getRef = DataSourceApi.prototype.getRef;
+        const patchableInstance: {
+          name: string;
+          id?: number;
+          type: string;
+          meta: DataSourcePluginMeta;
+          uid: string;
+          getRef: () => DataSourceRef;
+        } = instance;
+        patchableInstance.name = instanceSettings.name;
+        patchableInstance.id = instanceSettings.id;
+        patchableInstance.type = instanceSettings.type;
+        patchableInstance.meta = instanceSettings.meta;
+        patchableInstance.uid = instanceSettings.uid;
+        patchableInstance.getRef = DataSourceApi.prototype.getRef;
       }
 
       // store in instance cache
