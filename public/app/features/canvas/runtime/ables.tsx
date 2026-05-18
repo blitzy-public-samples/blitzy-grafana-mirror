@@ -34,6 +34,13 @@ export const settingsViewable = (scene: Scene) => ({
 
     const rect = moveable.getRect();
     return (
+      // Design system gap: this is a Moveable library "able" render descriptor that receives
+      // the library's internal React reference (NOT the standard React import). It is invoked
+      // by Moveable on every drag/resize/rotate frame, and the styles depend on per-frame
+      // runtime rect measurements (rect.width, rect.height) from moveable.getRect(). The
+      // useStyles2 hook is unavailable here (this is not a React component); a static
+      // module-level css() class would be insufficient because the position values change
+      // continuously during interaction. Inline style is the correct and minimal pattern.
       <div
         key={'settings-viewable'}
         className={'moveable-settings'}
@@ -69,6 +76,9 @@ export const dimensionViewable = {
   render(moveable: MoveableManagerInterface<unknown, unknown>, React: Renderer) {
     const rect = moveable.getRect();
     return (
+      // Design system gap: same Moveable library "able" pattern as settingsViewable above.
+      // Position values depend on per-frame runtime rect measurements; useStyles2 is
+      // unavailable outside React components. Inline style is the correct minimal pattern.
       // eslint-disable-next-line @grafana/i18n/no-untranslated-strings
       <div
         key={'dimension-viewable'}
@@ -100,6 +110,13 @@ export const constraintViewable = (scene: Scene) => ({
   props: [],
   events: [],
   render(moveable: MoveableManagerInterface<unknown, unknown>, React: Renderer) {
+    // Design system gap: Moveable library "able" render descriptor. All inline styles in this
+    // function depend on runtime rect measurements (rect.width, rect.height) from
+    // moveable.getRect() and a hardcoded constraint-line border ('1px dashed #4af'). The
+    // function uses Moveable's internal React (the React: Renderer param), not the standard
+    // React, so hooks like useStyles2 are unavailable. The borderStyle is intentionally a
+    // raw string literal for moveable's React.createElement to consume directly. Inline style
+    // is the correct minimal pattern for this library integration.
     const rect = moveable.getRect();
     const targetElement = findElementByTarget(moveable.state.target!, scene.root.elements);
 
