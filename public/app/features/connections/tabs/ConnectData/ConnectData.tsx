@@ -6,6 +6,7 @@ import { PluginType, type GrafanaTheme2, type SelectableValue } from '@grafana/d
 import { Trans, t } from '@grafana/i18n';
 import { locationSearchToObject, reportInteraction } from '@grafana/runtime';
 import { LoadingPlaceholder, EmptyState, Field, RadioButtonGroup, Tooltip, Combobox, useStyles2 } from '@grafana/ui';
+import { extractErrorMessage } from 'app/api/utils';
 import { useQueryParams } from 'app/core/hooks/useQueryParams';
 import { contextSrv } from 'app/core/services/context_srv';
 import { HorizontalGroup } from 'app/features/plugins/admin/components/HorizontalGroup';
@@ -219,8 +220,16 @@ export function AddNewConnection() {
         {isLoading ? (
           <LoadingPlaceholder text={t('common.loading', 'Loading...')} />
         ) : !!error ? (
-          <Trans i18nKey="alerting.policies.update-errors.error-code" values={{ error: error.message }}>
-            Error message: "{{ error: error.message }}"
+          // `error` from useGetAll is typed `unknown` (RequestInfo.error?: unknown
+          // — see public/app/features/plugins/admin/types.ts). Narrow via the
+          // shared `extractErrorMessage` helper rather than asserting `as Error`,
+          // because the plugins-admin slice can also reject with non-Error values
+          // (e.g., RTK Query FetchBaseQueryError, plain strings).
+          <Trans
+            i18nKey="alerting.policies.update-errors.error-code"
+            values={{ error: extractErrorMessage(error, '') }}
+          >
+            Error message: "{{ error: extractErrorMessage(error, '') }}"
           </Trans>
         ) : (
           <>
