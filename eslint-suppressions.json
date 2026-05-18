@@ -1846,12 +1846,6 @@
   "public/app/features/inspector/QueryInspector.tsx": {
     "@grafana/no-aria-label-selectors": {
       "count": 2
-    },
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    },
-    "react-prefer-function-component/react-prefer-function-component": {
-      "count": 1
     }
   },
   "public/app/features/invites/SignupInvited.tsx": {
