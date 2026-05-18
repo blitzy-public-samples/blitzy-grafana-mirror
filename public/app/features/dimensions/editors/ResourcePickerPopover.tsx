@@ -90,15 +90,22 @@ export const ResourcePickerPopover = (props: Props) => {
       <section ref={ref} {...overlayProps} {...dialogProps}>
         <div className={styles.resourcePickerPopover}>
           <div className={styles.resourcePickerPopoverTabs}>
-            <button
+            <Button
+              variant="secondary"
+              fill="text"
               className={getTabClassName(PickerTabType.Folder)}
               onClick={() => setActivePicker(PickerTabType.Folder)}
             >
               <Trans i18nKey="dimensions.resource-picker-popover.folder">Folder</Trans>
-            </button>
-            <button className={getTabClassName(PickerTabType.URL)} onClick={() => setActivePicker(PickerTabType.URL)}>
+            </Button>
+            <Button
+              variant="secondary"
+              fill="text"
+              className={getTabClassName(PickerTabType.URL)}
+              onClick={() => setActivePicker(PickerTabType.URL)}
+            >
               <Trans i18nKey="dimensions.resource-picker-popover.url">URL</Trans>
-            </button>
+            </Button>
           </div>
           <div className={styles.resourcePickerPopoverContent}>
             {renderPicker()}
