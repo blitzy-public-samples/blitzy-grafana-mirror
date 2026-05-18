@@ -2,7 +2,7 @@ import { type ReactNode, useCallback } from 'react';
 
 import { DataFrameView, toDataFrame } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
-import { Button, EmptyState } from '@grafana/ui';
+import { Box, Button, EmptyState } from '@grafana/ui';
 import { useKeyNavigationListener } from 'app/features/search/hooks/useSearchKeyboardSelection';
 import { type SearchResultsProps, SearchResultsTable } from 'app/features/search/page/components/SearchResultsTable';
 import { type SearchStateManager } from 'app/features/search/state/SearchStateManager';
@@ -121,7 +121,7 @@ export function SearchView({
       />
     );
 
-    return <div style={{ width }}>{emptyState}</div>;
+    return <Box width={`${width}px`}>{emptyState}</Box>;
   }
 
   const canSelect = canSelectItems(permissions);
