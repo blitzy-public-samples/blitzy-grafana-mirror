@@ -24,7 +24,7 @@ export const standardAnnotationSupport: AnnotationSupport = {
   /**
    * Assume the stored value is standard model.
    */
-  prepareAnnotation: (json: any) => {
+  prepareAnnotation: (json: AnnotationQuery) => {
     if (isString(json?.query)) {
       const { query, ...rest } = json;
       return {
@@ -163,6 +163,7 @@ const alertEventAndAnnotationFields: AnnotationFieldInfo[] = [
   { key: 'email' },
   { key: 'prevState' },
   { key: 'newState' },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 'data' is a runtime field populated by alert-event processing but not declared in @grafana/data's AnnotationEvent interface. Replacing this cast with `as keyof AnnotationEvent` breaks the TypeScript build by collapsing array-element contextual narrowing and exposing pre-existing sibling gaps (e.g. 'prevState'), and augmenting @grafana/data is out of scope for this refactor.
   { key: 'data' as any },
   { key: 'panelId' },
   { key: 'alertId' },
