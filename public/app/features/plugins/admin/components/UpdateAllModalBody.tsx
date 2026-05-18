@@ -1,9 +1,10 @@
 import { css } from '@emotion/css';
+import { useMemo } from 'react';
 
 import { type GrafanaTheme2 } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
 import { config } from '@grafana/runtime';
-import { Checkbox, EmptyState, Icon, Spinner, Tooltip, useStyles2 } from '@grafana/ui';
+import { Checkbox, type Column, EmptyState, Icon, InteractiveTable, Spinner, Tooltip, useStyles2 } from '@grafana/ui';
 
 import { type CatalogPlugin } from '../types';
 
@@ -13,32 +14,10 @@ type UpdateError = {
 };
 
 const getStyles = (theme: GrafanaTheme2) => ({
-  table: css({
-    marginTop: theme.spacing(2),
-    width: '100%',
-    borderCollapse: 'collapse',
-  }),
-  tableRow: css({
-    borderBottom: `1px solid ${theme.colors.border.weak}`,
-    td: {
-      paddingRight: theme.spacing(1),
-    },
-  }),
   icon: css({
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
-  }),
-  header: css({
-    textAlign: 'left',
-    padding: theme.spacing(1),
-    borderBottom: `2px solid ${theme.colors.border.strong}`,
-    th: {
-      paddingRight: theme.spacing(1),
-    },
-  }),
-  data: css({
-    padding: '10px',
   }),
   footer: css({
     fontSize: theme.typography.bodySmall.fontSize,
@@ -123,6 +102,52 @@ export const UpdateModalBody = ({
 }: Props) => {
   const styles = useStyles2(getStyles);
 
+  const columns = useMemo<Array<Column<CatalogPlugin>>>(
+    () => [
+      {
+        id: 'update',
+        header: () => <Trans i18nKey="plugins.catalog.update-all.update-header">Update</Trans>,
+        cell: ({ row }) => (
+          <Checkbox
+            onChange={() => onCheckboxChange(row.original.id)}
+            value={selectedPlugins?.has(row.original.id)}
+            disabled={!pluginsNotInstalled.has(row.original.id)}
+          />
+        ),
+      },
+      {
+        id: 'name',
+        header: () => <Trans i18nKey="plugins.catalog.update-all.name-header">Name</Trans>,
+        cell: ({ row }) => row.original.name,
+      },
+      {
+        id: 'installedVersion',
+        header: () => <Trans i18nKey="plugins.catalog.update-all.installed-header">Installed</Trans>,
+        cell: ({ row }) => row.original.installedVersion,
+      },
+      {
+        id: 'latestVersion',
+        header: () => <Trans i18nKey="plugins.catalog.update-all.available-header">Available</Trans>,
+        cell: ({ row }) => row.original.latestVersion,
+      },
+      {
+        id: 'status',
+        cell: ({ row }) => (
+          <div className={styles.icon}>
+            <StatusIcon
+              id={row.original.id}
+              inProgress={inProgress}
+              isSelected={selectedPlugins?.has(row.original.id) ?? false}
+              isInstalled={!pluginsNotInstalled.has(row.original.id)}
+              errorMap={errorMap}
+            />
+          </div>
+        ),
+      },
+    ],
+    [onCheckboxChange, selectedPlugins, pluginsNotInstalled, inProgress, errorMap, styles.icon]
+  );
+
   const numberInstalled = plugins.length - pluginsNotInstalled.size;
   const installationFinished = plugins.length !== pluginsNotInstalled.size && !inProgress;
 
@@ -139,50 +164,7 @@ export const UpdateModalBody = ({
             <Trans i18nKey="plugins.catalog.update-all.header">The following plugins have update available</Trans>
           </div>
           <div className={styles.tableContainer}>
-            <table className={styles.table}>
-              <thead className={styles.header}>
-                <tr>
-                  <th>
-                    <Trans i18nKey="plugins.catalog.update-all.update-header">Update</Trans>
-                  </th>
-                  <th>
-                    <Trans i18nKey="plugins.catalog.update-all.name-header">Name</Trans>
-                  </th>
-                  <th>
-                    <Trans i18nKey="plugins.catalog.update-all.installed-header">Installed</Trans>
-                  </th>
-                  <th>
-                    <Trans i18nKey="plugins.catalog.update-all.available-header">Available</Trans>
-                  </th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {plugins.map(({ id, name, installedVersion, latestVersion }: CatalogPlugin) => (
-                  <tr key={id} className={styles.tableRow}>
-                    <td>
-                      <Checkbox
-                        onChange={() => onCheckboxChange(id)}
-                        value={selectedPlugins?.has(id)}
-                        disabled={!pluginsNotInstalled.has(id)}
-                      />
-                    </td>
-                    <td>{name}</td>
-                    <td>{installedVersion}</td>
-                    <td>{latestVersion}</td>
-                    <td className={styles.icon}>
-                      <StatusIcon
-                        id={id}
-                        inProgress={inProgress}
-                        isSelected={selectedPlugins?.has(id) ?? false}
-                        isInstalled={!pluginsNotInstalled.has(id)}
-                        errorMap={errorMap}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <InteractiveTable<CatalogPlugin> columns={columns} data={plugins} getRowId={(p) => p.id} />
           </div>
           {numberInstalled > 0 && installationFinished && (
             <div className={styles.pluginsInstalled}>
