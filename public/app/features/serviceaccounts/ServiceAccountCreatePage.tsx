@@ -128,6 +128,7 @@ export const ServiceAccountCreatePage = ({}: Props): JSX.Element => {
       <Page.Contents>
         {config.featureToggles.rolePickerDrawer && (
           <FormProvider {...methods}>
+            {/* Design system gap: this site uses react-hook-form's useForm + FormProvider directly (canonical "new code" pattern per @grafana/ui Form JSDoc); the @grafana/ui Form component is a render-prop wrapper that would conflict with FormProvider, so keeping raw <form> per refactor protocol */}
             <form>
               <FieldSet>
                 <Field
