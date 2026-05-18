@@ -1021,11 +1021,6 @@
       "count": 1
     }
   },
-  "public/app/features/annotations/events_processing.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "public/app/features/annotations/standardAnnotationSupport.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1
