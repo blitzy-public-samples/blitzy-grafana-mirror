@@ -1,9 +1,9 @@
-import { css, cx } from '@emotion/css';
-import type { JSX } from 'react';
+import { css } from '@emotion/css';
+import { useMemo, type JSX } from 'react';
 
 import { dateTimeFormat, type GrafanaTheme2, type TimeZone, dateTimeFormatTimeAgo } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
-import { DeleteButton, Icon, Tooltip, useStyles2, useTheme2 } from '@grafana/ui';
+import { type CellProps, type Column, DeleteButton, Icon, InteractiveTable, Tooltip, useStyles2 } from '@grafana/ui';
 import { type ApiKey } from 'app/types/apiKeys';
 
 interface Props {
@@ -14,58 +14,77 @@ interface Props {
 }
 
 export const ServiceAccountTokensTable = ({ tokens, timeZone, tokenActionsDisabled, onDelete }: Props): JSX.Element => {
-  const theme = useTheme2();
+  const styles = useStyles2(getStyles);
 
-  const styles = getStyles(theme);
+  const columns: Array<Column<ApiKey>> = useMemo(
+    () => [
+      {
+        id: 'name',
+        header: t('serviceaccounts.service-account-tokens-table.name', 'Name'),
+        cell: ({ row: { original } }: CellProps<ApiKey>) => (
+          <span className={styles.tableRow(original.hasExpired || original.isRevoked)}>{original.name}</span>
+        ),
+      },
+      {
+        id: 'expiration',
+        header: t('serviceaccounts.service-account-tokens-table.expires', 'Expires'),
+        cell: ({ row: { original } }: CellProps<ApiKey>) => (
+          <span className={styles.tableRow(original.hasExpired || original.isRevoked)}>
+            <TokenExpiration timeZone={timeZone} token={original} />
+          </span>
+        ),
+      },
+      {
+        id: 'created',
+        header: t('serviceaccounts.service-account-tokens-table.created', 'Created'),
+        cell: ({ row: { original } }: CellProps<ApiKey>) => (
+          <span className={styles.tableRow(original.hasExpired || original.isRevoked)}>
+            {formatDate(timeZone, original.created)}
+          </span>
+        ),
+      },
+      {
+        id: 'lastUsedAt',
+        header: t('serviceaccounts.service-account-tokens-table.last-used-at', 'Last used at'),
+        cell: ({ row: { original } }: CellProps<ApiKey>) => (
+          <span className={styles.tableRow(original.hasExpired || original.isRevoked)}>
+            {formatLastUsedAtDate(timeZone, original.lastUsedAt)}
+          </span>
+        ),
+      },
+      {
+        id: 'state',
+        header: '',
+        disableGrow: true,
+        cell: ({ row: { original } }: CellProps<ApiKey>) => (
+          <div className={styles.stateCell}>{original.isRevoked && <TokenRevoked />}</div>
+        ),
+      },
+      {
+        id: 'actions',
+        header: '',
+        disableGrow: true,
+        cell: ({ row: { original } }: CellProps<ApiKey>) => (
+          <DeleteButton
+            aria-label={t(
+              'serviceaccounts.service-account-tokens-table.aria-label-delete-button',
+              'Delete service account token {{key}}',
+              { key: original.name }
+            )}
+            size="sm"
+            onConfirm={() => onDelete(original)}
+            disabled={tokenActionsDisabled}
+          />
+        ),
+      },
+    ],
+    [styles, timeZone, tokenActionsDisabled, onDelete]
+  );
 
   return (
-    <table className={cx(styles.section, 'filter-table')}>
-      <thead>
-        <tr>
-          <th>
-            <Trans i18nKey="serviceaccounts.service-account-tokens-table.name">Name</Trans>
-          </th>
-          <th>
-            <Trans i18nKey="serviceaccounts.service-account-tokens-table.expires">Expires</Trans>
-          </th>
-          <th>
-            <Trans i18nKey="serviceaccounts.service-account-tokens-table.created">Created</Trans>
-          </th>
-          <th>
-            <Trans i18nKey="serviceaccounts.service-account-tokens-table.last-used-at">Last used at</Trans>
-          </th>
-          <th />
-          <th />
-        </tr>
-      </thead>
-      <tbody>
-        {tokens.map((key) => {
-          return (
-            <tr key={key.id} className={styles.tableRow(key.hasExpired || key.isRevoked)}>
-              <td>{key.name}</td>
-              <td>
-                <TokenExpiration timeZone={timeZone} token={key} />
-              </td>
-              <td>{formatDate(timeZone, key.created)}</td>
-              <td>{formatLastUsedAtDate(timeZone, key.lastUsedAt)}</td>
-              <td className="width-1 text-center">{key.isRevoked && <TokenRevoked />}</td>
-              <td>
-                <DeleteButton
-                  aria-label={t(
-                    'serviceaccounts.service-account-tokens-table.aria-label-delete-button',
-                    'Delete service account token {{key}}',
-                    { key: key.name }
-                  )}
-                  size="sm"
-                  onConfirm={() => onDelete(key)}
-                  disabled={tokenActionsDisabled}
-                />
-              </td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
+    <div className={styles.section}>
+      <InteractiveTable columns={columns} data={tokens} getRowId={(token) => String(token.id)} />
+    </div>
   );
 };
 
@@ -170,5 +189,8 @@ const getStyles = (theme: GrafanaTheme2) => ({
   }),
   section: css({
     marginBottom: theme.spacing(4),
+  }),
+  stateCell: css({
+    textAlign: 'center',
   }),
 });
