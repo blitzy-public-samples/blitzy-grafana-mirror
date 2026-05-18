@@ -3,7 +3,7 @@ import { useState } from 'react';
 
 import { type GrafanaTheme2 } from '@grafana/data';
 import { Trans } from '@grafana/i18n';
-import { Box, Text, useStyles2 } from '@grafana/ui';
+import { Box, Button, Text, useStyles2 } from '@grafana/ui';
 
 interface MessageListProps {
   messages: string[];
@@ -39,14 +39,17 @@ export function MessageList({ messages, variant }: MessageListProps) {
                   <span className="sr-only">
                     <Trans i18nKey="provisioning.message.truncated">Message truncated</Trans>
                   </span>
-                  <button
+                  <Button
                     type="button"
+                    variant="secondary"
+                    fill="text"
+                    size="sm"
                     className={cx(styles.showMore, styles.showMoreInline)}
                     onClick={handleExpand}
                     aria-expanded={false}
                   >
                     <Trans i18nKey="provisioning.message.show-more">show more</Trans>
-                  </button>
+                  </Button>
                 </>
               )}
             </li>
@@ -55,9 +58,17 @@ export function MessageList({ messages, variant }: MessageListProps) {
       </div>
       {showFull && hasMultipleMessages && (
         <Box paddingLeft={3} paddingTop={0.5}>
-          <button type="button" className={styles.showMore} onClick={handleCollapse} aria-expanded={true}>
+          <Button
+            type="button"
+            variant="secondary"
+            fill="text"
+            size="sm"
+            className={styles.showMore}
+            onClick={handleCollapse}
+            aria-expanded={true}
+          >
             <Trans i18nKey="provisioning.message.show-less">show less</Trans>
-          </button>
+          </Button>
         </Box>
       )}
     </>
@@ -83,14 +94,23 @@ const getStyles = (theme: GrafanaTheme2) => ({
     paddingLeft: theme.spacing(3),
     listStyle: 'disc',
   }),
+  // The "show more"/"show less" affordance is an inline-text disclosure widget embedded in a
+  // paragraph (e.g., "First message… show more"). @grafana/ui <Button fill="text" size="sm"> is
+  // the prescribed mapping for inline-styled buttons (AAP §0.4.2: "Raw <button> with secondary
+  // / no-styling → Button variant=secondary or fill=text"), and the overrides below restore
+  // inline-text dimensions (auto height, zero padding, inherited line-height) and the legacy
+  // underline so the visual is pixel-equivalent to the original raw <button>.
   showMore: css({
-    backgroundColor: 'transparent',
-    border: 'none',
+    height: 'auto',
+    minHeight: 0,
     padding: 0,
     margin: 0,
+    lineHeight: 'inherit',
+    fontSize: 'inherit',
+    fontWeight: 'inherit',
     textDecoration: 'underline',
-    cursor: 'pointer',
     color: theme.colors.text.primary,
+    verticalAlign: 'baseline',
   }),
   showMoreInline: css({
     marginLeft: theme.spacing(0.5),
