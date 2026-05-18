@@ -60,7 +60,7 @@ const CreateTeam = (): JSX.Element => {
   return (
     <Page navId="teams" pageNav={pageNav}>
       <Page.Contents>
-        <form onSubmit={handleSubmit(submitFunction)} style={{ maxWidth: '600px' }}>
+        <form onSubmit={handleSubmit(submitFunction)} className={styles.form}>
           <FieldSet>
             <Stack direction="column" gap={2}>
               <Field
@@ -165,6 +165,10 @@ const CreateTeam = (): JSX.Element => {
 };
 
 const getStyles = (theme: GrafanaTheme2) => ({
+  form: css({
+    maxWidth: theme.breakpoints.values.sm,
+    width: '100%',
+  }),
   statusSection: css({
     marginTop: theme.spacing(2),
   }),
