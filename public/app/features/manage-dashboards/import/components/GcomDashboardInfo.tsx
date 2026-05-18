@@ -1,6 +1,8 @@
-import { dateTimeFormat, textUtil } from '@grafana/data';
+import { css } from '@emotion/css';
+
+import { type GrafanaTheme2, dateTimeFormat, textUtil } from '@grafana/data';
 import { Trans } from '@grafana/i18n';
-import { Box, Legend, TextLink } from '@grafana/ui';
+import { Box, Legend, TextLink, useStyles2 } from '@grafana/ui';
 
 type Props = {
   gnetId: string | number | undefined;
@@ -17,6 +19,7 @@ function buildGcomDashboardUrl(gnetId: string | number | undefined): string {
 }
 
 export function GcomDashboardInfo({ gnetId, orgName, updatedAt }: Props) {
+  const styles = useStyles2(getStyles);
   return (
     <Box marginBottom={3}>
       <div>
@@ -26,24 +29,33 @@ export function GcomDashboardInfo({ gnetId, orgName, updatedAt }: Props) {
           </Trans>
         </Legend>
       </div>
-      <table className="filter-table form-inline">
-        <tbody>
-          <tr>
-            <td>
-              <Trans i18nKey="manage-dashboards.import-dashboard-overview-un-connected.published-by">
-                Published by
-              </Trans>
-            </td>
-            <td>{orgName}</td>
-          </tr>
-          <tr>
-            <td>
-              <Trans i18nKey="manage-dashboards.import-dashboard-overview-un-connected.updated-on">Updated on</Trans>
-            </td>
-            <td>{dateTimeFormat(updatedAt)}</td>
-          </tr>
-        </tbody>
-      </table>
+      <dl className={styles.metadata}>
+        <dt>
+          <Trans i18nKey="manage-dashboards.import-dashboard-overview-un-connected.published-by">
+            Published by
+          </Trans>
+        </dt>
+        <dd>{orgName}</dd>
+        <dt>
+          <Trans i18nKey="manage-dashboards.import-dashboard-overview-un-connected.updated-on">Updated on</Trans>
+        </dt>
+        <dd>{dateTimeFormat(updatedAt)}</dd>
+      </dl>
     </Box>
   );
 }
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  metadata: css({
+    display: 'grid',
+    gridTemplateColumns: 'auto 1fr',
+    columnGap: theme.spacing(2),
+    rowGap: theme.spacing(0.25),
+    margin: 0,
+    padding: 0,
+    'dt, dd': {
+      margin: 0,
+      padding: 0,
+    },
+  }),
+});
