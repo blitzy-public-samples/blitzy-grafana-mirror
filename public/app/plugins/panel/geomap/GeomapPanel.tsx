@@ -577,6 +577,28 @@ export const GeomapPanel = forwardRef<GeomapPanel, Props>(function GeomapPanel(p
     panel.setState({ legends: panel.getLegends() });
   }, [panel]);
 
+  // NOTE(modernization-2026): The default markers layer (./layers/data/markersLayer.tsx)
+  // instantiates an OpenLayers `WebGLPointsLayer`, which transitively constructs a
+  // `WebGLHelper`. In environments where WebGL is unavailable (e.g., HeadlessChrome
+  // launched without WebGL flags, GPU-blocklisted configurations, or certain CI
+  // runners), `canvas.getContext('webgl' | 'webgl2')` returns null and the
+  // `WebGLHelper` constructor crashes with `TypeError: Cannot read properties of
+  // null (reading 'canvas')` at the `const canvas = this.gl_.canvas;` line.
+  //
+  // This dependency on a functioning WebGL stack PRE-DATES the class→functional
+  // modernization (commit 4fca377810): it was introduced by commit f0a8e86c28
+  // ("Geomap: WebGL for Marker Layer", PR #95457). `git diff b10025b40d
+  // 4fca377810 -- public/app/plugins/panel/geomap/layers/data/markersLayer.tsx`
+  // returns empty — the modernization refactor did not touch the WebGL call site.
+  // Empirical verification: deploying a build from commit b10025b40d (class form,
+  // pre-modernization) into the same HeadlessChrome environment reproduces the
+  // identical crash at the WebGLHelper constructor.
+  //
+  // Per AAP §0.9.2.12 (MINIMAL CHANGE MANDATE), pre-existing bugs discovered
+  // during modernization are documented inline rather than fixed here. A proper
+  // remediation belongs in a separate effort that feature-detects WebGL
+  // availability before instantiating `WebGLPointsLayer`, or falls back to a
+  // non-WebGL renderer for the markers layer.
   /** Class.initMapAsync equivalent. */
   const initMapAsync = useCallback(async (div: HTMLDivElement | null): Promise<void> => {
     if (!div) {
