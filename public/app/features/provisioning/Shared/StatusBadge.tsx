@@ -1,8 +1,10 @@
+import { css } from '@emotion/css';
 import { useCallback } from 'react';
 
+import { type GrafanaTheme2 } from '@grafana/data';
 import { t } from '@grafana/i18n';
 import { locationService } from '@grafana/runtime';
-import { Badge, type BadgeColor, type IconName } from '@grafana/ui';
+import { Badge, type BadgeColor, type IconName, useStyles2 } from '@grafana/ui';
 import { type Repository } from 'app/api/clients/provisioning/v0alpha1';
 
 import { PROVISIONING_URL } from '../constants';
@@ -77,6 +79,7 @@ interface StatusBadgeProps {
 }
 
 export function StatusBadge({ repo, displayOnly = false }: StatusBadgeProps) {
+  const styles = useStyles2(getStyles);
   const handleClick = useCallback(() => {
     if (displayOnly || !repo?.metadata?.name) {
       return;
@@ -95,9 +98,21 @@ export function StatusBadge({ repo, displayOnly = false }: StatusBadgeProps) {
       color={color}
       icon={icon}
       text={text}
-      style={{ cursor: displayOnly ? 'default' : 'pointer' }}
+      // Migrated from inline style={{ cursor: ... }} per AAP Dimension 3 — `displayOnly` is the
+      // sole runtime input determining the cursor, so a binary class is sufficient and the
+      // theme-aware Emotion class is the prescribed migration target.
+      className={displayOnly ? styles.cursorDefault : styles.cursorPointer}
       tooltip={tooltip}
       onClick={handleClick}
     />
   );
 }
+
+const getStyles = (_theme: GrafanaTheme2) => ({
+  cursorDefault: css({
+    cursor: 'default',
+  }),
+  cursorPointer: css({
+    cursor: 'pointer',
+  }),
+});

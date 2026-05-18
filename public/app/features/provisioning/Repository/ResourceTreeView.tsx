@@ -81,6 +81,12 @@ export function ResourceTreeView({ repo }: ResourceTreeViewProps) {
           const iconName = getIconName(item.type);
           const link = getGrafanaLink(item);
 
+          // Dynamic style — `paddingLeft` is computed at render time from the runtime tree
+          // depth (`level` * 24px) to visually indent nested resources. Per AAP §0.5.3,
+          // useStyles2 is the prescribed migration target, but a per-row depth can't be
+          // expressed without generating a unique class per render. The static portion of
+          // the cell styling is already in styles.titleCell; only the runtime indentation
+          // remains as an inline style.
           return (
             <div className={styles.titleCell} style={{ paddingLeft: level * 24 }}>
               <Icon name={iconName} className={styles.icon} />

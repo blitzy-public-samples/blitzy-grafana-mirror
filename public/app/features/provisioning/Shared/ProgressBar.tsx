@@ -33,6 +33,14 @@ const ProgressBar = ({ progress, topBottomSpacing }: ProgressBarProps) => {
       aria-valuemin={0}
       aria-valuemax={100}
     >
+      {/*
+        Dynamic style — `width` is computed at render time from the `progress` prop (0–100). Per
+        AAP §0.5.3, `useStyles2` is the prescribed migration target for static inline styles, but
+        runtime-variable values like this cannot be expressed as a single Emotion class without
+        generating a unique class per render. The static portion (`height`, `background`,
+        `transition`) is already in getStyles via styles.filler / styles.fillerAnimated; only the
+        runtime-variable `width` remains as inline style.
+      */}
       <div className={shouldAnimate ? styles.fillerAnimated : styles.filler} style={{ width: `${progress}%` }} />
     </div>
   );

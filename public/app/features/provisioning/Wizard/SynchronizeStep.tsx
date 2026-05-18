@@ -1,10 +1,23 @@
+import { css } from '@emotion/css';
 import { useBooleanFlagValue } from '@openfeature/react-sdk';
 import { memo, useCallback, useEffect, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 
+import { type GrafanaTheme2 } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
 import { config } from '@grafana/runtime';
-import { Alert, Box, Button, Checkbox, Field, LoadingPlaceholder, Stack, Text, TextLink } from '@grafana/ui';
+import {
+  Alert,
+  Box,
+  Button,
+  Checkbox,
+  Field,
+  LoadingPlaceholder,
+  Stack,
+  Text,
+  TextLink,
+  useStyles2,
+} from '@grafana/ui';
 import { type Job } from 'app/api/clients/provisioning/v0alpha1';
 
 import { JobStatus } from '../Job/JobStatus';
@@ -27,6 +40,7 @@ export const SynchronizeStep = memo(function SynchronizeStep({
   isCancelling,
   goToStep,
 }: SynchronizeStepProps) {
+  const styles = useStyles2(getStyles);
   const { watch, register } = useFormContext<WizardFormData>();
   const { setStepStatusInfo } = useStepStatus();
   const [repoName = '', syncTarget, migrateResources] = watch([
@@ -150,7 +164,7 @@ export const SynchronizeStep = memo(function SynchronizeStep({
                 .
               </Trans>
             </Text>
-            <ul style={{ marginLeft: '16px', marginTop: 0, marginBottom: 0 }}>
+            <ul className={styles.alertList}>
               <li>
                 <Trans i18nKey="provisioning.wizard.alert-point-1">
                   Resources can still be created, edited, or deleted during this process, but changes may not be
@@ -251,4 +265,15 @@ export const SynchronizeStep = memo(function SynchronizeStep({
       </Field>
     </Stack>
   );
+});
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  // Migrated from inline style={{ marginLeft: '16px', marginTop: 0, marginBottom: 0 }} per AAP
+  // Dimension 3. 16px ≈ theme.spacing(2). The `marginTop`/`marginBottom: 0` overrides the
+  // browser default <ul> margins so the list visually hugs the surrounding Alert content.
+  alertList: css({
+    marginLeft: theme.spacing(2),
+    marginTop: 0,
+    marginBottom: 0,
+  }),
 });

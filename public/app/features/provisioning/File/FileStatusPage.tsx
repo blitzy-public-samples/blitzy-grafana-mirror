@@ -1,12 +1,24 @@
+import { css } from '@emotion/css';
 import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router';
 import { useParams } from 'react-router-dom-v5-compat';
 import AutoSizer from 'react-virtualized-auto-sizer';
 
-import { urlUtil } from '@grafana/data';
+import { type GrafanaTheme2, urlUtil } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
 import { isFetchError } from '@grafana/runtime';
-import { Alert, Button, CodeEditor, DeleteButton, LinkButton, Stack, Tab, TabContent, TabsBar } from '@grafana/ui';
+import {
+  Alert,
+  Button,
+  CodeEditor,
+  DeleteButton,
+  LinkButton,
+  Stack,
+  Tab,
+  TabContent,
+  TabsBar,
+  useStyles2,
+} from '@grafana/ui';
 import {
   type ResourceWrapper,
   useDeleteRepositoryFilesWithPathMutation,
@@ -73,6 +85,7 @@ interface Props {
 }
 
 function ResourceView({ wrap, repo, repoRef, tab, isReadOnlyRepo }: Props) {
+  const styles = useStyles2(getStyles);
   const isDashboard = wrap.resource?.type?.kind === 'Dashboard';
   const existingName = wrap.resource?.existing?.metadata?.name;
   const location = useLocation();
@@ -152,7 +165,12 @@ function ResourceView({ wrap, repo, repoRef, tab, isReadOnlyRepo }: Props) {
       </TabsBar>
       <TabContent>
         <div>
-          <div style={{ height: 700, marginBottom: 10 }}>
+          {/*
+            CodeEditor host requires a fixed height (700px) so AutoSizer can compute its own
+            dimensions for the JSON editor — migrated from inline style={{ height: 700,
+            marginBottom: 10 }} per AAP Dimension 3.
+          */}
+          <div className={styles.editorHost}>
             <AutoSizer disableWidth>
               {({ height }) => (
                 <CodeEditor
@@ -218,3 +236,11 @@ function ResourceView({ wrap, repo, repoRef, tab, isReadOnlyRepo }: Props) {
     </div>
   );
 }
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  // Editor host: fixed 700px height matches the legacy inline style; marginBottom = theme.spacing(1.25) ≈ 10px
+  editorHost: css({
+    height: 700,
+    marginBottom: theme.spacing(1.25),
+  }),
+});

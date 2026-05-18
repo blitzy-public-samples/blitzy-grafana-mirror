@@ -86,7 +86,10 @@ function HistoryView({ history, path, repo }: Props) {
           <Card.Description>
             <Stack>
               {item.authors.map((a) => (
-                <span key={a.username} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                // Replaces inline style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+                // with @grafana/ui <Stack> per AAP §0.5.3 (layout-only inline styles → Stack).
+                // Original gap of 4px maps to 0.5 spacing units (1 unit = 8px).
+                <Stack key={a.username} direction="row" alignItems="center" gap={0.5}>
                   {a.avatarURL && (
                     <UserIcon
                       userView={{
@@ -97,7 +100,7 @@ function HistoryView({ history, path, repo }: Props) {
                     />
                   )}
                   <a href={`https://github.com/${a.username}`}>{a.name}</a>
-                </span>
+                </Stack>
               ))}
             </Stack>
           </Card.Description>
