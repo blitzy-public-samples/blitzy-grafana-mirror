@@ -1,4 +1,4 @@
-import { PureComponent, type ReactElement } from 'react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState, type ReactElement } from 'react';
 import { lastValueFrom } from 'rxjs';
 
 import {
@@ -33,242 +33,251 @@ export interface Props {
   disableSavedQueries?: boolean;
 }
 
-interface State {
-  running?: boolean;
-  response?: AnnotationQueryResponse;
-  skipNextVerification?: boolean;
+export interface StandardAnnotationQueryEditorHandle {
+  onQueryReplace: (replacedQuery: DataQuery) => Promise<void>;
 }
 
-export default class StandardAnnotationQueryEditor extends PureComponent<Props, State> {
-  state: State = {};
+const StandardAnnotationQueryEditor = forwardRef<StandardAnnotationQueryEditorHandle, Props>(
+  function StandardAnnotationQueryEditor(props, ref) {
+    const { datasource, datasourceInstanceSettings, annotation, onChange, disableSavedQueries } = props;
 
-  componentDidMount() {
-    this.verifyDataSource();
-  }
+    const [running, setRunning] = useState<boolean>(false);
+    const [response, setResponse] = useState<AnnotationQueryResponse | undefined>(undefined);
+    // One-shot flag used to short-circuit the next verifyDataSource call after onQueryReplace.
+    // Stored in a ref because mutating it must not trigger a re-render and it is never read during render.
+    const skipNextVerificationRef = useRef<boolean>(false);
+    // Tracks whether the unified lifecycle effect has run at least once, so we can faithfully reproduce the
+    // original componentDidMount (unconditional) vs componentDidUpdate (guarded by !shouldUseLegacyRunner) split.
+    const hasMountedRef = useRef<boolean>(false);
 
-  componentDidUpdate(oldProps: Props) {
-    if (this.props.annotation !== oldProps.annotation && !shouldUseLegacyRunner(this.props.datasource)) {
-      this.verifyDataSource();
-    }
-  }
+    const onRunQuery = useCallback(async () => {
+      if (shouldUseLegacyRunner(datasource)) {
+        // In the new UI the running of query is done so the data can be mapped. In the legacy annotations this does
+        // not exist as the annotationQuery already returns annotation events which cannot be mapped. This means that
+        // right now running a query for data source with legacy runner does not make much sense.
+        return;
+      }
 
-  /**
-   * verifyDataSource() prepares the annotation and provides immediate query feedback:
-   * 1. Applies datasource-specific preparation (e.g., Prometheus moves expr to target field)
-   * 2. Updates annotation if preparation made changes
-   * 3. Runs query to show immediate results in the UI
-   */
-  verifyDataSource() {
-    const { datasource, annotation } = this.props;
+      const dashboard = getDashboardSrv().getCurrent();
+      if (!dashboard) {
+        return;
+      }
 
-    // Skip verification if we just did a saved query replacement to avoid double preparation
-    if (this.state.skipNextVerification) {
-      this.setState({ skipNextVerification: false });
-      this.onRunQuery();
-      return;
-    }
+      setRunning(true);
+      const newResponse = await lastValueFrom(
+        executeAnnotationQuery(
+          {
+            range: getTimeSrv().timeRange(),
+            panel: new PanelModel({}),
+            dashboard,
+          },
+          datasource,
+          annotation
+        )
+      );
+      setRunning(false);
+      setResponse(newResponse);
+    }, [datasource, annotation]);
 
-    // Always run prepareAnnotation to ensure proper query structure
-    // This is essential for datasources like Prometheus that need to format queries correctly
-    const processor = {
-      ...standardAnnotationSupport,
-      ...datasource.annotations,
+    /**
+     * verifyDataSource() prepares the annotation and provides immediate query feedback:
+     * 1. Applies datasource-specific preparation (e.g., Prometheus moves expr to target field)
+     * 2. Updates annotation if preparation made changes
+     * 3. Runs query to show immediate results in the UI
+     */
+    const verifyDataSource = useCallback(() => {
+      // Skip verification if we just did a saved query replacement to avoid double preparation
+      if (skipNextVerificationRef.current) {
+        skipNextVerificationRef.current = false;
+        onRunQuery();
+        return;
+      }
+
+      // Always run prepareAnnotation to ensure proper query structure
+      // This is essential for datasources like Prometheus that need to format queries correctly
+      const processor = {
+        ...standardAnnotationSupport,
+        ...datasource.annotations,
+      };
+
+      const fixed = processor.prepareAnnotation!(annotation);
+      // if datasource prepared annotation returns a different annotation(e.g., prometheus before had expr in the root level now it's saved in 'target'), update the annotation with that one
+      if (fixed !== annotation) {
+        onChange(fixed);
+      } else {
+        onRunQuery();
+      }
+    }, [datasource, annotation, onChange, onRunQuery]);
+
+    const onQueryChange = useCallback(
+      (target: DataQuery) => {
+        // if dealing with v2 dashboards
+        if (annotation.query && annotation.query.spec) {
+          target = {
+            ...annotation.query.spec,
+            ...target,
+          };
+        }
+        //target property is what ds query editor are using, but for v2 we also need to keep query in sync
+        onChange({
+          ...annotation,
+          // the query editor uses target, but the annotation in v2 uses query
+          // therefore we need to keep the target and query in sync
+          target,
+          ...(annotation.query && {
+            query: {
+              kind: annotation.query.kind,
+              spec: { ...target },
+            },
+          }),
+          // Keep legacyOptions from the original annotation if they exist
+          ...(annotation.legacyOptions ? { legacyOptions: annotation.legacyOptions } : {}),
+        });
+      },
+      [annotation, onChange]
+    );
+
+    const onMappingChange = useCallback(
+      (mappings?: AnnotationEventMappings) => {
+        onChange({
+          ...annotation,
+          mappings,
+        });
+      },
+      [annotation, onChange]
+    );
+
+    const onAnnotationChange = useCallback(
+      (newAnnotation: AnnotationQuery) => {
+        // Also preserve any legacyOptions field that might exist when migrating from V2 to V1
+        onChange({
+          ...newAnnotation,
+          // Keep legacyOptions from the original annotation if they exist
+          ...(annotation.legacyOptions ? { legacyOptions: annotation.legacyOptions } : {}),
+        });
+      },
+      [annotation, onChange]
+    );
+
+    const onQueryReplace = useCallback(
+      async (replacedQuery: DataQuery) => {
+        try {
+          // Use new async updateAnnotationFromSavedQuery that returns properly prepared annotation
+          const preparedAnnotation = await updateAnnotationFromSavedQuery(annotation, replacedQuery);
+          // Set flag to skip next verification since updateAnnotationFromSavedQuery already prepared the annotation
+          skipNextVerificationRef.current = true;
+          onChange(preparedAnnotation);
+        } catch (error) {
+          console.error('Failed to replace annotation query:', error);
+          // On error, reset the replacing state but don't change the annotation
+        }
+      },
+      [annotation, onChange]
+    );
+
+    const getStatusSeverity = (resp: AnnotationQueryResponse): AlertVariant => {
+      const { events, panelData } = resp;
+
+      if (panelData?.errors || panelData?.error) {
+        return 'error';
+      }
+
+      if (!events?.length) {
+        return 'warning';
+      }
+
+      return 'success';
     };
 
-    const fixed = processor.prepareAnnotation!(annotation);
-    // if datasource prepared annotation returns a different annotation(e.g., prometheus before had expr in the root level now it's saved in 'target'), update the annotation with that one
-    if (fixed !== annotation) {
-      this.props.onChange(fixed);
-    } else {
-      this.onRunQuery();
-    }
-  }
+    const renderStatusText = (resp: AnnotationQueryResponse, isRunning: boolean | undefined): ReactElement => {
+      const { events, panelData } = resp;
 
-  onRunQuery = async () => {
-    const { datasource, annotation } = this.props;
-    if (shouldUseLegacyRunner(datasource)) {
-      // In the new UI the running of query is done so the data can be mapped. In the legacy annotations this does
-      // not exist as the annotationQuery already returns annotation events which cannot be mapped. This means that
-      // right now running a query for data source with legacy runner does not make much sense.
-      return;
-    }
+      if (isRunning || resp?.panelData?.state === LoadingState.Loading || !resp) {
+        return <p>{'loading...'}</p>;
+      }
 
-    const dashboard = getDashboardSrv().getCurrent();
-    if (!dashboard) {
-      return;
-    }
+      if (panelData?.errors) {
+        return (
+          <>
+            {panelData.errors.map((e, i) => (
+              <p key={i}>{e.message}</p>
+            ))}
+          </>
+        );
+      }
+      if (panelData?.error) {
+        return <p>{panelData.error.message ?? 'There was an error fetching data'}</p>;
+      }
 
-    this.setState({
-      running: true,
-    });
-    const response = await lastValueFrom(
-      executeAnnotationQuery(
-        {
-          range: getTimeSrv().timeRange(),
-          panel: new PanelModel({}),
-          dashboard,
-        },
-        datasource,
-        annotation
-      )
-    );
-    this.setState({
-      running: false,
-      response,
-    });
-  };
+      if (!events?.length) {
+        return (
+          <p>
+            <Trans i18nKey="annotations.standard-annotation-query-editor.no-events-found">No events found</Trans>
+          </p>
+        );
+      }
 
-  onQueryChange = (target: DataQuery) => {
-    // if dealing with v2 dashboards
-    if (this.props.annotation.query && this.props.annotation.query.spec) {
-      target = {
-        ...this.props.annotation.query.spec,
-        ...target,
-      };
-    }
-    //target property is what ds query editor are using, but for v2 we also need to keep query in sync
-    this.props.onChange({
-      ...this.props.annotation,
-      // the query editor uses target, but the annotation in v2 uses query
-      // therefore we need to keep the target and query in sync
-      target,
-      ...(this.props.annotation.query && {
-        query: {
-          kind: this.props.annotation.query.kind,
-          spec: { ...target },
-        },
-      }),
-      // Keep legacyOptions from the original annotation if they exist
-      ...(this.props.annotation.legacyOptions ? { legacyOptions: this.props.annotation.legacyOptions } : {}),
-    });
-  };
-
-  onMappingChange = (mappings?: AnnotationEventMappings) => {
-    this.props.onChange({
-      ...this.props.annotation,
-      mappings,
-    });
-  };
-
-  getStatusSeverity(response: AnnotationQueryResponse): AlertVariant {
-    const { events, panelData } = response;
-
-    if (panelData?.errors || panelData?.error) {
-      return 'error';
-    }
-
-    if (!events?.length) {
-      return 'warning';
-    }
-
-    return 'success';
-  }
-
-  renderStatusText(response: AnnotationQueryResponse, running: boolean | undefined): ReactElement {
-    const { events, panelData } = response;
-
-    if (running || response?.panelData?.state === LoadingState.Loading || !response) {
-      return <p>{'loading...'}</p>;
-    }
-
-    if (panelData?.errors) {
-      return (
-        <>
-          {panelData.errors.map((e, i) => (
-            <p key={i}>{e.message}</p>
-          ))}
-        </>
-      );
-    }
-    if (panelData?.error) {
-      return <p>{panelData.error.message ?? 'There was an error fetching data'}</p>;
-    }
-
-    if (!events?.length) {
+      const frame = panelData?.series?.[0] ?? panelData?.annotations?.[0];
+      const numEvents = events.length;
+      const numFields = frame?.fields.length;
       return (
         <p>
-          <Trans i18nKey="annotations.standard-annotation-query-editor.no-events-found">No events found</Trans>
+          <Trans i18nKey="annotations.standard-annotation-query-editor.events-found">
+            {{ numEvents }} events (from {{ numFields }} fields)
+          </Trans>
         </p>
       );
-    }
+    };
 
-    const frame = panelData?.series?.[0] ?? panelData?.annotations?.[0];
-    const numEvents = events.length;
-    const numFields = frame?.fields.length;
-    return (
-      <p>
-        <Trans i18nKey="annotations.standard-annotation-query-editor.events-found">
-          {{ numEvents }} events (from {{ numFields }} fields)
-        </Trans>
-      </p>
-    );
-  }
+    const renderStatus = () => {
+      if (!response) {
+        return null;
+      }
 
-  renderStatus() {
-    const { response, running } = this.state;
+      return (
+        <>
+          <Space v={2} />
+          <div>
+            {running ? (
+              <Spinner />
+            ) : (
+              <Button
+                data-testid={selectors.components.Annotations.editor.testButton}
+                variant="secondary"
+                size="xs"
+                onClick={onRunQuery}
+              >
+                <Trans i18nKey="annotations.standard-annotation-query-editor.test-annotation-query">
+                  Test annotation query
+                </Trans>
+              </Button>
+            )}
+          </div>
+          <Space v={2} layout="block" />
+          <Alert
+            data-testid={selectors.components.Annotations.editor.resultContainer}
+            severity={getStatusSeverity(response)}
+            title={t('annotations.standard-annotation-query-editor.title-query-result', 'Query result')}
+          >
+            {renderStatusText(response, running)}
+          </Alert>
+        </>
+      );
+    };
 
-    if (!response) {
-      return null;
-    }
+    useEffect(() => {
+      if (!hasMountedRef.current) {
+        // Initial mount — equivalent to componentDidMount; runs unconditionally.
+        hasMountedRef.current = true;
+        verifyDataSource();
+      } else if (!shouldUseLegacyRunner(datasource)) {
+        // Subsequent annotation change — equivalent to componentDidUpdate guarded by !shouldUseLegacyRunner(datasource).
+        verifyDataSource();
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- Mirrors original componentDidUpdate behavior: only annotation prop changes trigger this effect; datasource and verifyDataSource are intentionally read at fire time.
+    }, [annotation]);
 
-    return (
-      <>
-        <Space v={2} />
-        <div>
-          {running ? (
-            <Spinner />
-          ) : (
-            <Button
-              data-testid={selectors.components.Annotations.editor.testButton}
-              variant="secondary"
-              size="xs"
-              onClick={this.onRunQuery}
-            >
-              <Trans i18nKey="annotations.standard-annotation-query-editor.test-annotation-query">
-                Test annotation query
-              </Trans>
-            </Button>
-          )}
-        </div>
-        <Space v={2} layout="block" />
-        <Alert
-          data-testid={selectors.components.Annotations.editor.resultContainer}
-          severity={this.getStatusSeverity(response)}
-          title={t('annotations.standard-annotation-query-editor.title-query-result', 'Query result')}
-        >
-          {this.renderStatusText(response, running)}
-        </Alert>
-      </>
-    );
-  }
-
-  onAnnotationChange = (annotation: AnnotationQuery) => {
-    // Also preserve any legacyOptions field that might exist when migrating from V2 to V1
-    this.props.onChange({
-      ...annotation,
-      // Keep legacyOptions from the original annotation if they exist
-      ...(this.props.annotation.legacyOptions ? { legacyOptions: this.props.annotation.legacyOptions } : {}),
-    });
-  };
-
-  onQueryReplace = async (replacedQuery: DataQuery) => {
-    const { annotation, onChange } = this.props;
-
-    try {
-      // Use new async updateAnnotationFromSavedQuery that returns properly prepared annotation
-      const preparedAnnotation = await updateAnnotationFromSavedQuery(annotation, replacedQuery);
-      // Set flag to skip next verification since updateAnnotationFromSavedQuery already prepared the annotation
-      this.setState({ skipNextVerification: true });
-      onChange(preparedAnnotation);
-    } catch (error) {
-      console.error('Failed to replace annotation query:', error);
-      // On error, reset the replacing state but don't change the annotation
-    }
-  };
-
-  render() {
-    const { datasource, annotation, datasourceInstanceSettings } = this.props;
-    const { response } = this.state;
+    useImperativeHandle(ref, () => ({ onQueryReplace }), [onQueryReplace]);
 
     // Find the annotation runner
     let QueryEditor = datasource.annotations?.QueryEditor || datasource.components?.QueryEditor;
@@ -309,31 +318,33 @@ export default class StandardAnnotationQueryEditor extends PureComponent<Props, 
       <>
         <DataSourcePluginContextProvider instanceSettings={datasourceInstanceSettings}>
           <AnnotationQueryEditorActionsWrapper
-            disableSavedQueries={this.props.disableSavedQueries}
+            disableSavedQueries={disableSavedQueries}
             annotation={annotation}
             datasource={datasource}
-            onQueryReplace={this.onQueryReplace}
+            onQueryReplace={onQueryReplace}
           >
             <QueryEditor
               key={datasource?.name}
               query={query}
               datasource={datasource}
-              onChange={this.onQueryChange}
-              onRunQuery={this.onRunQuery}
+              onChange={onQueryChange}
+              onRunQuery={onRunQuery}
               data={response?.panelData}
               range={getTimeSrv().timeRange()}
               annotation={editorAnnotation}
-              onAnnotationChange={this.onAnnotationChange}
+              onAnnotationChange={onAnnotationChange}
             />
           </AnnotationQueryEditorActionsWrapper>
         </DataSourcePluginContextProvider>
         {shouldUseMappingUI(datasource) && (
           <>
-            {this.renderStatus()}
-            <AnnotationFieldMapper response={response} mappings={annotation.mappings} change={this.onMappingChange} />
+            {renderStatus()}
+            <AnnotationFieldMapper response={response} mappings={annotation.mappings} change={onMappingChange} />
           </>
         )}
       </>
     );
   }
-}
+);
+
+export default StandardAnnotationQueryEditor;

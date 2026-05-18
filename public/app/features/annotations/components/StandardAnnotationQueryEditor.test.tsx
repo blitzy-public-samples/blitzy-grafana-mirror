@@ -7,7 +7,10 @@ import { type DataQuery } from '@grafana/schema';
 
 import { updateAnnotationFromSavedQuery, getDataQueryFromAnnotationForSavedQueries } from '../utils/savedQueryUtils';
 
-import StandardAnnotationQueryEditor, { type Props as EditorProps } from './StandardAnnotationQueryEditor';
+import StandardAnnotationQueryEditor, {
+  type Props as EditorProps,
+  type StandardAnnotationQueryEditorHandle,
+} from './StandardAnnotationQueryEditor';
 
 const setup = (customProps: Partial<EditorProps>) => {
   const props: EditorProps = {
@@ -510,7 +513,7 @@ describe('StandardAnnotationQueryEditor', () => {
         datasource: originalAnnotation.datasource,
       });
 
-      const componentRef = createRef<StandardAnnotationQueryEditor>();
+      const componentRef = createRef<StandardAnnotationQueryEditorHandle>();
 
       const { rerender } = render(
         <StandardAnnotationQueryEditor
