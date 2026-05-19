@@ -79,13 +79,14 @@ interface StatusBadgeProps {
 }
 
 export function StatusBadge({ repo, displayOnly = false }: StatusBadgeProps) {
-  const styles = useStyles2(getStyles);
   const handleClick = useCallback(() => {
     if (displayOnly || !repo?.metadata?.name) {
       return;
     }
     locationService.push(`${PROVISIONING_URL}/${repo.metadata.name}/?tab=overview`);
   }, [repo?.metadata?.name, displayOnly]);
+
+  const styles = useStyles2(getStyles, displayOnly);
 
   if (!repo) {
     return null;
@@ -94,25 +95,12 @@ export function StatusBadge({ repo, displayOnly = false }: StatusBadgeProps) {
   const { color, text, icon, tooltip } = getBadgeConfig(repo);
 
   return (
-    <Badge
-      color={color}
-      icon={icon}
-      text={text}
-      // Migrated from inline style={{ cursor: ... }} per AAP Dimension 3 — `displayOnly` is the
-      // sole runtime input determining the cursor, so a binary class is sufficient and the
-      // theme-aware Emotion class is the prescribed migration target.
-      className={displayOnly ? styles.cursorDefault : styles.cursorPointer}
-      tooltip={tooltip}
-      onClick={handleClick}
-    />
+    <Badge color={color} icon={icon} text={text} className={styles.badge} tooltip={tooltip} onClick={handleClick} />
   );
 }
 
-const getStyles = (_theme: GrafanaTheme2) => ({
-  cursorDefault: css({
-    cursor: 'default',
-  }),
-  cursorPointer: css({
-    cursor: 'pointer',
+const getStyles = (theme: GrafanaTheme2, displayOnly: boolean) => ({
+  badge: css({
+    cursor: displayOnly ? 'default' : 'pointer',
   }),
 });
