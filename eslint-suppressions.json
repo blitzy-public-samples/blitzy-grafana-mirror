@@ -2018,9 +2018,6 @@
   "public/app/features/query/components/QueryGroup.tsx": {
     "@grafana/no-aria-label-selectors": {
       "count": 2
-    },
-    "react-prefer-function-component/react-prefer-function-component": {
-      "count": 1
     }
   },
   "public/app/features/query/state/DashboardQueryRunner/AnnotationsQueryRunner.ts": {
