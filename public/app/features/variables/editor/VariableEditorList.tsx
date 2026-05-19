@@ -2,7 +2,7 @@ import { css } from '@emotion/css';
 import { DragDropContext, Droppable, type DropResult } from '@hello-pangea/dnd';
 import { type ReactElement } from 'react';
 
-import { type TypedVariableModel } from '@grafana/data';
+import { type GrafanaTheme2, type TypedVariableModel } from '@grafana/data';
 import { selectors } from '@grafana/e2e-selectors';
 import { Trans, t } from '@grafana/i18n';
 import { reportInteraction } from '@grafana/runtime';
@@ -54,7 +54,7 @@ export function VariableEditorList({
           <Stack direction="column" gap={4}>
             <div className={styles.tableContainer}>
               <table
-                className="filter-table filter-table--hover"
+                className={styles.filterTable}
                 aria-label={selectors.pages.Dashboard.Settings.Variables.List.table}
                 role="grid"
               >
@@ -146,9 +146,36 @@ function EmptyVariablesList({ onAdd }: { onAdd: () => void }): ReactElement {
   );
 }
 
-const getStyles = () => ({
+const getStyles = (theme: GrafanaTheme2) => ({
   tableContainer: css({
     overflow: 'scroll',
     width: '100%',
+  }),
+  filterTable: css({
+    width: '100%',
+    borderCollapse: 'separate',
+    '*': {
+      boxSizing: 'border-box',
+    },
+    'tbody tr:nth-of-type(odd)': {
+      background: theme.colors.emphasize(theme.colors.background.primary, 0.02),
+    },
+    'tbody tr:hover': {
+      background: theme.colors.emphasize(theme.colors.background.primary, 0.05),
+    },
+    th: {
+      width: 'auto',
+      padding: theme.spacing(0.5, 1),
+      textAlign: 'left',
+      lineHeight: '30px',
+      height: '30px',
+      whiteSpace: 'nowrap',
+    },
+    td: {
+      padding: theme.spacing(0.5, 1),
+      lineHeight: '30px',
+      height: '30px',
+      whiteSpace: 'nowrap',
+    },
   }),
 });
