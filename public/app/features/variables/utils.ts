@@ -39,8 +39,8 @@ export const variableRegexExec = (variableString: string) => {
   return variableRegex.exec(variableString);
 };
 
-export function containsVariable(...args: any[]) {
-  const variableName = args[args.length - 1];
+export function containsVariable(...args: unknown[]) {
+  const variableName = String(args[args.length - 1]);
   args[0] = typeof args[0] === 'string' ? args[0] : safeStringifyValue(args[0]);
   const variableString = args.slice(0, -1).join(' ');
   const matches = variableString.match(variableRegex);
@@ -55,7 +55,9 @@ export function containsVariable(...args: any[]) {
   return !!isMatchingVariable;
 }
 
-export const isAllVariable = (variable: any): boolean => {
+export const isAllVariable = (
+  variable: { current?: { value?: unknown; text?: unknown } } | null | undefined
+): boolean => {
   if (!variable) {
     return false;
   }
@@ -64,24 +66,24 @@ export const isAllVariable = (variable: any): boolean => {
     return false;
   }
 
-  if (variable.current.value) {
-    const isArray = Array.isArray(variable.current.value);
-    if (isArray && variable.current.value.length && variable.current.value[0] === ALL_VARIABLE_VALUE) {
-      return true;
-    }
+  const { value, text } = variable.current;
 
-    if (!isArray && variable.current.value === ALL_VARIABLE_VALUE) {
+  if (value !== undefined && value !== null && value !== '') {
+    if (Array.isArray(value)) {
+      if (value.length && value[0] === ALL_VARIABLE_VALUE) {
+        return true;
+      }
+    } else if (value === ALL_VARIABLE_VALUE) {
       return true;
     }
   }
 
-  if (variable.current.text) {
-    const isArray = Array.isArray(variable.current.text);
-    if (isArray && variable.current.text.length && variable.current.text[0] === ALL_VARIABLE_TEXT) {
-      return true;
-    }
-
-    if (!isArray && variable.current.text === ALL_VARIABLE_TEXT) {
+  if (text !== undefined && text !== null && text !== '') {
+    if (Array.isArray(text)) {
+      if (text.length && text[0] === ALL_VARIABLE_TEXT) {
+        return true;
+      }
+    } else if (text === ALL_VARIABLE_TEXT) {
       return true;
     }
   }
@@ -89,7 +91,7 @@ export const isAllVariable = (variable: any): boolean => {
   return false;
 };
 
-export const getCurrentText = (variable: any): string => {
+export const getCurrentText = (variable: { current?: { text?: unknown } } | null | undefined): string => {
   if (!variable) {
     return '';
   }
@@ -98,19 +100,21 @@ export const getCurrentText = (variable: any): string => {
     return '';
   }
 
-  if (!variable.current.text) {
+  const { text } = variable.current;
+
+  if (text === undefined || text === null || text === '') {
     return '';
   }
 
-  if (Array.isArray(variable.current.text)) {
-    return variable.current.text.toString();
+  if (Array.isArray(text)) {
+    return text.toString();
   }
 
-  if (typeof variable.current.text !== 'string') {
+  if (typeof text !== 'string') {
     return '';
   }
 
-  return variable.current.text;
+  return text;
 };
 
 export const getCurrentValue = (variable: VariableWithOptions): string | null => {
