@@ -70,7 +70,7 @@ export function getFieldConfigFromFrame(
 
     const newValue = handler.processor(configValue, config, context, mapping.handlerArguments);
     if (newValue != null) {
-      (config as any)[handler.targetProperty ?? handler.key] = newValue;
+      (config as Record<string, unknown>)[handler.targetProperty ?? handler.key] = newValue;
     }
   }
 
@@ -82,17 +82,17 @@ export function getFieldConfigFromFrame(
 }
 
 interface FieldToConfigContext {
-  mappingValues?: any[];
+  mappingValues?: unknown[];
   mappingColors?: string[];
   mappingTexts?: string[];
 }
 
 type FieldToConfigMapHandlerProcessor = (
-  value: any,
+  value: unknown,
   config: FieldConfig,
   context: FieldToConfigContext,
   handlerArguments: HandlerArguments
-) => any;
+) => unknown;
 
 export interface FieldToConfigMapHandler {
   key: string;
@@ -140,7 +140,7 @@ export const configMapHandlers: FieldToConfigMapHandler[] = [
   },
   {
     key: 'unit',
-    processor: (value) => value.toString(),
+    processor: (value) => String(value),
   },
   {
     key: 'decimals',
@@ -149,11 +149,11 @@ export const configMapHandlers: FieldToConfigMapHandler[] = [
   {
     key: 'displayName',
     name: 'Display name',
-    processor: (value) => value.toString(),
+    processor: (value) => String(value),
   },
   {
     key: 'color',
-    processor: (value) => ({ fixedColor: value, mode: FieldColorModeId.Fixed }),
+    processor: (value) => ({ fixedColor: String(value), mode: FieldColorModeId.Fixed }),
   },
   {
     key: 'threshold1',
@@ -238,7 +238,7 @@ function combineValueMappings(context: FieldToConfigContext): ValueMapping[] {
   for (let i = 0; i < context.mappingValues.length; i++) {
     const value = context.mappingValues[i];
     if (value != null) {
-      valueMap.options[value.toString()] = {
+      valueMap.options[String(value)] = {
         color: context.mappingColors && context.mappingColors[i],
         text: context.mappingTexts && context.mappingTexts[i],
         index: i,
