@@ -109,9 +109,9 @@ export const extractFieldsTransformerEditor = ({
       </InlineFieldRow>
       <InlineFieldRow>
         <InlineField label={t('transformers.extract-fields-transformer-editor.label-format', 'Format')} labelWidth={16}>
-          <Select
-            value={format.current[0] as any}
-            options={format.options as any}
+          <Select<FieldExtractorID>
+            value={format.current[0] as SelectableValue<FieldExtractorID>}
+            options={format.options as Array<SelectableValue<FieldExtractorID>>}
             onChange={onFormatChange}
             width={24}
             placeholder={t('transformers.extract-fields-transformer-editor.placeholder-auto', 'Auto')}
