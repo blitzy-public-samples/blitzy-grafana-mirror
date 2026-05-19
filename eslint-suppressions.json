@@ -2288,11 +2288,6 @@
       "count": 1
     }
   },
-  "public/app/features/variables/query/actions.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 4
-    }
-  },
   "public/app/features/variables/query/reducer.ts": {
     "no-restricted-syntax": {
       "count": 1
