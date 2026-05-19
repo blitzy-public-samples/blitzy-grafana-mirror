@@ -1,9 +1,10 @@
-import { css, cx } from '@emotion/css';
+import { css } from '@emotion/css';
 import { memo, useRef, useState, useCallback, useEffect } from 'react';
 import * as React from 'react';
 
+import { type GrafanaTheme2 } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
-import { Button, ConfirmButton, ConfirmModal, Input, LegacyInputStatus, Stack } from '@grafana/ui';
+import { Button, ConfirmButton, ConfirmModal, Input, LegacyInputStatus, Stack, Text, useStyles2 } from '@grafana/ui';
 import { contextSrv } from 'app/core/services/context_srv';
 import { AccessControlAction } from 'app/types/accessControl';
 import { type UserDTO } from 'app/types/user';
@@ -88,51 +89,49 @@ export function UserProfile({
   const canDisable = contextSrv.hasPermissionInMetadata(AccessControlAction.UsersDisable, user);
   const canEnable = contextSrv.hasPermissionInMetadata(AccessControlAction.UsersEnable, user);
 
+  const styles = useStyles2(getStyles);
+
   return (
     <div>
-      <h3 className="page-heading">
+      <Text element="h3" variant="h3">
         <Trans i18nKey="admin.user-profile.title">User information</Trans>
-      </h3>
+      </Text>
       <Stack direction="column" gap={1.5}>
-        <div>
-          <table className="filter-table form-inline">
-            <tbody>
-              <UserProfileRow
-                label={t('admin.user-profile.label-numerical-identifier', 'Numerical identifier')}
-                value={user.id.toString()}
-                locked={true}
-              />
-              <UserProfileRow
-                label={t('admin.user-profile.label-name', 'Name')}
-                value={user.name}
-                locked={editLocked}
-                lockMessage={lockMessage}
-                onChange={onUserNameChange}
-              />
-              <UserProfileRow
-                label={t('admin.user-profile.label-email', 'Email')}
-                value={user.email}
-                locked={editLocked}
-                lockMessage={lockMessage}
-                onChange={onUserEmailChange}
-              />
-              <UserProfileRow
-                label={t('admin.user-profile.label-username', 'Username')}
-                value={user.login}
-                locked={editLocked}
-                lockMessage={lockMessage}
-                onChange={onUserLoginChange}
-              />
-              <UserProfileRow
-                label={t('admin.user-profile.label-password', 'Password')}
-                value="********"
-                inputType="password"
-                locked={passwordChangeLocked}
-                lockMessage={lockMessage}
-                onChange={onPasswordChange}
-              />
-            </tbody>
-          </table>
+        <div className={styles.rowsContainer}>
+          <UserProfileRow
+            label={t('admin.user-profile.label-numerical-identifier', 'Numerical identifier')}
+            value={user.id.toString()}
+            locked={true}
+          />
+          <UserProfileRow
+            label={t('admin.user-profile.label-name', 'Name')}
+            value={user.name}
+            locked={editLocked}
+            lockMessage={lockMessage}
+            onChange={onUserNameChange}
+          />
+          <UserProfileRow
+            label={t('admin.user-profile.label-email', 'Email')}
+            value={user.email}
+            locked={editLocked}
+            lockMessage={lockMessage}
+            onChange={onUserEmailChange}
+          />
+          <UserProfileRow
+            label={t('admin.user-profile.label-username', 'Username')}
+            value={user.login}
+            locked={editLocked}
+            lockMessage={lockMessage}
+            onChange={onUserLoginChange}
+          />
+          <UserProfileRow
+            label={t('admin.user-profile.label-password', 'Password')}
+            value="********"
+            inputType="password"
+            locked={passwordChangeLocked}
+            lockMessage={lockMessage}
+            onChange={onPasswordChange}
+          />
         </div>
         <Stack gap={2}>
           {canDelete && (
@@ -247,12 +246,7 @@ export const UserProfileRow = memo(
       }
     }, [onChange, value]);
 
-    const labelClass = cx(
-      'width-16',
-      css({
-        fontWeight: 500,
-      })
-    );
+    const styles = useStyles2(getStyles);
 
     if (locked) {
       return <LockedRow label={label} value={value} lockMessage={lockMessage} />;
@@ -260,11 +254,11 @@ export const UserProfileRow = memo(
 
     const inputId = `${label}-input`;
     return (
-      <tr>
-        <td className={labelClass}>
+      <div className={styles.row}>
+        <div className={styles.label}>
           <label htmlFor={inputId}>{label}</label>
-        </td>
-        <td className="width-25" colSpan={2}>
+        </div>
+        <div className={styles.value}>
           {editing ? (
             <Input
               id={inputId}
@@ -278,8 +272,8 @@ export const UserProfileRow = memo(
           ) : (
             <span>{valueProp}</span>
           )}
-        </td>
-        <td>
+        </div>
+        <div className={styles.action}>
           <ConfirmButton
             confirmText={t('admin.user-profile-row.confirmText-save', 'Save')}
             onClick={onEditClick}
@@ -288,8 +282,8 @@ export const UserProfileRow = memo(
           >
             {t('admin.user-profile.edit-button', 'Edit')}
           </ConfirmButton>
-        </td>
-      </tr>
+        </div>
+      </div>
     );
   }
 );
@@ -303,26 +297,54 @@ interface LockedRowProps {
 }
 
 export const LockedRow = ({ label, value, lockMessage }: LockedRowProps) => {
-  const lockMessageClass = css({
-    fontStyle: 'italic',
-    marginRight: '0.6rem',
-  });
-  const labelClass = cx(
-    'width-16',
-    css({
-      fontWeight: 500,
-    })
-  );
+  const styles = useStyles2(getStyles);
 
   return (
-    <tr>
-      <td className={labelClass}>{label}</td>
-      <td className="width-25" colSpan={2}>
-        {value}
-      </td>
-      <td>
-        <span className={lockMessageClass}>{lockMessage}</span>
-      </td>
-    </tr>
+    <div className={styles.row}>
+      <div className={styles.label}>{label}</div>
+      <div className={styles.value}>{value}</div>
+      <div className={styles.action}>
+        <span className={styles.lockMessage}>{lockMessage}</span>
+      </div>
+    </div>
   );
 };
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  rowsContainer: css({
+    width: '100%',
+    border: `1px solid ${theme.colors.border.weak}`,
+    borderRadius: theme.shape.radius.default,
+    overflow: 'hidden',
+  }),
+  row: css({
+    display: 'flex',
+    alignItems: 'center',
+    gap: theme.spacing(2),
+    padding: theme.spacing(1, 2),
+    borderBottom: `1px solid ${theme.colors.border.weak}`,
+    '&:last-child': {
+      borderBottom: 0,
+    },
+  }),
+  label: css({
+    fontWeight: 500,
+    minWidth: theme.spacing(16),
+    flexShrink: 0,
+  }),
+  value: css({
+    flex: 1,
+    minWidth: theme.spacing(25),
+    display: 'flex',
+    alignItems: 'center',
+  }),
+  action: css({
+    display: 'flex',
+    alignItems: 'center',
+    flexShrink: 0,
+  }),
+  lockMessage: css({
+    fontStyle: 'italic',
+    marginRight: theme.spacing(0.6),
+  }),
+});
