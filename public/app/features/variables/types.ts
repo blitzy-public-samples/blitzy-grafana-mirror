@@ -3,6 +3,7 @@ import { type ComponentType } from 'react';
 import {
   BusEventWithPayload,
   type DataQuery,
+  type DataSourceApi,
   type DataSourceJsonData,
   LoadingState,
   type QueryEditorProps,
@@ -35,17 +36,21 @@ export const initialVariableModelState: BaseVariableModel = {
   description: null,
 };
 
-export interface VariableQueryEditorProps {
-  query: any;
-  onChange: (query: any, definition: string) => void;
-  datasource: any;
+export interface VariableQueryEditorProps<TQuery = string, TDataSource = DataSourceApi> {
+  query: TQuery;
+  onChange: (query: TQuery, definition: string) => void;
+  datasource: TDataSource;
   templateSrv: TemplateSrv;
 }
 
 export type VariableQueryEditorType<
   TQuery extends DataQuery = DataQuery,
   TOptions extends DataSourceJsonData = DataSourceJsonData,
-> = ComponentType<VariableQueryEditorProps> | ComponentType<QueryEditorProps<any, TQuery, TOptions, any>> | null;
+> =
+  | ComponentType<VariableQueryEditorProps>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- TypeScript's invariance in QueryEditorProps's TVQuery generic parameter means we cannot statically accept editors with specialized TVQuery types (e.g., StandardVariableQueryEditor uses TVQuery=StandardVariableQuery, which is not assignable to nor from the default TQuery=DataQuery in covariant nor contravariant positions); preserving `any` here matches the original union semantics while still concretizing the DSType slot to DataSourceApi<TQuery, TOptions>.
+  | ComponentType<QueryEditorProps<DataSourceApi<TQuery, TOptions>, TQuery, TOptions, any>>
+  | null;
 
 export interface VariablesChangedEvent {
   refreshAll: boolean;

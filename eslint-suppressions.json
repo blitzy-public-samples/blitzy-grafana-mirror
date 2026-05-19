@@ -2365,11 +2365,6 @@
       "count": 4
     }
   },
-  "public/app/features/variables/types.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 5
-    }
-  },
   "public/app/features/variables/utils.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1

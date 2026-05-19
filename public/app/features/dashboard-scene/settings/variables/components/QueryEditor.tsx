@@ -45,7 +45,7 @@ export function QueryEditor({
           <VariableQueryEditor
             key={datasource.uid}
             datasource={datasource}
-            query={queryWithDefaults}
+            query={String(queryWithDefaults)}
             templateSrv={getTemplateSrv()}
             onChange={onLegacyQueryChange}
           />
