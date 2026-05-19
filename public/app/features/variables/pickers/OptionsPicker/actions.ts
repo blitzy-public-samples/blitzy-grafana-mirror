@@ -96,7 +96,7 @@ const setVariable = async (updated: VariableWithOptions) => {
   return;
 };
 
-export const commitChangesToVariable = (key: string, callback?: (updated: any) => void): ThunkResult<void> => {
+export const commitChangesToVariable = (key: string, callback?: (updated: VariableWithOptions) => void): ThunkResult<void> => {
   return async (dispatch, getState) => {
     const picker = getVariablesState(key, getState()).optionsPicker;
     const identifier: KeyedVariableIdentifier = { id: picker.id, rootStateKey: key, type: 'query' };
@@ -131,7 +131,7 @@ export const commitChangesToVariable = (key: string, callback?: (updated: any) =
 };
 
 export const openOptions =
-  (identifier: KeyedVariableIdentifier, callback?: (updated: any) => void): ThunkResult<void> =>
+  (identifier: KeyedVariableIdentifier, callback?: (updated: VariableWithOptions) => void): ThunkResult<void> =>
   async (dispatch, getState) => {
     const { id, rootStateKey: uid } = identifier;
     const picker = getVariablesState(uid, getState()).optionsPicker;
