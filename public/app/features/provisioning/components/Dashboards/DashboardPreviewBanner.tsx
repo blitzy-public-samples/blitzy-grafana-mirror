@@ -25,10 +25,10 @@ interface DashboardPreviewBannerProps extends CommonBannerProps {
 interface DashboardPreviewBannerContentProps extends Required<Omit<CommonBannerProps, 'route'>> {}
 
 function DashboardPreviewBannerContent({ queryParams, slug, path }: DashboardPreviewBannerContentProps) {
-  const styles = useStyles2(getStyles);
   const { prURL: existingPRUrl } = usePullRequestParam();
   const file = useGetRepositoryFilesWithPathQuery({ name: slug, path, ref: queryParams.ref });
   const { repository } = useGetResourceRepositoryView({ name: slug });
+  const styles = useStyles2(getStyles);
 
   // early return if there is an error loading dashboard file from repository
   if (file.data?.errors) {
@@ -70,10 +70,7 @@ export function DashboardPreviewBanner({ queryParams, route, slug, path }: Dashb
   return <DashboardPreviewBannerContent queryParams={queryParams} slug={slug} path={path} />;
 }
 
-// Migrated from inline style={{ flex: 0 }} per AAP Dimension 3 (inline-style → useStyles2).
-// `flex: 0` prevents the Alert from growing inside a flex container, preserving the original
-// non-expansive layout of the error banner.
-const getStyles = (_theme: GrafanaTheme2) => ({
+const getStyles = (theme: GrafanaTheme2) => ({
   alert: css({
     flex: 0,
   }),
