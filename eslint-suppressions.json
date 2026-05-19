@@ -2301,11 +2301,6 @@
       "count": 1
     }
   },
-  "public/app/features/variables/query/queryRunners.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    }
-  },
   "public/app/features/variables/query/reducer.ts": {
     "no-restricted-syntax": {
       "count": 1
