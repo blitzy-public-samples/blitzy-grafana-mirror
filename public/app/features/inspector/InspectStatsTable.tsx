@@ -1,4 +1,5 @@
 import { css } from '@emotion/css';
+import { useCallback, useMemo } from 'react';
 
 import {
   FieldType,
@@ -8,7 +9,7 @@ import {
   type QueryResultMetaStat,
   type TimeZone,
 } from '@grafana/data';
-import { useStyles2, useTheme2 } from '@grafana/ui';
+import { InteractiveTable, useStyles2, useTheme2, type Column } from '@grafana/ui';
 
 interface InspectStatsTableProps {
   timeZone: TimeZone;
@@ -20,6 +21,25 @@ export const InspectStatsTable = ({ timeZone, name, stats }: InspectStatsTablePr
   const theme = useTheme2();
   const styles = useStyles2(getStyles);
 
+  // Memoize the data and columns passed to InteractiveTable as required by its API contract
+  // (the columns/data props "must be memoized" per InteractiveTable's BaseProps docs).
+  const data = useMemo(() => stats, [stats]);
+
+  const columns = useMemo<Array<Column<QueryResultMetaStat>>>(
+    () => [
+      { id: 'displayName' },
+      {
+        id: 'value',
+        cell: ({ row: { original } }) => <div className={styles.cell}>{formatStat(original, timeZone, theme)}</div>,
+      },
+    ],
+    [timeZone, theme, styles]
+  );
+
+  // Preserves the original `${stat.displayName}-${index}` row key pattern.
+  const getRowId = useCallback((stat: QueryResultMetaStat, index: number) => `${stat.displayName}-${index}`, []);
+
+  // Note: hooks above MUST be called before this early return per react-hooks/rules-of-hooks.
   if (!stats || !stats.length) {
     return null;
   }
@@ -27,18 +47,7 @@ export const InspectStatsTable = ({ timeZone, name, stats }: InspectStatsTablePr
   return (
     <div className={styles.wrapper}>
       <div className={styles.heading}>{name}</div>
-      <table className="filter-table width-30">
-        <tbody>
-          {stats.map((stat, index) => {
-            return (
-              <tr key={`${stat.displayName}-${index}`}>
-                <td>{stat.displayName}</td>
-                <td className={styles.cell}>{formatStat(stat, timeZone, theme)}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      <InteractiveTable className={styles.table} columns={columns} data={data} getRowId={getRowId} />
     </div>
   );
 };
@@ -65,5 +74,9 @@ const getStyles = (theme: GrafanaTheme2) => ({
   }),
   cell: css({
     textAlign: 'right',
+  }),
+  // Preserves the original `width-30` Sass utility (30% table width).
+  table: css({
+    width: '30%',
   }),
 });
