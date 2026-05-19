@@ -104,6 +104,7 @@ export const LdapPage = ({ queryParams }: Props) => {
               <h3>
                 <Trans i18nKey="admin.ldap.test-mapping-heading">Test user mapping</Trans>
               </h3>
+              {/* Design system gap: @grafana/ui Form component is deprecated in favor of using react-hook-form's useForm hook directly with native <form>; raw <form> retained per recommended pattern. */}
               <form onSubmit={handleSubmit(search)}>
                 <Field label={t('admin.ldap-page.label-username', 'Username')}>
                   <Input
