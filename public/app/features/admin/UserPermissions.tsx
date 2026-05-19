@@ -1,9 +1,7 @@
-import { css } from '@emotion/css';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
-import { type GrafanaTheme2 } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
-import { ConfirmButton, Icon, RadioButtonGroup, Text, useStyles2 } from '@grafana/ui';
+import { type Column, ConfirmButton, Icon, InteractiveTable, RadioButtonGroup, Stack, Text } from '@grafana/ui';
 import { contextSrv } from 'app/core/services/context_srv';
 import { ExternalUserTooltip } from 'app/features/admin/UserOrgs';
 import { AccessControlAction } from 'app/types/accessControl';
@@ -21,6 +19,11 @@ const adminOptions = [
   { label: 'No', value: false },
 ];
 
+interface PermissionRow {
+  key: string;
+  permission: string;
+}
+
 export function UserPermissions({ isGrafanaAdmin, isExternalUser, lockMessage, onGrafanaAdminChange }: Props) {
   const [isEditing, setIsEditing] = useState(false);
   const [currentAdminOption, setCurrentAdminOption] = useState(isGrafanaAdmin);
@@ -36,19 +39,30 @@ export function UserPermissions({ isGrafanaAdmin, isExternalUser, lockMessage, o
 
   const canChangePermissions = contextSrv.hasPermission(AccessControlAction.UsersPermissionsUpdate) && !isExternalUser;
 
-  const styles = useStyles2(getTooltipStyles);
+  const data = useMemo<PermissionRow[]>(
+    () => [
+      {
+        key: 'grafana-admin',
+        permission: 'Grafana Admin',
+      },
+    ],
+    []
+  );
 
-  return (
-    <div>
-      <Text element="h3" variant="h3">
-        <Trans i18nKey="admin.user-permissions.title">Permissions</Trans>
-      </Text>
-      <div className={styles.permissionsRow}>
-        <div className={styles.permissionsLabel}>
+  const columns = useMemo<Array<Column<PermissionRow>>>(
+    () => [
+      {
+        id: 'permission',
+        header: t('admin.user-permissions.column-permission', 'Permission'),
+        cell: () => (
           <Trans i18nKey="admin.user-permissions.grafana-admin-key">Grafana Admin</Trans>
-        </div>
-        <div className={styles.permissionsValue}>
-          {isEditing ? (
+        ),
+      },
+      {
+        id: 'value',
+        header: t('admin.user-permissions.column-value', 'Value'),
+        cell: () =>
+          isEditing ? (
             <RadioButtonGroup
               options={adminOptions}
               value={currentAdminOption}
@@ -56,59 +70,43 @@ export function UserPermissions({ isGrafanaAdmin, isExternalUser, lockMessage, o
               autoFocus
             />
           ) : isGrafanaAdmin ? (
-            <>
+            <Stack alignItems="center" gap={0.5}>
               <Icon name="shield" /> <Trans i18nKey="admin.user-permissions.grafana-admin-yes">Yes</Trans>
-            </>
+            </Stack>
           ) : (
             <Trans i18nKey="admin.user-permissions.grafana-admin-no">No</Trans>
-          )}
-        </div>
-        <div className={styles.permissionsAction}>
-          {canChangePermissions && (
-            <ConfirmButton
-              onClick={onChangeClick}
-              onConfirm={handleGrafanaAdminChange}
-              onCancel={onCancelClick}
-              confirmText={t('admin.user-permissions.confirmText-change', 'Change')}
-            >
-              {t('admin.user-permissions.change-button', 'Change')}
-            </ConfirmButton>
-          )}
-          {isExternalUser && (
-            <div className={styles.lockMessageClass}>
-              <ExternalUserTooltip lockMessage={lockMessage} />
-            </div>
-          )}
-        </div>
-      </div>
+          ),
+      },
+      {
+        id: 'actions',
+        header: '',
+        cell: () => (
+          <Stack alignItems="center" gap={1}>
+            {canChangePermissions && (
+              <ConfirmButton
+                onClick={onChangeClick}
+                onConfirm={handleGrafanaAdminChange}
+                onCancel={onCancelClick}
+                confirmText={t('admin.user-permissions.confirmText-change', 'Change')}
+              >
+                {t('admin.user-permissions.change-button', 'Change')}
+              </ConfirmButton>
+            )}
+            {isExternalUser && <ExternalUserTooltip lockMessage={lockMessage} />}
+          </Stack>
+        ),
+      },
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- adminOptions is a stable module-level constant; the function refs (onChangeClick, etc.) are recreated each render and rebuilding the column would unnecessarily reset the InteractiveTable state. The captured handlers correctly close over the current setState/setX setters because useState setters are referentially stable.
+    [isEditing, currentAdminOption, isGrafanaAdmin, canChangePermissions, isExternalUser, lockMessage]
+  );
+
+  return (
+    <div>
+      <Text element="h3" variant="h3">
+        <Trans i18nKey="admin.user-permissions.title">Permissions</Trans>
+      </Text>
+      <InteractiveTable<PermissionRow> columns={columns} data={data} getRowId={(row) => row.key} />
     </div>
   );
 }
-
-const getTooltipStyles = (theme: GrafanaTheme2) => ({
-  lockMessageClass: css({
-    display: 'flex',
-    justifyContent: 'flex-end',
-    fontStyle: 'italic',
-    marginRight: theme.spacing(0.6),
-  }),
-  permissionsRow: css({
-    display: 'flex',
-    alignItems: 'center',
-    gap: theme.spacing(2),
-    padding: theme.spacing(1),
-    borderBottom: `1px solid ${theme.colors.border.weak}`,
-  }),
-  permissionsLabel: css({
-    fontWeight: 500,
-    minWidth: theme.spacing(16),
-  }),
-  permissionsValue: css({
-    flex: 1,
-  }),
-  permissionsAction: css({
-    display: 'flex',
-    alignItems: 'center',
-    gap: theme.spacing(1),
-  }),
-});

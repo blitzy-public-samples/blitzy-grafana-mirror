@@ -1,9 +1,22 @@
 import { css } from '@emotion/css';
-import { memo, type ReactElement, useEffect, useRef, useState } from 'react';
+import { memo, type ReactElement, useEffect, useMemo, useRef, useState } from 'react';
 
 import { type GrafanaTheme2, OrgRole } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
-import { Button, ConfirmButton, Field, Icon, Modal, Stack, Text, TextLink, Tooltip, useStyles2 } from '@grafana/ui';
+import {
+  Button,
+  type Column,
+  ConfirmButton,
+  Field,
+  Icon,
+  InteractiveTable,
+  Modal,
+  Stack,
+  Text,
+  TextLink,
+  Tooltip,
+  useStyles2,
+} from '@grafana/ui';
 import { UserRolePicker } from 'app/core/components/RolePicker/UserRolePicker';
 import { fetchRoleOptions, updateUserRoles } from 'app/core/components/RolePicker/api';
 import { OrgPicker, type OrgSelectItem } from 'app/core/components/Select/OrgPicker';
@@ -24,10 +37,18 @@ interface Props {
   onOrgAdd: (orgId: number, role: OrgRole) => void;
 }
 
+interface OrgRowData {
+  id: string;
+  org: UserOrg;
+  user?: UserDTO;
+  isExternalUser?: boolean;
+  onOrgRoleChange: (orgId: number, newRole: OrgRole) => void;
+  onOrgRemove: (orgId: number) => void;
+}
+
 export const UserOrgs = memo(({ user, orgs, isExternalUser, onOrgRoleChange, onOrgRemove, onOrgAdd }: Props) => {
   const [showAddOrgModal, setShowAddOrgModal] = useState(false);
   const addToOrgButtonRef = useRef<HTMLButtonElement>(null);
-  const styles = useStyles2(getOrgRowStyles);
 
   const showOrgAddModal = () => {
     setShowAddOrgModal(true);
@@ -40,24 +61,49 @@ export const UserOrgs = memo(({ user, orgs, isExternalUser, onOrgRoleChange, onO
 
   const canAddToOrg = contextSrv.hasPermission(AccessControlAction.OrgUsersAdd) && !isExternalUser;
 
+  const rows = useMemo<OrgRowData[]>(
+    () =>
+      orgs.map((org, index) => ({
+        id: `${org.orgId}-${index}`,
+        org,
+        user,
+        isExternalUser,
+        onOrgRoleChange,
+        onOrgRemove,
+      })),
+    [orgs, user, isExternalUser, onOrgRoleChange, onOrgRemove]
+  );
+
+  const columns = useMemo<Array<Column<OrgRowData>>>(
+    () => [
+      {
+        id: 'organization',
+        header: t('admin.user-orgs.column-organization', 'Organization'),
+        cell: ({ row: { original } }) => {
+          const inputId = `${original.org.name}-input`;
+          return (
+            <Text weight="medium">
+              <label htmlFor={inputId}>{original.org.name}</label>
+            </Text>
+          );
+        },
+      },
+      {
+        id: 'role-actions',
+        header: t('admin.user-orgs.column-role-actions', 'Role and actions'),
+        cell: ({ row: { original } }) => <OrgRoleAndActionsCell row={original} />,
+      },
+    ],
+    []
+  );
+
   return (
     <div>
       <Text element="h3" variant="h3">
         <Trans i18nKey="admin.user-orgs.title">Organizations</Trans>
       </Text>
       <Stack gap={1.5} direction="column">
-        <div className={styles.rowsContainer}>
-          {orgs.map((org, index) => (
-            <OrgRow
-              key={`${org.orgId}-${index}`}
-              isExternalUser={isExternalUser}
-              user={user}
-              org={org}
-              onOrgRoleChange={onOrgRoleChange}
-              onOrgRemove={onOrgRemove}
-            />
-          ))}
-        </div>
+        <InteractiveTable<OrgRowData> columns={columns} data={rows} getRowId={(row) => row.id} />
 
         <div>
           {canAddToOrg && (
@@ -79,81 +125,22 @@ export const UserOrgs = memo(({ user, orgs, isExternalUser, onOrgRoleChange, onO
 });
 UserOrgs.displayName = 'UserOrgs';
 
-const getOrgRowStyles = (theme: GrafanaTheme2) => {
-  return {
-    rowsContainer: css({
-      width: '100%',
-      border: `1px solid ${theme.colors.border.weak}`,
-      borderRadius: theme.shape.radius.default,
-      overflow: 'hidden',
-    }),
-    row: css({
-      display: 'flex',
-      alignItems: 'center',
-      gap: theme.spacing(2),
-      padding: theme.spacing(1, 2),
-      borderBottom: `1px solid ${theme.colors.border.weak}`,
-      '&:last-child': {
-        borderBottom: 0,
-      },
-    }),
-    rowLabel: css({
-      fontWeight: 500,
-      minWidth: theme.spacing(16),
-      flexShrink: 0,
-    }),
-    rowValue: css({
-      flex: 1,
-      minWidth: theme.spacing(25),
-      display: 'flex',
-      alignItems: 'center',
-    }),
-    rowActions: css({
-      display: 'flex',
-      alignItems: 'center',
-      gap: theme.spacing(1),
-      flexShrink: 0,
-    }),
-    removeButton: css({
-      marginRight: '0.6rem',
-      textDecoration: 'underline',
-      color: theme.v1.palette.blue95,
-    }),
-    label: css({
-      fontWeight: 500,
-    }),
-    disabledTooltip: css({
-      display: 'flex',
-    }),
-    tooltipItem: css({
-      marginLeft: '5px',
-    }),
-    tooltipItemLink: css({
-      color: theme.v1.palette.blue95,
-    }),
-    rolePickerWrapper: css({
-      display: 'flex',
-    }),
-    rolePicker: css({
-      flex: 'auto',
-      marginRight: theme.spacing(1),
-    }),
-  };
-};
-
-interface OrgRowProps {
-  user?: UserDTO;
-  org: UserOrg;
-  isExternalUser?: boolean;
-  onOrgRemove: (orgId: number) => void;
-  onOrgRoleChange: (orgId: number, newRole: OrgRole) => void;
-}
-
-const OrgRow = memo(({ user, org, isExternalUser, onOrgRemove, onOrgRoleChange }: OrgRowProps) => {
+/**
+ * Combined role + actions cell. Owns per-row state (currentRole, isChangingRole,
+ * roleOptions) so the role picker and change/remove action buttons can coordinate
+ * locally without parent re-renders or cross-cell synchronization. Renders the
+ * licensed vs unlicensed branches inline (same behavior as the pre-migration
+ * OrgRow component): licensed mode shows the UserRolePicker directly (no edit
+ * mode) plus optional ExternalUserTooltip; unlicensed mode toggles between a
+ * role-text view and the OrgRolePicker edit view driven by ChangeOrgButton. The
+ * remove-from-org ConfirmButton is rendered trailing both branches.
+ */
+const OrgRoleAndActionsCell = memo(({ row }: { row: OrgRowData }) => {
+  const { org, user, isExternalUser, onOrgRoleChange: parentOnOrgRoleChange, onOrgRemove } = row;
   const [currentRole, setCurrentRole] = useState(org.role);
   const [isChangingRole, setIsChangingRole] = useState(false);
   const [roleOptions, setRoleOptions] = useState<Role[]>([]);
-  const styles = useStyles2(getOrgRowStyles);
+  const styles = useStyles2(getOrgRoleAndActionsStyles);
 
   useEffect(() => {
     if (contextSrv.licensedAccessControlEnabled()) {
@@ -179,7 +166,7 @@ const OrgRow = memo(({ user, org, isExternalUser, onOrgRemove, onOrgRoleChange }
   };
 
   const handleOrgRoleSave = () => {
-    onOrgRoleChange(org.orgId, currentRole);
+    parentOnOrgRoleChange(org.orgId, currentRole);
   };
 
   const handleCancelClick = () => {
@@ -187,7 +174,7 @@ const OrgRow = memo(({ user, org, isExternalUser, onOrgRemove, onOrgRoleChange }
   };
 
   const handleBasicRoleChange = (newRole: OrgRole) => {
-    onOrgRoleChange(org.orgId, newRole);
+    parentOnOrgRoleChange(org.orgId, newRole);
   };
 
   const authSource = user?.authLabels?.length && user?.authLabels[0];
@@ -195,69 +182,65 @@ const OrgRow = memo(({ user, org, isExternalUser, onOrgRemove, onOrgRoleChange }
   const canChangeRole = contextSrv.hasPermission(AccessControlAction.OrgUsersWrite);
   const canRemoveFromOrg = contextSrv.hasPermission(AccessControlAction.OrgUsersRemove) && !isExternalUser;
   const rolePickerDisabled = isExternalUser || !canChangeRole;
-
   const inputId = `${org.name}-input`;
+
   return (
-    <div className={styles.row}>
-      <div className={styles.rowLabel}>
-        <label htmlFor={inputId}>{org.name}</label>
-      </div>
+    <Stack alignItems="center" gap={2} wrap="nowrap">
       {contextSrv.licensedAccessControlEnabled() ? (
-        <div className={styles.rowValue}>
-          <div className={styles.rolePickerWrapper}>
-            <div className={styles.rolePicker}>
-              <UserRolePicker
-                userId={user?.id || 0}
-                orgId={org.orgId}
-                basicRole={org.role}
-                roleOptions={roleOptions}
-                onBasicRoleChange={handleBasicRoleChange}
-                basicRoleDisabled={rolePickerDisabled}
-                basicRoleDisabledMessage="This user's role is not editable because it is synchronized from your auth provider.
-                  Refer to the Grafana authentication docs for details."
-              />
-            </div>
-            {isExternalUser && <ExternalUserTooltip lockMessage={lockMessage} />}
+        <>
+          <div className={styles.rolePicker}>
+            <UserRolePicker
+              userId={user?.id || 0}
+              orgId={org.orgId}
+              basicRole={org.role}
+              roleOptions={roleOptions}
+              onBasicRoleChange={handleBasicRoleChange}
+              basicRoleDisabled={rolePickerDisabled}
+              basicRoleDisabledMessage="This user's role is not editable because it is synchronized from your auth provider.
+                Refer to the Grafana authentication docs for details."
+            />
           </div>
-        </div>
+          {isExternalUser && <ExternalUserTooltip lockMessage={lockMessage} />}
+        </>
       ) : (
         <>
           {isChangingRole ? (
-            <div className={styles.rowValue}>
-              <OrgRolePicker inputId={inputId} value={currentRole} onChange={handleOrgRoleChange} autoFocus />
-            </div>
+            <OrgRolePicker inputId={inputId} value={currentRole} onChange={handleOrgRoleChange} autoFocus />
           ) : (
-            <div className={styles.rowValue}>{org.role}</div>
+            <span>{org.role}</span>
           )}
-          <div className={styles.rowActions}>
-            {canChangeRole && (
-              <ChangeOrgButton
-                lockMessage={lockMessage}
-                isExternalUser={isExternalUser}
-                onChangeRoleClick={handleChangeRoleClick}
-                onCancelClick={handleCancelClick}
-                onOrgRoleSave={handleOrgRoleSave}
-              />
-            )}
-          </div>
+          {canChangeRole && (
+            <ChangeOrgButton
+              lockMessage={lockMessage}
+              isExternalUser={isExternalUser}
+              onChangeRoleClick={handleChangeRoleClick}
+              onCancelClick={handleCancelClick}
+              onOrgRoleSave={handleOrgRoleSave}
+            />
+          )}
         </>
       )}
-      <div className={styles.rowActions}>
-        {canRemoveFromOrg && (
-          <ConfirmButton
-            confirmText={t('admin.un-themed-org-row.confirmText-confirm-removal', 'Confirm removal')}
-            confirmVariant="destructive"
-            onCancel={handleCancelClick}
-            onConfirm={handleOrgRemove}
-          >
-            {t('admin.user-orgs.remove-button', 'Remove from organization')}
-          </ConfirmButton>
-        )}
-      </div>
-    </div>
+      {canRemoveFromOrg && (
+        <ConfirmButton
+          confirmText={t('admin.un-themed-org-row.confirmText-confirm-removal', 'Confirm removal')}
+          confirmVariant="destructive"
+          onCancel={handleCancelClick}
+          onConfirm={handleOrgRemove}
+        >
+          {t('admin.user-orgs.remove-button', 'Remove from organization')}
+        </ConfirmButton>
+      )}
+    </Stack>
   );
 });
-OrgRow.displayName = 'OrgRow';
+OrgRoleAndActionsCell.displayName = 'OrgRoleAndActionsCell';
+
+const getOrgRoleAndActionsStyles = (theme: GrafanaTheme2) => ({
+  rolePicker: css({
+    flex: 'auto',
+    marginRight: theme.spacing(1),
+  }),
+});
 
 const getAddToOrgModalStyles = () => ({
   modal: css({

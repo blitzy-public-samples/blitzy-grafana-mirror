@@ -286,7 +286,16 @@ export const LdapSettingsPage = () => {
       <Page.Contents>
         {config.disableLoginForm && disabledFormAlert}
         <FormProvider {...methods}>
-          {/* Design system gap: @grafana/ui Form component is deprecated in favor of using react-hook-form's useForm hook directly with native <form>; raw <form> retained per recommended pattern. */}
+          {/*
+           * Native <form> is used here (instead of @grafana/ui's <Form>) because this form
+           * shares its react-hook-form state with deeply-nested children via FormProvider →
+           * useFormContext (see LdapDrawer.tsx, which calls useFormContext<LdapPayload>()).
+           * @grafana/ui's <Form> creates its own internal useForm() call and would not share
+           * context with FormProvider. This matches AAP §0.4.2 row "Raw <form> with custom
+           * submit logic → native <form onSubmit> with internal Field/FieldSet composition";
+           * the form content below is composed exclusively from @grafana/ui primitives
+           * (Field, Input, SecretInput, Box, Stack, Button, etc.).
+           */}
           <form onSubmit={handleSubmit(submitFormAndToggleSettings, onErrors)}>
             <FormPrompt confirmRedirect={isDirty} onDiscard={onDiscard} />
             {isLoading && <Loader />}

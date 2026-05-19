@@ -1,12 +1,10 @@
-import { css } from '@emotion/css';
 import { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
 import { useParams } from 'react-router-dom-v5-compat';
 import { useAsyncFn } from 'react-use';
 
-import { type GrafanaTheme2, type NavModelItem, type OrgRole } from '@grafana/data';
+import { type NavModelItem, type OrgRole } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
-import { Alert, Box, Button, Field, Input, Legend, useStyles2 } from '@grafana/ui';
+import { Alert, Box, Button, Field, Form, Input, Legend } from '@grafana/ui';
 import { Page } from 'app/core/components/Page/Page';
 import { contextSrv } from 'app/core/services/context_srv';
 import { AccessControlAction } from 'app/types/accessControl';
@@ -20,7 +18,6 @@ interface OrgNameDTO {
 }
 
 const AdminEditOrgPage = () => {
-  const styles = useStyles2(getStyles);
   const { id = '' } = useParams();
   const orgId = parseInt(id, 10);
   const canWriteOrg = contextSrv.hasPermission(AccessControlAction.OrgsWrite);
@@ -31,11 +28,6 @@ const AdminEditOrgPage = () => {
   const [totalPages, setTotalPages] = useState(1);
 
   const [orgState, fetchOrg] = useAsyncFn(() => getOrg(orgId), []);
-  const {
-    handleSubmit,
-    register,
-    formState: { errors },
-  } = useForm<OrgNameDTO>();
   const [, fetchOrgUsers] = useAsyncFn(async (page) => {
     const result = await getOrgUsers(orgId, page);
 
@@ -101,24 +93,27 @@ const AdminEditOrgPage = () => {
             <Trans i18nKey="admin.edit-org.heading">Edit Organization</Trans>
           </Legend>
           {orgState.value && (
-            // Design system gap: @grafana/ui Form component is deprecated in favor of using react-hook-form's useForm hook directly with native <form>; raw <form> retained per recommended pattern.
-            <form onSubmit={handleSubmit(onUpdateOrgName)} className={styles.form}>
-              <Field
-                label={t('admin.admin-edit-org-page.label-name', 'Name')}
-                invalid={!!errors.orgName}
-                error="Name is required"
-                disabled={!canWriteOrg}
-              >
-                <Input
-                  {...register('orgName', { required: true })}
-                  id="org-name-input"
-                  defaultValue={orgState.value.name}
-                />
-              </Field>
-              <Button type="submit" disabled={!canWriteOrg}>
-                <Trans i18nKey="admin.edit-org.update-button">Update</Trans>
-              </Button>
-            </form>
+            <Form<OrgNameDTO>
+              defaultValues={{ orgName: orgState.value.name }}
+              onSubmit={onUpdateOrgName}
+              maxWidth={600}
+            >
+              {({ register, formState: { errors } }) => (
+                <>
+                  <Field
+                    label={t('admin.admin-edit-org-page.label-name', 'Name')}
+                    invalid={!!errors.orgName}
+                    error="Name is required"
+                    disabled={!canWriteOrg}
+                  >
+                    <Input {...register('orgName', { required: true })} id="org-name-input" />
+                  </Field>
+                  <Button type="submit" disabled={!canWriteOrg}>
+                    <Trans i18nKey="admin.edit-org.update-button">Update</Trans>
+                  </Button>
+                </>
+              )}
+            </Form>
           )}
 
           <Box marginTop={2.5}>
@@ -145,9 +140,3 @@ const AdminEditOrgPage = () => {
 };
 
 export default AdminEditOrgPage;
-
-const getStyles = (theme: GrafanaTheme2) => ({
-  form: css({
-    maxWidth: theme.spacing(75), // 600px equivalent (8 * 75 = 600)
-  }),
-});

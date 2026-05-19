@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
 
 import { Trans, t } from '@grafana/i18n';
 import { featureEnabled } from '@grafana/runtime';
-import { Alert, Button, Drawer, Field, Input, LoadingPlaceholder, Stack, Text } from '@grafana/ui';
+import { Alert, Button, Drawer, Field, Form, Input, LoadingPlaceholder, Stack, Text } from '@grafana/ui';
 import { contextSrv } from 'app/core/services/context_srv';
 import { AccessControlAction } from 'app/types/accessControl';
 import { AppNotificationSeverity } from 'app/types/appNotifications';
@@ -39,7 +38,6 @@ export const LdapTestDrawer = ({ onClose, username }: Props) => {
   const userError = useSelector((state) => state.ldap.userError);
   const ldapError = useSelector((state) => state.ldap.ldapError);
   const [isLoading, setIsLoading] = useState(true);
-  const { register, handleSubmit } = useForm<FormModel>();
 
   const fetchUserMapping = useCallback(
     async (username: string) => {
@@ -67,9 +65,7 @@ export const LdapTestDrawer = ({ onClose, username }: Props) => {
     init();
   }, [dispatch, fetchUserMapping, username]);
 
-  const search = (data: FormModel, event?: React.BaseSyntheticEvent) => {
-    event?.preventDefault();
-    event?.stopPropagation();
+  const search = (data: FormModel) => {
     if (data.username) {
       fetchUserMapping(data.username);
     }
@@ -106,23 +102,27 @@ export const LdapTestDrawer = ({ onClose, username }: Props) => {
                 <Text element="h3">
                   <Trans i18nKey="admin.ldap.test-mapping-heading">Test user mapping</Trans>
                 </Text>
-                {/* Design system gap: @grafana/ui Form component is deprecated in favor of using react-hook-form's useForm hook directly with native <form>; raw <form> retained per recommended pattern. */}
-                <form onSubmit={handleSubmit(search)}>
-                  <Field noMargin label={t('admin.ldap-page.label-username', 'Username')}>
-                    <Stack>
-                      <Input
-                        {...register('username', { required: true })}
-                        width={34}
-                        id="username"
-                        type="text"
-                        defaultValue={username}
-                      />
-                      <Button variant="secondary" type="submit">
-                        <Trans i18nKey="admin.ldap.test-mapping-run-button">Run</Trans>
-                      </Button>
-                    </Stack>
-                  </Field>
-                </form>
+                <Form<FormModel>
+                  defaultValues={{ username: username ?? '' }}
+                  onSubmit={search}
+                  maxWidth="none"
+                >
+                  {({ register }) => (
+                    <Field noMargin label={t('admin.ldap-page.label-username', 'Username')}>
+                      <Stack>
+                        <Input
+                          {...register('username', { required: true })}
+                          width={34}
+                          id="username"
+                          type="text"
+                        />
+                        <Button variant="secondary" type="submit">
+                          <Trans i18nKey="admin.ldap.test-mapping-run-button">Run</Trans>
+                        </Button>
+                      </Stack>
+                    </Field>
+                  )}
+                </Form>
                 {userError && userError.title && (
                   <Alert title={userError.title} severity={AppNotificationSeverity.Error} onRemove={onClearUserError}>
                     {userError.body}

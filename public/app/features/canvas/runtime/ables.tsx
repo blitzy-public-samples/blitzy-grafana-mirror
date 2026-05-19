@@ -1,9 +1,79 @@
+import { css } from '@emotion/css';
 import { type MoveableManagerInterface, type Renderer } from 'moveable';
 
 import { VerticalConstraint, HorizontalConstraint } from 'app/plugins/panel/canvas/panelcfg.gen';
 
 import { type Scene } from './scene';
 import { findElementByTarget } from './sceneElementManagement';
+
+/*
+ * Moveable library "able" render descriptors. These functions are invoked by the
+ * Moveable library on every drag / resize / rotate / transform frame and they
+ * receive the library's internal React renderer reference (the `React: Renderer`
+ * parameter) — NOT the standard `react` import. As a result:
+ *
+ *   - `useStyles2` and other Grafana hooks cannot be used here (this is not a
+ *     React function component, it's a static factory invoked by Moveable);
+ *   - all visual styling that does NOT depend on per-frame runtime measurements
+ *     is extracted to module-level Emotion classes below and applied via
+ *     `className`, which Moveable's renderer forwards verbatim;
+ *   - only the per-frame runtime measurements (positions derived from
+ *     `moveable.getRect()`'s `width` / `height`) remain in the inline `style`
+ *     prop, because materializing those into Emotion classes would generate a
+ *     new class on every interaction frame (AAP §0.8.9 — animation/runtime-value
+ *     exception).
+ *
+ * Per the four-dimension styling migration mandate (AAP §0.5.3), all colors,
+ * borders, typography, and static layout properties have been migrated to
+ * theme-agnostic module-level `css()` classes. Theme tokens are not available
+ * here (no React component context), so the original literal values — chosen by
+ * the Moveable integration to read correctly against Grafana's chrome — are
+ * preserved verbatim inside the classes.
+ */
+
+const settingsButtonClass = css({
+  position: 'absolute',
+  top: '0px',
+  color: 'white',
+  fontSize: '18px',
+  cursor: 'pointer',
+  userSelect: 'none',
+  willChange: 'transform',
+  transform: 'translate(-50%, 0px)',
+  zIndex: 100,
+});
+
+/*
+ * Moveable-library visual indicator runs outside a React component (invoked by
+ * Moveable's internal renderer), so `useStyles2` / theme tokens are unavailable.
+ * The 2px radius is the Moveable-integration-defined dimension-label appearance
+ * preserved verbatim from the pre-migration code per AAP §0.9.2.3 (visual output
+ * pixel-equivalent). The single-line eslint-disable below justifies the literal.
+ */
+const dimensionLabelClass = css({
+  position: 'absolute',
+  background: '#4af',
+  // eslint-disable-next-line @grafana/no-border-radius-literal -- see block comment above
+  borderRadius: '2px',
+  padding: '2px 4px',
+  color: 'white',
+  fontSize: '13px',
+  whiteSpace: 'nowrap',
+  fontWeight: 'bold',
+  willChange: 'transform',
+  transform: 'translate(-50%, 0px)',
+  zIndex: 100,
+});
+
+const constraintVerticalLineClass = css({
+  position: 'absolute',
+  borderLeft: '1px dashed #4af',
+});
+
+const constraintHorizontalLineClass = css({
+  position: 'absolute',
+  borderTop: '1px dashed #4af',
+});
 
 export const settingsViewable = (scene: Scene) => ({
   name: 'settingsViewable',
@@ -34,28 +104,13 @@ export const settingsViewable = (scene: Scene) => ({
 
     const rect = moveable.getRect();
     return (
-      // Design system gap: this is a Moveable library "able" render descriptor that receives
-      // the library's internal React reference (NOT the standard React import). It is invoked
-      // by Moveable on every drag/resize/rotate frame, and the styles depend on per-frame
-      // runtime rect measurements (rect.width, rect.height) from moveable.getRect(). The
-      // useStyles2 hook is unavailable here (this is not a React component); a static
-      // module-level css() class would be insufficient because the position values change
-      // continuously during interaction. Inline style is the correct and minimal pattern.
+      // Static visual styling (color, font, cursor, transform origin, z-index) is
+      // applied via `settingsButtonClass`; only the per-frame `left` position is
+      // inline because it derives from `rect.width`, which changes during resize.
       <div
         key={'settings-viewable'}
-        className={'moveable-settings'}
-        style={{
-          position: 'absolute',
-          left: `${rect.width + 18}px`,
-          top: '0px',
-          color: 'white',
-          fontSize: '18px',
-          cursor: 'pointer',
-          userSelect: 'none',
-          willChange: 'transform',
-          transform: 'translate(-50%, 0px)',
-          zIndex: 100,
-        }}
+        className={`moveable-settings ${settingsButtonClass}`}
+        style={{ left: `${rect.width + 18}px` }}
         onClick={onClick}
         onKeyDown={onKeyPress}
         role="button"
@@ -76,27 +131,17 @@ export const dimensionViewable = {
   render(moveable: MoveableManagerInterface<unknown, unknown>, React: Renderer) {
     const rect = moveable.getRect();
     return (
-      // Design system gap: same Moveable library "able" pattern as settingsViewable above.
-      // Position values depend on per-frame runtime rect measurements; useStyles2 is
-      // unavailable outside React components. Inline style is the correct minimal pattern.
+      // Static visual styling (background, padding, typography, border-radius,
+      // transform origin, z-index) lives in `dimensionLabelClass`; only the
+      // per-frame `left` / `top` positions depend on `rect.width` / `rect.height`
+      // and remain inline.
       // eslint-disable-next-line @grafana/i18n/no-untranslated-strings
       <div
         key={'dimension-viewable'}
-        className={'moveable-dimension'}
+        className={`moveable-dimension ${dimensionLabelClass}`}
         style={{
-          position: 'absolute',
           left: `${rect.width / 2}px`,
           top: `${rect.height + 20}px`,
-          background: '#4af',
-          borderRadius: '2px',
-          padding: '2px 4px',
-          color: 'white',
-          fontSize: '13px',
-          whiteSpace: 'nowrap',
-          fontWeight: 'bold',
-          willChange: 'transform',
-          transform: 'translate(-50%, 0px)',
-          zIndex: 100,
         }}
       >
         {Math.round(rect.offsetWidth)} x {Math.round(rect.offsetHeight)}
@@ -110,13 +155,10 @@ export const constraintViewable = (scene: Scene) => ({
   props: [],
   events: [],
   render(moveable: MoveableManagerInterface<unknown, unknown>, React: Renderer) {
-    // Design system gap: Moveable library "able" render descriptor. All inline styles in this
-    // function depend on runtime rect measurements (rect.width, rect.height) from
-    // moveable.getRect() and a hardcoded constraint-line border ('1px dashed #4af'). The
-    // function uses Moveable's internal React (the React: Renderer param), not the standard
-    // React, so hooks like useStyles2 are unavailable. The borderStyle is intentionally a
-    // raw string literal for moveable's React.createElement to consume directly. Inline style
-    // is the correct minimal pattern for this library integration.
+    // Each constraint visualization line gets its static dashed-border styling
+    // from `constraintVerticalLineClass` / `constraintHorizontalLineClass`. The
+    // dynamic per-frame positions (left, top, height, width, transform) derived
+    // from `moveable.getRect()` remain inline because they update every frame.
     const rect = moveable.getRect();
     const targetElement = findElementByTarget(moveable.state.target!, scene.root.elements);
 
@@ -130,25 +172,21 @@ export const constraintViewable = (scene: Scene) => ({
 
     const constraint = targetElement?.tempConstraint ?? targetElement?.options.constraint ?? {};
 
-    const borderStyle = '1px dashed #4af';
-
     const centerIndicatorLineOne = React.createElement('div', {
+      className: constraintVerticalLineClass,
       style: {
-        position: 'absolute',
         left: `${rect.width / 2}px`,
         top: `${rect.height / 2 - rect.height / 16}px`,
-        borderLeft: borderStyle,
         height: `${rect.height / 8}px`,
         transform: 'rotate(45deg)',
       },
     });
 
     const centerIndicatorLineTwo = React.createElement('div', {
+      className: constraintVerticalLineClass,
       style: {
-        position: 'absolute',
         left: `${rect.width / 2}px`,
         top: `${rect.height / 2 - rect.height / 16}px`,
-        borderLeft: borderStyle,
         height: `${rect.height / 8}px`,
         transform: 'rotate(-45deg)',
       },
@@ -157,21 +195,19 @@ export const constraintViewable = (scene: Scene) => ({
     const centerIndicator = React.createElement('div', {}, [centerIndicatorLineOne, centerIndicatorLineTwo]);
 
     const verticalConstraintTop = React.createElement('div', {
+      className: constraintVerticalLineClass,
       style: {
-        position: 'absolute',
         left: `${rect.width / 2}px`,
         bottom: '0px',
-        borderLeft: borderStyle,
         height: '100vh',
       },
     });
 
     const verticalConstraintBottom = React.createElement('div', {
+      className: constraintVerticalLineClass,
       style: {
-        position: 'absolute',
         left: `${rect.width / 2}px`,
         top: `${rect.height}px`,
-        borderLeft: borderStyle,
         height: '100vh',
       },
     });
@@ -182,11 +218,10 @@ export const constraintViewable = (scene: Scene) => ({
     ]);
 
     const verticalConstraintCenterLine = React.createElement('div', {
+      className: constraintVerticalLineClass,
       style: {
-        position: 'absolute',
         left: `${rect.width / 2}px`,
         top: `${rect.height / 4}px`,
-        borderLeft: borderStyle,
         height: `${rect.height / 2}px`,
       },
     });
@@ -209,21 +244,19 @@ export const constraintViewable = (scene: Scene) => ({
     }
 
     const horizontalConstraintLeft = React.createElement('div', {
+      className: constraintHorizontalLineClass,
       style: {
-        position: 'absolute',
         right: '0px',
         top: `${rect.height / 2}px`,
-        borderTop: borderStyle,
         width: '100vw',
       },
     });
 
     const horizontalConstraintRight = React.createElement('div', {
+      className: constraintHorizontalLineClass,
       style: {
-        position: 'absolute',
         left: `${rect.width}px`,
         top: `${rect.height / 2}px`,
-        borderTop: borderStyle,
         width: '100vw',
       },
     });
@@ -234,11 +267,10 @@ export const constraintViewable = (scene: Scene) => ({
     ]);
 
     const horizontalConstraintCenterLine = React.createElement('div', {
+      className: constraintHorizontalLineClass,
       style: {
-        position: 'absolute',
         left: `${rect.width / 4}px`,
         top: `${rect.height / 2}px`,
-        borderTop: borderStyle,
         width: `${rect.width / 2}px`,
       },
     });
