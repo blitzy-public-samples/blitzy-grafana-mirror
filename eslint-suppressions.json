@@ -2355,9 +2355,6 @@
   "public/app/features/variables/system/adapter.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 4
-    },
-    "@typescript-eslint/no-explicit-any": {
-      "count": 4
     }
   },
   "public/app/features/variables/utils.ts": {
