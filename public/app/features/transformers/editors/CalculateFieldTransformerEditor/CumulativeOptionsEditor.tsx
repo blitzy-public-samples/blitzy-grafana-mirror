@@ -1,11 +1,13 @@
-import { ReducerID, type SelectableValue } from '@grafana/data';
+import { css } from '@emotion/css';
+
+import { ReducerID, type SelectableValue, type GrafanaTheme2 } from '@grafana/data';
 import {
   CalculateFieldMode,
   type CalculateFieldTransformerOptions,
   type CumulativeOptions,
 } from '@grafana/data/internal';
 import { t } from '@grafana/i18n';
-import { InlineField, Select, StatsPicker } from '@grafana/ui';
+import { InlineField, Select, StatsPicker, useStyles2 } from '@grafana/ui';
 
 import { LABEL_WIDTH } from './constants';
 
@@ -16,6 +18,7 @@ export const CumulativeOptionsEditor = (props: {
 }) => {
   const { names, onChange, options } = props;
   const { cumulative } = options;
+  const styles = useStyles2(getStyles);
   const selectOptions = names.map((v) => ({ label: v, value: v }));
 
   const onCumulativeStatsChange = (stats: string[]) => {
@@ -45,7 +48,7 @@ export const CumulativeOptionsEditor = (props: {
         <Select
           placeholder={t('transformers.cumulative-options-editor.placeholder-field', 'Field')}
           options={selectOptions}
-          className="min-width-18"
+          className={styles.fieldSelect}
           value={cumulative?.field}
           onChange={onCumulativeFieldChange}
         />
@@ -65,3 +68,9 @@ export const CumulativeOptionsEditor = (props: {
     </>
   );
 };
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  fieldSelect: css({
+    minWidth: theme.spacing(36),
+  }),
+});
