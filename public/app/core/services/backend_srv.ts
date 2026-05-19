@@ -462,10 +462,41 @@ export class BackendSrv implements BackendService {
     // verified via a repository-wide grep — and its sole caller (`catchError` →
     // `throwError`) does not consume the return type, so widening to `FetchError` is
     // safe for the public API surface.
-    type NormalizedData = { message: string; error?: string; response?: string; traceID?: string };
+    //
+    // PRESERVATION CONTRACT (CRITICAL — see history below):
+    // For object-shaped `rawData`, ALL inbound fields MUST be preserved on the
+    // normalized output. This includes — but is not limited to — Kubernetes-style
+    // `errors: ErrorDetails[]` arrays returned by the provisioning API, the
+    // `kind`/`status`/`details` fields of a Kubernetes `Status` payload, and
+    // `error: { id, maxConcurrentSessions }` nested objects emitted on
+    // `ERR_TOKEN_REVOKED` responses. Downstream callers
+    // (`extractFormErrors`/`getFormErrors`/`getConnectionFormErrors` in
+    // `features/provisioning/utils/getFormErrors.ts`, `data.errors[0].message`
+    // accesses in `features/alerting/unified/components/rule-editor/util.ts`,
+    // `features/dashboard/components/PanelEditor/PanelEditorTableView.tsx`, and
+    // `plugins/datasource/tempo/datasource.ts`) all read these fields off of
+    // `err.data` after normalization. The earlier closed-allowlist normalizer
+    // (`{message, error, response, traceID}` only) silently dropped those fields
+    // and broke per-field form validation in provisioning forms; the preservation
+    // pattern below restores the original contract while keeping `<T = unknown>`
+    // type safety. The `NormalizedData` index signature carries arbitrary
+    // passthrough fields as `unknown`, matching the inbound shape.
+    type NormalizedData = {
+      message: string;
+      error?: string;
+      response?: string;
+      traceID?: string;
+      [key: string]: unknown;
+    };
     const rawData = err.data;
 
-    let normalizedData: NormalizedData;
+    // `normalizedData` widens to `unknown[]` for raw array payloads (e.g., the
+    // `ErrorDetails[]` shape declared in the union type of
+    // `extractFormErrors(data: ErrorDetails[] | Status)`). For object-shaped
+    // payloads, `NormalizedData` carries arbitrary passthrough fields via its
+    // index signature so callers that read `data.errors[]`, `data.kind`,
+    // `data.details`, etc. see the inbound shape unchanged after normalization.
+    let normalizedData: NormalizedData | unknown[];
     if (rawData == null) {
       normalizedData = { message: 'Unexpected error' };
     } else if (typeof rawData === 'string') {
@@ -475,21 +506,37 @@ export class BackendSrv implements BackendService {
         error: err.statusText,
         response: rawData,
       };
+    } else if (Array.isArray(rawData)) {
+      // Preserve raw array payloads (e.g., `ErrorDetails[]` directly returned by
+      // the provisioning API). Downstream consumers like `extractFormErrors`
+      // detect arrays via `Array.isArray(data)` before accessing object fields,
+      // so the array is forwarded as-is without wrapping. No alert is fired for
+      // array payloads because there is no `message` field on an array — this
+      // matches the pre-088f3c7da2 behavior where `err.data.message` on an array
+      // was `undefined` and the alert short-circuited via `if (err.data.message)`.
+      normalizedData = rawData;
     } else if (typeof rawData === 'object') {
-      const dataMessage = 'message' in rawData && typeof rawData.message === 'string' ? rawData.message : undefined;
-      const dataError = 'error' in rawData && typeof rawData.error === 'string' ? rawData.error : undefined;
-      const dataResponse = 'response' in rawData && typeof rawData.response === 'string' ? rawData.response : undefined;
-      const dataTraceID = 'traceID' in rawData && typeof rawData.traceID === 'string' ? rawData.traceID : undefined;
-      // If no message but got error string, copy error to message (preserves original behavior).
-      // Default to '' for empty payloads so `if (normalizedData.message)` below stays falsy —
-      // matching the original behavior of skipping the alert for object payloads with neither
-      // message nor error fields.
+      // Preserve ALL fields from the inbound error object (errors[], kind, details,
+      // nested error sub-objects, etc.). Narrow `message`/`error` to strings for
+      // type-safe access by `showErrorAlert` and downstream consumers, falling back
+      // to the `error` string if no `message` is present (preserves the pre-088f3c7da2
+      // behavior of copying `error` to `message` when `message` is empty). For
+      // payloads that have neither `message` nor a string `error` field, default to
+      // an empty string so the alert-trigger check below stays falsy — matching the
+      // original behavior of skipping the alert for such payloads. The `in` operator
+      // predicate narrows `rawData` for property access without a type assertion
+      // (assertions are disallowed by `@typescript-eslint/consistent-type-assertions:
+      // ['error', { assertionStyle: 'never' }]`); the spread `{...rawData}` is
+      // permitted on the post-narrowed `object` type and carries every enumerable
+      // own field into the new normalized payload.
+      const rawMessage = 'message' in rawData ? rawData.message : undefined;
+      const rawError = 'error' in rawData ? rawData.error : undefined;
+      const dataMessage = typeof rawMessage === 'string' ? rawMessage : undefined;
+      const dataError = typeof rawError === 'string' ? rawError : undefined;
       const message = dataMessage ?? dataError ?? '';
       normalizedData = {
+        ...rawData,
         message,
-        ...(dataError !== undefined ? { error: dataError } : {}),
-        ...(dataResponse !== undefined ? { response: dataResponse } : {}),
-        ...(dataTraceID !== undefined ? { traceID: dataTraceID } : {}),
       };
     } else {
       // numbers, booleans, etc. — treat like null/undefined
@@ -502,8 +549,11 @@ export class BackendSrv implements BackendService {
     // `PathValidationError` that flow through this normalization path.
     err.data = normalizedData;
 
-    // check if we should show an error alert
-    if (normalizedData.message) {
+    // check if we should show an error alert (skip for raw array payloads which
+    // have no `message` field — preserves pre-088f3c7da2 behavior where the
+    // `if (err.data.message)` check short-circuited on arrays).
+    const alertMessage = !Array.isArray(normalizedData) ? normalizedData.message : '';
+    if (alertMessage) {
       setTimeout(() => {
         if (!err.isHandled) {
           this.showErrorAlert(options, err);
