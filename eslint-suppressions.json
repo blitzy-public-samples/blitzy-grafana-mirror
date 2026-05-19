@@ -2161,11 +2161,6 @@
       "count": 4
     }
   },
-  "public/app/features/variables/adapters.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 3
-    }
-  },
   "public/app/features/variables/adhoc/picker/AdHocFilter.tsx": {
     "no-restricted-syntax": {
       "count": 1
