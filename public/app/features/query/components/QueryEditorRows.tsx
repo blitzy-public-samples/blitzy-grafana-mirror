@@ -1,5 +1,5 @@
 import { DragDropContext, type DragStart, Droppable, type DropResult } from '@hello-pangea/dnd';
-import { PureComponent, type ReactNode } from 'react';
+import { memo, useCallback, type ReactNode } from 'react';
 
 import {
   CoreApp,
@@ -49,13 +49,36 @@ export interface Props {
   panelRef?: SceneObjectRef<VizPanel>;
 }
 
-export class QueryEditorRows extends PureComponent<Props> {
-  onRemoveQuery = (query: DataQuery) => {
-    this.props.onQueriesChange(this.props.queries.filter((item) => item !== query));
-  };
+export const QueryEditorRows = memo((props: Props): ReactNode => {
+  const {
+    dsSettings,
+    data,
+    queries,
+    app,
+    history,
+    eventBus,
+    onAddQuery,
+    onRunQueries,
+    onQueryCopied,
+    onQueryRemoved,
+    onQueryToggled,
+    onQueryOpenChanged,
+    onQueryReplacedFromLibrary,
+    queryRowWrapper,
+    queryLibraryRef,
+    onCancelQueryLibraryEdit,
+    isOpen,
+  } = props;
 
-  onChangeQuery(query: DataQuery, index: number) {
-    const { queries, onQueriesChange } = this.props;
+  const onRemoveQuery = useCallback(
+    (query: DataQuery) => {
+      props.onQueriesChange(props.queries.filter((item) => item !== query));
+    },
+    [props]
+  );
+
+  const onChangeQuery = (query: DataQuery, index: number) => {
+    const { queries, onQueriesChange } = props;
 
     // update query in array
     onQueriesChange(
@@ -67,8 +90,8 @@ export class QueryEditorRows extends PureComponent<Props> {
       })
     );
 
-    if (this.props.panelRef) {
-      const panel = this.props.panelRef.resolve();
+    if (props.panelRef) {
+      const panel = props.panelRef.resolve();
       const hideSeriesOverrideIndex = panel.state.fieldConfig.overrides.findIndex(
         isSystemOverrideWithRef('hideSeriesFrom')
       );
@@ -80,10 +103,10 @@ export class QueryEditorRows extends PureComponent<Props> {
         panel.setState({ fieldConfig: { ...panel.state.fieldConfig, overrides: newOverrides } });
       }
     }
-  }
+  };
 
-  onReplaceQuery(query: DataQuery, index: number) {
-    const { queries, onQueriesChange, onUpdateDatasources, dsSettings, onRunQueries } = this.props;
+  const onReplaceQuery = (query: DataQuery, index: number) => {
+    const { queries, onQueriesChange, onUpdateDatasources, dsSettings, onRunQueries } = props;
 
     // Replace old query with new query, preserving the original refId
     const newQueries = queries.map((item, itemIndex) => {
@@ -108,10 +131,10 @@ export class QueryEditorRows extends PureComponent<Props> {
     }
 
     onRunQueries();
-  }
+  };
 
-  onDataSourceChange(dataSource: DataSourceInstanceSettings, index: number) {
-    const { queries, onQueriesChange } = this.props;
+  const onDataSourceChange = (dataSource: DataSourceInstanceSettings, index: number) => {
+    const { queries, onQueriesChange } = props;
 
     Promise.all(
       queries.map(async (item, itemIndex) => {
@@ -142,124 +165,110 @@ export class QueryEditorRows extends PureComponent<Props> {
         throw new Error(`Failed to get datasource ${dataSource.name ?? dataSource.uid}`);
       }
     );
-  }
-
-  onDragStart = (result: DragStart) => {
-    const { queries, dsSettings } = this.props;
-
-    reportInteraction('query_row_reorder_started', {
-      startIndex: result.source.index,
-      numberOfQueries: queries.length,
-      datasourceType: dsSettings.type,
-    });
   };
 
-  onDragEnd = (result: DropResult) => {
-    const { queries, onQueriesChange, dsSettings } = this.props;
+  const onDragStart = useCallback(
+    (result: DragStart) => {
+      const { queries, dsSettings } = props;
 
-    if (!result || !result.destination) {
-      return;
-    }
+      reportInteraction('query_row_reorder_started', {
+        startIndex: result.source.index,
+        numberOfQueries: queries.length,
+        datasourceType: dsSettings.type,
+      });
+    },
+    [props]
+  );
 
-    const startIndex = result.source.index;
-    const endIndex = result.destination.index;
-    if (startIndex === endIndex) {
-      reportInteraction('query_row_reorder_canceled', {
+  const onDragEnd = useCallback(
+    (result: DropResult) => {
+      const { queries, onQueriesChange, dsSettings } = props;
+
+      if (!result || !result.destination) {
+        return;
+      }
+
+      const startIndex = result.source.index;
+      const endIndex = result.destination.index;
+      if (startIndex === endIndex) {
+        reportInteraction('query_row_reorder_canceled', {
+          startIndex,
+          endIndex,
+          numberOfQueries: queries.length,
+          datasourceType: dsSettings.type,
+        });
+        return;
+      }
+
+      const update = Array.from(queries);
+      const [removed] = update.splice(startIndex, 1);
+      update.splice(endIndex, 0, removed);
+      onQueriesChange(update);
+
+      reportInteraction('query_row_reorder_ended', {
         startIndex,
         endIndex,
         numberOfQueries: queries.length,
         datasourceType: dsSettings.type,
       });
-      return;
-    }
+    },
+    [props]
+  );
 
-    const update = Array.from(queries);
-    const [removed] = update.splice(startIndex, 1);
-    update.splice(endIndex, 0, removed);
-    onQueriesChange(update);
+  return (
+    <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
+      <Droppable droppableId="transformations-list" direction="vertical">
+        {(provided) => {
+          return (
+            <div data-testid="query-editor-rows" ref={provided.innerRef} {...provided.droppableProps}>
+              {queries.map((query, index) => {
+                const dataSourceSettings = getDataSourceSettings(query, dsSettings);
+                const onChangeDataSourceSettings = dsSettings.meta.mixed
+                  ? (settings: DataSourceInstanceSettings) => onDataSourceChange(settings, index)
+                  : undefined;
 
-    reportInteraction('query_row_reorder_ended', {
-      startIndex,
-      endIndex,
-      numberOfQueries: queries.length,
-      datasourceType: dsSettings.type,
-    });
-  };
+                const queryEditorRow = (
+                  <QueryEditorRow
+                    id={query.refId}
+                    index={index}
+                    key={query.refId}
+                    data={data}
+                    query={query}
+                    dataSource={dataSourceSettings}
+                    onChangeDataSource={onChangeDataSourceSettings}
+                    onChange={(query) => onChangeQuery(query, index)}
+                    onReplace={(query) => onReplaceQuery(query, index)}
+                    onRemoveQuery={onRemoveQuery}
+                    onAddQuery={onAddQuery}
+                    onRunQuery={onRunQueries}
+                    onQueryCopied={onQueryCopied}
+                    onQueryRemoved={onQueryRemoved}
+                    onQueryToggled={onQueryToggled}
+                    onQueryOpenChanged={onQueryOpenChanged}
+                    onQueryReplacedFromLibrary={onQueryReplacedFromLibrary}
+                    queries={queries}
+                    app={app}
+                    range={getTimeSrv().timeRange()}
+                    history={history}
+                    eventBus={eventBus}
+                    queryLibraryRef={queryLibraryRef}
+                    onCancelQueryLibraryEdit={onCancelQueryLibraryEdit}
+                    isOpen={isOpen}
+                  />
+                );
 
-  render() {
-    const {
-      dsSettings,
-      data,
-      queries,
-      app,
-      history,
-      eventBus,
-      onAddQuery,
-      onRunQueries,
-      onQueryCopied,
-      onQueryRemoved,
-      onQueryToggled,
-      onQueryOpenChanged,
-      onQueryReplacedFromLibrary,
-      queryRowWrapper,
-      queryLibraryRef,
-      onCancelQueryLibraryEdit,
-      isOpen,
-    } = this.props;
+                return queryRowWrapper ? queryRowWrapper(queryEditorRow, query.refId) : queryEditorRow;
+              })}
+              {provided.placeholder}
+            </div>
+          );
+        }}
+      </Droppable>
+    </DragDropContext>
+  );
+});
 
-    return (
-      <DragDropContext onDragStart={this.onDragStart} onDragEnd={this.onDragEnd}>
-        <Droppable droppableId="transformations-list" direction="vertical">
-          {(provided) => {
-            return (
-              <div data-testid="query-editor-rows" ref={provided.innerRef} {...provided.droppableProps}>
-                {queries.map((query, index) => {
-                  const dataSourceSettings = getDataSourceSettings(query, dsSettings);
-                  const onChangeDataSourceSettings = dsSettings.meta.mixed
-                    ? (settings: DataSourceInstanceSettings) => this.onDataSourceChange(settings, index)
-                    : undefined;
-
-                  const queryEditorRow = (
-                    <QueryEditorRow
-                      id={query.refId}
-                      index={index}
-                      key={query.refId}
-                      data={data}
-                      query={query}
-                      dataSource={dataSourceSettings}
-                      onChangeDataSource={onChangeDataSourceSettings}
-                      onChange={(query) => this.onChangeQuery(query, index)}
-                      onReplace={(query) => this.onReplaceQuery(query, index)}
-                      onRemoveQuery={this.onRemoveQuery}
-                      onAddQuery={onAddQuery}
-                      onRunQuery={onRunQueries}
-                      onQueryCopied={onQueryCopied}
-                      onQueryRemoved={onQueryRemoved}
-                      onQueryToggled={onQueryToggled}
-                      onQueryOpenChanged={onQueryOpenChanged}
-                      onQueryReplacedFromLibrary={onQueryReplacedFromLibrary}
-                      queries={queries}
-                      app={app}
-                      range={getTimeSrv().timeRange()}
-                      history={history}
-                      eventBus={eventBus}
-                      queryLibraryRef={queryLibraryRef}
-                      onCancelQueryLibraryEdit={onCancelQueryLibraryEdit}
-                      isOpen={isOpen}
-                    />
-                  );
-
-                  return queryRowWrapper ? queryRowWrapper(queryEditorRow, query.refId) : queryEditorRow;
-                })}
-                {provided.placeholder}
-              </div>
-            );
-          }}
-        </Droppable>
-      </DragDropContext>
-    );
-  }
-}
+QueryEditorRows.displayName = 'QueryEditorRows';
 
 const getDataSourceSettings = (
   query: DataQuery,

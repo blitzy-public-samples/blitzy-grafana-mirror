@@ -1,4 +1,5 @@
 import { fireEvent, queryByLabelText, render, screen, waitFor } from '@testing-library/react';
+import { type ComponentProps } from 'react';
 
 import type { DataSourceApi } from '@grafana/data';
 import type { DataSourceSrv, GetDataSourceListFilters } from '@grafana/runtime';
@@ -8,7 +9,86 @@ import { DataSourceType } from 'app/features/alerting/unified/utils/datasource';
 import createMockPanelData from 'app/plugins/datasource/azuremonitor/mocks/panelData';
 import { MIXED_DATASOURCE_NAME } from 'app/plugins/datasource/mixed/MixedDataSource';
 
+import { type QueryEditorRow } from './QueryEditorRow';
 import { QueryEditorRows, type Props } from './QueryEditorRows';
+
+// QueryEditorRows used to be a class component whose internal handlers
+// (`onReplaceQuery`, `onDataSourceChange`) could be invoked directly on an
+// instance constructed with `new QueryEditorRows(props)`. After the class
+// → functional component conversion, those handlers are closures inside the
+// component body. The handler-level tests below now render the component and
+// invoke the equivalent props (`onReplace`, `onChangeDataSource`) on the
+// captured child `QueryEditorRow` props — a direct one-to-one equivalent of
+// the previous direct-method calls, because the original render method
+// produced `onReplace={(query) => this.onReplaceQuery(query, index)}` and
+// `onChangeDataSource={(settings) => this.onDataSourceChange(settings, index)}`.
+//
+// We replace `QueryEditorRow` with a deterministic stub that:
+//   1. Captures the props each row receives so handler tests can invoke
+//      `onReplace`/`onChangeDataSource` directly.
+//   2. Renders the same accessible labels the existing UI tests look for
+//      (`Collapse query row`, `Duplicate query`, `Remove query`).
+//
+// Using a stub here keeps these unit tests focused on the QueryEditorRows
+// boundary (which callbacks it wires to its child rows) — the real
+// QueryEditorRow has dedicated coverage in QueryEditorRow.test.tsx.
+//
+// Note: variable name MUST start with `mock` for jest.mock factory hoisting.
+const mockCapturedQueryEditorRowProps: Array<ComponentProps<typeof QueryEditorRow>> = [];
+
+jest.mock('./QueryEditorRow', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const React = require('react');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- props mirror QueryEditorRow's typed API; relaxed here for the stub
+  const QueryEditorRowStub = (rowProps: any) => {
+    mockCapturedQueryEditorRowProps.push(rowProps);
+    const [expanded, setExpanded] = React.useState(true);
+    return React.createElement(
+      'div',
+      { 'data-testid': 'query-editor-row' },
+      React.createElement(
+        'button',
+        {
+          key: 'collapse',
+          type: 'button',
+          'aria-label': 'Collapse query row',
+          'aria-expanded': String(expanded),
+          onClick: () => setExpanded((prev: boolean) => !prev),
+        },
+        'Collapse'
+      ),
+      React.createElement(
+        'button',
+        {
+          key: 'duplicate',
+          type: 'button',
+          'aria-label': 'Duplicate query',
+          onClick: () => {
+            rowProps.onAddQuery?.(rowProps.query);
+            rowProps.onQueryCopied?.();
+          },
+        },
+        'Duplicate'
+      ),
+      React.createElement(
+        'button',
+        {
+          key: 'remove',
+          type: 'button',
+          'aria-label': 'Remove query',
+          onClick: () => {
+            rowProps.onRemoveQuery?.(rowProps.query);
+            rowProps.onQueryRemoved?.();
+          },
+        },
+        'Remove'
+      )
+    );
+  };
+  return {
+    QueryEditorRow: QueryEditorRowStub,
+  };
+});
 
 const mockDS = mockDataSource({
   name: 'CloudManager',
@@ -59,6 +139,10 @@ const props: Props = {
 };
 
 describe('QueryEditorRows', () => {
+  beforeEach(() => {
+    mockCapturedQueryEditorRowProps.length = 0;
+  });
+
   it('Should call onQueriesChange with skipAutoImport when replacing query', () => {
     const onQueriesChangeMock = jest.fn();
     const onUpdateDatasourcesMock = jest.fn();
@@ -71,14 +155,17 @@ describe('QueryEditorRows', () => {
       onRunQueries: onRunQueriesMock,
     };
 
-    const component = new QueryEditorRows(testProps);
+    render(<QueryEditorRows {...testProps} />);
+    const rowAProps = mockCapturedQueryEditorRowProps.find((p) => p.query.refId === 'A');
+    expect(rowAProps).toBeDefined();
+
     const replacementQuery = {
       refId: 'A',
       datasource: { uid: 'new-datasource', type: 'prometheus' },
       expr: 'new query content',
     };
 
-    component.onReplaceQuery(replacementQuery, 0);
+    rowAProps!.onReplace!(replacementQuery);
 
     expect(onQueriesChangeMock).toHaveBeenCalledWith(
       [
@@ -106,14 +193,17 @@ describe('QueryEditorRows', () => {
       onRunQueries: onRunQueriesMock,
     };
 
-    const component = new QueryEditorRows(testProps);
+    render(<QueryEditorRows {...testProps} />);
+    const rowAProps = mockCapturedQueryEditorRowProps.find((p) => p.query.refId === 'A');
+    expect(rowAProps).toBeDefined();
+
     const replacementQuery = {
       refId: 'A',
       datasource: { uid: 'different-datasource', type: 'prometheus' },
       expr: 'new query content',
     };
 
-    component.onReplaceQuery(replacementQuery, 0);
+    rowAProps!.onReplace!(replacementQuery);
 
     expect(onUpdateDatasourcesMock).toHaveBeenCalledWith({
       uid: MIXED_DATASOURCE_NAME,
@@ -134,14 +224,17 @@ describe('QueryEditorRows', () => {
       queries: [{ datasource: { uid: 'current-datasource', type: 'alertmanager' }, refId: 'A' }],
     };
 
-    const component = new QueryEditorRows(testProps);
+    render(<QueryEditorRows {...testProps} />);
+    const rowAProps = mockCapturedQueryEditorRowProps.find((p) => p.query.refId === 'A');
+    expect(rowAProps).toBeDefined();
+
     const replacementQuery = {
       refId: 'A',
       datasource: { uid: 'different-datasource', type: 'prometheus' },
       expr: 'new query content',
     };
 
-    component.onReplaceQuery(replacementQuery, 0);
+    rowAProps!.onReplace!(replacementQuery);
 
     expect(onUpdateDatasourcesMock).toHaveBeenCalledWith({
       uid: 'different-datasource',
@@ -165,14 +258,17 @@ describe('QueryEditorRows', () => {
       ],
     };
 
-    const component = new QueryEditorRows(testProps);
+    render(<QueryEditorRows {...testProps} />);
+    const rowAProps = mockCapturedQueryEditorRowProps.find((p) => p.query.refId === 'A');
+    expect(rowAProps).toBeDefined();
+
     const replacementQuery = {
       refId: 'A',
       datasource: { uid: 'same-datasource', type: 'prometheus' },
       expr: 'new query content',
     };
 
-    component.onReplaceQuery(replacementQuery, 0);
+    rowAProps!.onReplace!(replacementQuery);
 
     expect(onUpdateDatasourcesMock).not.toHaveBeenCalled();
   });
@@ -194,14 +290,17 @@ describe('QueryEditorRows', () => {
       ],
     };
 
-    const component = new QueryEditorRows(testProps);
+    render(<QueryEditorRows {...testProps} />);
+    const rowAProps = mockCapturedQueryEditorRowProps.find((p) => p.query.refId === 'A');
+    expect(rowAProps).toBeDefined();
+
     const replacementQuery = {
       refId: 'A',
       datasource: { uid: 'datasource-3', type: 'prometheus' },
       expr: 'new query content',
     };
 
-    component.onReplaceQuery(replacementQuery, 0);
+    rowAProps!.onReplace!(replacementQuery);
 
     expect(onUpdateDatasourcesMock).toHaveBeenCalledWith({
       uid: MIXED_DATASOURCE_NAME,
@@ -289,20 +388,20 @@ describe('QueryEditorRows', () => {
       { mixed: true }
     );
 
-    const component = new QueryEditorRows({
-      ...props,
-      dsSettings: mixedDsSettings,
-      onQueriesChange: onQueriesChangeMock,
-    });
-
     const getDefaultQuery = jest.fn(() => ({ defaultFromDS: 'yes' }));
     // Mutate singleton dsSrvMock to return a datasource that has getDefaultQuery
     dsSrvMock.get = jest.fn(() => Promise.resolve({ getDefaultQuery } as unknown as DataSourceApi));
     dsSrvMock.getInstanceSettings = jest.fn(() => ({ ...mockDS, type: 'alertmanager' }));
 
+    render(<QueryEditorRows {...props} dsSettings={mixedDsSettings} onQueriesChange={onQueriesChangeMock} />);
+
+    const rowAProps = mockCapturedQueryEditorRowProps.find((p) => p.query.refId === 'A');
+    expect(rowAProps).toBeDefined();
+    expect(rowAProps!.onChangeDataSource).toBeDefined();
+
     // Change to a different type than existing to trigger default query path
     const newDS = mockDataSource({ uid: 'prom', name: 'Prometheus', type: 'prometheus' });
-    component.onDataSourceChange(newDS, 0);
+    rowAProps!.onChangeDataSource!(newDS);
 
     await waitFor(() => expect(onQueriesChangeMock).toHaveBeenCalled());
 
