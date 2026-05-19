@@ -2,7 +2,7 @@ import { css } from '@emotion/css';
 import { skipToken } from '@reduxjs/toolkit/query/react';
 import { useParams } from 'react-router-dom-v5-compat';
 
-import { type GrafanaTheme2 } from '@grafana/data';
+import type { GrafanaTheme2 } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
 import { isFetchError } from '@grafana/runtime';
 import { Alert, Card, EmptyState, Stack, Text, TextLink, useStyles2 } from '@grafana/ui';
@@ -16,9 +16,9 @@ import { type ExternalRepository } from '../types';
 import { ConnectionForm } from './ConnectionForm';
 
 export default function ConnectionFormPage() {
-  const styles = useStyles2(getStyles);
   const { name = '' } = useParams();
   const isCreate = !name;
+  const styles = useStyles2(getStyles);
 
   const { connection, isLoading, isError, error, isDisconnected, disconnectMessage } = useConnectionStatus(
     isCreate ? undefined : name
@@ -80,7 +80,7 @@ export default function ConnectionFormPage() {
               </Alert>
             )}
             {!isCreate && connectedRepos.length > 0 && (
-              <div className={styles.cardContainer}>
+              <div className={styles.cardWrapper}>
                 <Card noMargin>
                   <Card.Heading>
                     <Trans i18nKey="provisioning.connection-form.grafana-repositories">
@@ -101,7 +101,7 @@ export default function ConnectionFormPage() {
             )}
 
             {!isCreate && availableRepos.length > 0 && (
-              <div className={styles.cardContainer}>
+              <div className={styles.cardWrapper}>
                 <Card noMargin>
                   <Card.Heading>
                     <Trans i18nKey="provisioning.connection-form.available-repositories">
@@ -133,11 +133,8 @@ export default function ConnectionFormPage() {
   );
 }
 
-// Migrated from two inline style={{ maxWidth: 700 }} occurrences per AAP Dimension 3
-// (inline-style → useStyles2). 700px matches the parent <ConnectionForm> maxWidth so the
-// connected-repositories and available-repositories info cards align with the form below.
-const getStyles = (_theme: GrafanaTheme2) => ({
-  cardContainer: css({
+const getStyles = (theme: GrafanaTheme2) => ({
+  cardWrapper: css({
     maxWidth: 700,
   }),
 });
