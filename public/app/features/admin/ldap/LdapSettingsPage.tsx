@@ -286,6 +286,7 @@ export const LdapSettingsPage = () => {
       <Page.Contents>
         {config.disableLoginForm && disabledFormAlert}
         <FormProvider {...methods}>
+          {/* Design system gap: @grafana/ui Form component is deprecated in favor of using react-hook-form's useForm hook directly with native <form>; raw <form> retained per recommended pattern. */}
           <form onSubmit={handleSubmit(submitFormAndToggleSettings, onErrors)}>
             <FormPrompt confirmRedirect={isDirty} onDiscard={onDiscard} />
             {isLoading && <Loader />}
