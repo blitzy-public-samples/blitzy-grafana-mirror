@@ -7,7 +7,7 @@ import { OptionsPaneCategoryDescriptor } from 'app/features/dashboard/components
 import { fillOptionsPaneItems } from 'app/features/dashboard/components/PanelEditor/getVisualizationOptions';
 import { setOptionImmutably } from 'app/features/dashboard/components/PanelEditor/utils';
 
-export function getTransformerOptionPane<T = any>(
+export function getTransformerOptionPane<T = unknown>(
   props: TransformerUIProps<T>,
   supplier: PanelOptionsSupplier<T>
 ): OptionsPaneCategoryDescriptor {
@@ -36,7 +36,7 @@ export function getTransformerOptionPane<T = any>(
   const access: NestedValueAccess = {
     getValue: (path) => lodashGet(props.options, path),
     onChange: (path, value) => {
-      props.onChange(setOptionImmutably<any>(props.options, path, value));
+      props.onChange(setOptionImmutably(props.options as T & object, path, value));
     },
   };
 
@@ -45,7 +45,7 @@ export function getTransformerOptionPane<T = any>(
   return root;
 }
 
-export function getDefaultOptions<T = any>(supplier: PanelOptionsSupplier<T>): T {
+export function getDefaultOptions<T = unknown>(supplier: PanelOptionsSupplier<T>): T {
   const context: StandardEditorContext<T, unknown> = {
     data: [],
     options: {} as T,
