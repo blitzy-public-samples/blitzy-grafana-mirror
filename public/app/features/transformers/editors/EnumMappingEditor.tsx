@@ -131,6 +131,7 @@ export const EnumMappingEditor = ({ input, options, transformIndex, onChange }: 
         </Button>
       </Stack>
       <Stack>
+        {/* Design system gap: this <table> integrates with @hello-pangea/dnd Droppable for drag-and-drop reordering of enum value rows. InteractiveTable from @grafana/ui owns its own row rendering and cannot be wrapped by Droppable. Kept as raw HTML per refactor protocol. */}
         <table className={styles.compactTable}>
           <DragDropContext onDragEnd={onDragEnd}>
             <Droppable droppableId="sortable-enum-config-mappings" direction="vertical">
