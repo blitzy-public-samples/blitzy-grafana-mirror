@@ -3,7 +3,7 @@ import { useBooleanFlagValue } from '@openfeature/react-sdk';
 import { memo, useCallback, useEffect, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 
-import { type GrafanaTheme2 } from '@grafana/data';
+import type { GrafanaTheme2 } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
 import { config } from '@grafana/runtime';
 import {
@@ -40,7 +40,6 @@ export const SynchronizeStep = memo(function SynchronizeStep({
   isCancelling,
   goToStep,
 }: SynchronizeStepProps) {
-  const styles = useStyles2(getStyles);
   const { watch, register } = useFormContext<WizardFormData>();
   const { setStepStatusInfo } = useStepStatus();
   const [repoName = '', syncTarget, migrateResources] = watch([
@@ -70,6 +69,7 @@ export const SynchronizeStep = memo(function SynchronizeStep({
   });
   const [job, setJob] = useState<Job>();
   const provisioningFolderMetadataEnabled = useBooleanFlagValue('provisioningFolderMetadata', false);
+  const styles = useStyles2(getStyles);
 
   useEffect(() => {
     // This useEffect is used to update the step status info based on the repository status and the form errors
@@ -164,7 +164,7 @@ export const SynchronizeStep = memo(function SynchronizeStep({
                 .
               </Trans>
             </Text>
-            <ul className={styles.alertList}>
+            <ul className={styles.limitationsList}>
               <li>
                 <Trans i18nKey="provisioning.wizard.alert-point-1">
                   Resources can still be created, edited, or deleted during this process, but changes may not be
@@ -268,10 +268,7 @@ export const SynchronizeStep = memo(function SynchronizeStep({
 });
 
 const getStyles = (theme: GrafanaTheme2) => ({
-  // Migrated from inline style={{ marginLeft: '16px', marginTop: 0, marginBottom: 0 }} per AAP
-  // Dimension 3. 16px ≈ theme.spacing(2). The `marginTop`/`marginBottom: 0` overrides the
-  // browser default <ul> margins so the list visually hugs the surrounding Alert content.
-  alertList: css({
+  limitationsList: css({
     marginLeft: theme.spacing(2),
     marginTop: 0,
     marginBottom: 0,
