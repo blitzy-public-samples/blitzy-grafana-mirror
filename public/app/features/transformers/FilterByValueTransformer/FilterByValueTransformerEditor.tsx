@@ -1,3 +1,4 @@
+import { css } from '@emotion/css';
 import { cloneDeep } from 'lodash';
 import { useMemo, useCallback } from 'react';
 
@@ -8,6 +9,7 @@ import {
   type TransformerUIProps,
   getFieldDisplayName,
   type DataFrame,
+  type GrafanaTheme2,
   type SelectableValue,
   FieldType,
   ValueMatcherID,
@@ -21,7 +23,7 @@ import {
   FilterByValueType,
 } from '@grafana/data/internal';
 import { Trans, t } from '@grafana/i18n';
-import { Button, RadioButtonGroup, InlineField, Box } from '@grafana/ui';
+import { Box, Button, InlineField, RadioButtonGroup, useStyles2 } from '@grafana/ui';
 
 import { getTransformationContent } from '../docs/getTransformationContent';
 import darkImage from '../images/dark/filterByValue.svg';
@@ -32,6 +34,7 @@ import { type DataFrameFieldsInfo, FilterByValueFilterEditor } from './FilterByV
 export const FilterByValueTransformerEditor = (props: TransformerUIProps<FilterByValueTransformerOptions>) => {
   const { input, options, onChange } = props;
   const fieldsInfo = useFieldsInfo(input);
+  const styles = useStyles2(getStyles);
 
   const filterTypes: Array<SelectableValue<FilterByValueType>> = [
     {
@@ -120,7 +123,7 @@ export const FilterByValueTransformerEditor = (props: TransformerUIProps<FilterB
         label={t('transformers.filter-by-value-transformer-editor.label-filter-type', 'Filter type')}
         labelWidth={16}
       >
-        <div className="width-15">
+        <div className={styles.radioGroup}>
           <RadioButtonGroup options={filterTypes} value={options.type} onChange={onChangeType} fullWidth />
         </div>
       </InlineField>
@@ -129,7 +132,7 @@ export const FilterByValueTransformerEditor = (props: TransformerUIProps<FilterB
           label={t('transformers.filter-by-value-transformer-editor.label-conditions', 'Conditions')}
           labelWidth={16}
         >
-          <div className="width-15">
+          <div className={styles.radioGroup}>
             <RadioButtonGroup options={filterMatch} value={options.match} onChange={onChangeMatch} fullWidth />
           </div>
         </InlineField>
@@ -200,3 +203,9 @@ const useFieldsInfo = (data: DataFrame[]): DataFrameFieldsInfo => {
     }, meta);
   }, [data]);
 };
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  radioGroup: css({
+    width: theme.spacing(30),
+  }),
+});
