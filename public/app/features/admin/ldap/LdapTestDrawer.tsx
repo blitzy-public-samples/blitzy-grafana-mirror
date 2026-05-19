@@ -106,6 +106,7 @@ export const LdapTestDrawer = ({ onClose, username }: Props) => {
                 <Text element="h3">
                   <Trans i18nKey="admin.ldap.test-mapping-heading">Test user mapping</Trans>
                 </Text>
+                {/* Design system gap: @grafana/ui Form component is deprecated in favor of using react-hook-form's useForm hook directly with native <form>; raw <form> retained per recommended pattern. */}
                 <form onSubmit={handleSubmit(search)}>
                   <Field noMargin label={t('admin.ldap-page.label-username', 'Username')}>
                     <Stack>
