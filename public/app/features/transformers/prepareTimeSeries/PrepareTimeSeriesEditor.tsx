@@ -151,7 +151,7 @@ export function PrepareTimeSeriesEditor(props: TransformerUIProps<PrepareTimeSer
               }) || formats[0]
             }
             onChange={onSelectFormat}
-            className="flex-grow-1"
+            className={styles.selectFlexGrow}
           />
         </InlineField>
       </InlineFieldRow>
@@ -167,6 +167,9 @@ export function PrepareTimeSeriesEditor(props: TransformerUIProps<PrepareTimeSer
 const getStyles = (theme: GrafanaTheme2) => ({
   info: css({
     marginLeft: '20px',
+  }),
+  selectFlexGrow: css({
+    flexGrow: 1,
   }),
 });
 
