@@ -1,9 +1,9 @@
-import { css, cx } from '@emotion/css';
+import { css } from '@emotion/css';
 import { memo, type ReactElement, useEffect, useRef, useState } from 'react';
 
 import { type GrafanaTheme2, OrgRole } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
-import { Button, ConfirmButton, Field, Icon, Modal, Tooltip, useStyles2, Stack, TextLink } from '@grafana/ui';
+import { Button, ConfirmButton, Field, Icon, Modal, Stack, Text, TextLink, Tooltip, useStyles2 } from '@grafana/ui';
 import { UserRolePicker } from 'app/core/components/RolePicker/UserRolePicker';
 import { fetchRoleOptions, updateUserRoles } from 'app/core/components/RolePicker/api';
 import { OrgPicker, type OrgSelectItem } from 'app/core/components/Select/OrgPicker';
@@ -27,6 +27,7 @@ interface Props {
 export const UserOrgs = memo(({ user, orgs, isExternalUser, onOrgRoleChange, onOrgRemove, onOrgAdd }: Props) => {
   const [showAddOrgModal, setShowAddOrgModal] = useState(false);
   const addToOrgButtonRef = useRef<HTMLButtonElement>(null);
+  const styles = useStyles2(getOrgRowStyles);
 
   const showOrgAddModal = () => {
     setShowAddOrgModal(true);
@@ -41,24 +42,22 @@ export const UserOrgs = memo(({ user, orgs, isExternalUser, onOrgRoleChange, onO
 
   return (
     <div>
-      <h3 className="page-heading">
+      <Text element="h3" variant="h3">
         <Trans i18nKey="admin.user-orgs.title">Organizations</Trans>
-      </h3>
+      </Text>
       <Stack gap={1.5} direction="column">
-        <table className="filter-table form-inline">
-          <tbody>
-            {orgs.map((org, index) => (
-              <OrgRow
-                key={`${org.orgId}-${index}`}
-                isExternalUser={isExternalUser}
-                user={user}
-                org={org}
-                onOrgRoleChange={onOrgRoleChange}
-                onOrgRemove={onOrgRemove}
-              />
-            ))}
-          </tbody>
-        </table>
+        <div className={styles.rowsContainer}>
+          {orgs.map((org, index) => (
+            <OrgRow
+              key={`${org.orgId}-${index}`}
+              isExternalUser={isExternalUser}
+              user={user}
+              org={org}
+              onOrgRoleChange={onOrgRoleChange}
+              onOrgRemove={onOrgRemove}
+            />
+          ))}
+        </div>
 
         <div>
           {canAddToOrg && (
@@ -82,6 +81,39 @@ UserOrgs.displayName = 'UserOrgs';
 
 const getOrgRowStyles = (theme: GrafanaTheme2) => {
   return {
+    rowsContainer: css({
+      width: '100%',
+      border: `1px solid ${theme.colors.border.weak}`,
+      borderRadius: theme.shape.radius.default,
+      overflow: 'hidden',
+    }),
+    row: css({
+      display: 'flex',
+      alignItems: 'center',
+      gap: theme.spacing(2),
+      padding: theme.spacing(1, 2),
+      borderBottom: `1px solid ${theme.colors.border.weak}`,
+      '&:last-child': {
+        borderBottom: 0,
+      },
+    }),
+    rowLabel: css({
+      fontWeight: 500,
+      minWidth: theme.spacing(16),
+      flexShrink: 0,
+    }),
+    rowValue: css({
+      flex: 1,
+      minWidth: theme.spacing(25),
+      display: 'flex',
+      alignItems: 'center',
+    }),
+    rowActions: css({
+      display: 'flex',
+      alignItems: 'center',
+      gap: theme.spacing(1),
+      flexShrink: 0,
+    }),
     removeButton: css({
       marginRight: '0.6rem',
       textDecoration: 'underline',
@@ -160,19 +192,18 @@ const OrgRow = memo(({ user, org, isExternalUser, onOrgRemove, onOrgRoleChange }
 
   const authSource = user?.authLabels?.length && user?.authLabels[0];
   const lockMessage = authSource ? `Synced via ${authSource}` : '';
-  const labelClass = cx('width-16', styles.label);
   const canChangeRole = contextSrv.hasPermission(AccessControlAction.OrgUsersWrite);
   const canRemoveFromOrg = contextSrv.hasPermission(AccessControlAction.OrgUsersRemove) && !isExternalUser;
   const rolePickerDisabled = isExternalUser || !canChangeRole;
 
   const inputId = `${org.name}-input`;
   return (
-    <tr>
-      <td className={labelClass}>
+    <div className={styles.row}>
+      <div className={styles.rowLabel}>
         <label htmlFor={inputId}>{org.name}</label>
-      </td>
+      </div>
       {contextSrv.licensedAccessControlEnabled() ? (
-        <td>
+        <div className={styles.rowValue}>
           <div className={styles.rolePickerWrapper}>
             <div className={styles.rolePicker}>
               <UserRolePicker
@@ -188,17 +219,17 @@ const OrgRow = memo(({ user, org, isExternalUser, onOrgRemove, onOrgRoleChange }
             </div>
             {isExternalUser && <ExternalUserTooltip lockMessage={lockMessage} />}
           </div>
-        </td>
+        </div>
       ) : (
         <>
           {isChangingRole ? (
-            <td>
+            <div className={styles.rowValue}>
               <OrgRolePicker inputId={inputId} value={currentRole} onChange={handleOrgRoleChange} autoFocus />
-            </td>
+            </div>
           ) : (
-            <td className="width-25">{org.role}</td>
+            <div className={styles.rowValue}>{org.role}</div>
           )}
-          <td colSpan={1}>
+          <div className={styles.rowActions}>
             {canChangeRole && (
               <ChangeOrgButton
                 lockMessage={lockMessage}
@@ -208,10 +239,10 @@ const OrgRow = memo(({ user, org, isExternalUser, onOrgRemove, onOrgRoleChange }
                 onOrgRoleSave={handleOrgRoleSave}
               />
             )}
-          </td>
+          </div>
         </>
       )}
-      <td colSpan={1}>
+      <div className={styles.rowActions}>
         {canRemoveFromOrg && (
           <ConfirmButton
             confirmText={t('admin.un-themed-org-row.confirmText-confirm-removal', 'Confirm removal')}
@@ -222,8 +253,8 @@ const OrgRow = memo(({ user, org, isExternalUser, onOrgRemove, onOrgRoleChange }
             {t('admin.user-orgs.remove-button', 'Remove from organization')}
           </ConfirmButton>
         )}
-      </td>
-    </tr>
+      </div>
+    </div>
   );
 });
 OrgRow.displayName = 'OrgRow';
