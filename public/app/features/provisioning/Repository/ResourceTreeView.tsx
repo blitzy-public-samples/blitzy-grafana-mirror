@@ -45,6 +45,25 @@ function getGrafanaLink(item: TreeItem) {
   return undefined;
 }
 
+// `TitleCell` is extracted as a named PascalCase function component so that
+// `useStyles2(getStyles, level)` may be invoked per-row legally under
+// `react-hooks/rules-of-hooks`. `level` parameterizes the Emotion factory so
+// the row's left-padding (visual tree indentation) is generated as a theme-aware
+// class rather than a runtime inline `style` attribute. See AAP §0.4.3, §0.5.3.
+function TitleCell({ row: { original } }: TreeCell) {
+  const { item, level } = original;
+  const styles = useStyles2(getStyles, level);
+  const iconName = getIconName(item.type);
+  const link = getGrafanaLink(item);
+
+  return (
+    <div className={styles.titleCell}>
+      <Icon name={iconName} className={styles.icon} />
+      {link ? <Link href={link}>{item.title}</Link> : <span>{item.title}</span>}
+    </div>
+  );
+}
+
 export function ResourceTreeView({ repo }: ResourceTreeViewProps) {
   const styles = useStyles2(getStyles);
   const name = repo.metadata?.name ?? '';
@@ -76,24 +95,7 @@ export function ResourceTreeView({ repo }: ResourceTreeViewProps) {
       {
         id: 'title',
         header: t('provisioning.resource-tree.header-title', 'Title'),
-        cell: ({ row: { original } }: TreeCell) => {
-          const { item, level } = original;
-          const iconName = getIconName(item.type);
-          const link = getGrafanaLink(item);
-
-          // Dynamic style — `paddingLeft` is computed at render time from the runtime tree
-          // depth (`level` * 24px) to visually indent nested resources. Per AAP §0.5.3,
-          // useStyles2 is the prescribed migration target, but a per-row depth can't be
-          // expressed without generating a unique class per render. The static portion of
-          // the cell styling is already in styles.titleCell; only the runtime indentation
-          // remains as an inline style.
-          return (
-            <div className={styles.titleCell} style={{ paddingLeft: level * 24 }}>
-              <Icon name={iconName} className={styles.icon} />
-              {link ? <Link href={link}>{item.title}</Link> : <span>{item.title}</span>}
-            </div>
-          );
-        },
+        cell: TitleCell,
       },
       {
         id: 'type',
@@ -227,11 +229,12 @@ export function ResourceTreeView({ repo }: ResourceTreeViewProps) {
   );
 }
 
-const getStyles = (theme: GrafanaTheme2) => ({
+const getStyles = (theme: GrafanaTheme2, level = 0) => ({
   titleCell: css({
     display: 'flex',
     alignItems: 'center',
     gap: theme.spacing(1),
+    paddingLeft: theme.spacing(level * 3),
   }),
   icon: css({
     color: theme.colors.text.secondary,
