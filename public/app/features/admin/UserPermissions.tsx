@@ -3,7 +3,7 @@ import { useState } from 'react';
 
 import { type GrafanaTheme2 } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
-import { ConfirmButton, RadioButtonGroup, Icon, useStyles2 } from '@grafana/ui';
+import { ConfirmButton, Icon, RadioButtonGroup, Text, useStyles2 } from '@grafana/ui';
 import { contextSrv } from 'app/core/services/context_srv';
 import { ExternalUserTooltip } from 'app/features/admin/UserOrgs';
 import { AccessControlAction } from 'app/types/accessControl';
@@ -40,55 +40,47 @@ export function UserPermissions({ isGrafanaAdmin, isExternalUser, lockMessage, o
 
   return (
     <div>
-      <h3 className="page-heading">
+      <Text element="h3" variant="h3">
         <Trans i18nKey="admin.user-permissions.title">Permissions</Trans>
-      </h3>
-      <table className="filter-table form-inline">
-        <tbody>
-          <tr>
-            <td className="width-16">
-              <Trans i18nKey="admin.user-permissions.grafana-admin-key">Grafana Admin</Trans>
-            </td>
-            {isEditing ? (
-              <td colSpan={2}>
-                <RadioButtonGroup
-                  options={adminOptions}
-                  value={currentAdminOption}
-                  onChange={setCurrentAdminOption}
-                  autoFocus
-                />
-              </td>
-            ) : (
-              <td colSpan={2}>
-                {isGrafanaAdmin ? (
-                  <>
-                    <Icon name="shield" /> <Trans i18nKey="admin.user-permissions.grafana-admin-yes">Yes</Trans>
-                  </>
-                ) : (
-                  <Trans i18nKey="admin.user-permissions.grafana-admin-no">No</Trans>
-                )}
-              </td>
-            )}
-            <td>
-              {canChangePermissions && (
-                <ConfirmButton
-                  onClick={onChangeClick}
-                  onConfirm={handleGrafanaAdminChange}
-                  onCancel={onCancelClick}
-                  confirmText={t('admin.user-permissions.confirmText-change', 'Change')}
-                >
-                  {t('admin.user-permissions.change-button', 'Change')}
-                </ConfirmButton>
-              )}
-              {isExternalUser && (
-                <div className={styles.lockMessageClass}>
-                  <ExternalUserTooltip lockMessage={lockMessage} />
-                </div>
-              )}
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      </Text>
+      <div className={styles.permissionsRow}>
+        <div className={styles.permissionsLabel}>
+          <Trans i18nKey="admin.user-permissions.grafana-admin-key">Grafana Admin</Trans>
+        </div>
+        <div className={styles.permissionsValue}>
+          {isEditing ? (
+            <RadioButtonGroup
+              options={adminOptions}
+              value={currentAdminOption}
+              onChange={setCurrentAdminOption}
+              autoFocus
+            />
+          ) : isGrafanaAdmin ? (
+            <>
+              <Icon name="shield" /> <Trans i18nKey="admin.user-permissions.grafana-admin-yes">Yes</Trans>
+            </>
+          ) : (
+            <Trans i18nKey="admin.user-permissions.grafana-admin-no">No</Trans>
+          )}
+        </div>
+        <div className={styles.permissionsAction}>
+          {canChangePermissions && (
+            <ConfirmButton
+              onClick={onChangeClick}
+              onConfirm={handleGrafanaAdminChange}
+              onCancel={onCancelClick}
+              confirmText={t('admin.user-permissions.confirmText-change', 'Change')}
+            >
+              {t('admin.user-permissions.change-button', 'Change')}
+            </ConfirmButton>
+          )}
+          {isExternalUser && (
+            <div className={styles.lockMessageClass}>
+              <ExternalUserTooltip lockMessage={lockMessage} />
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -99,5 +91,24 @@ const getTooltipStyles = (theme: GrafanaTheme2) => ({
     justifyContent: 'flex-end',
     fontStyle: 'italic',
     marginRight: theme.spacing(0.6),
+  }),
+  permissionsRow: css({
+    display: 'flex',
+    alignItems: 'center',
+    gap: theme.spacing(2),
+    padding: theme.spacing(1),
+    borderBottom: `1px solid ${theme.colors.border.weak}`,
+  }),
+  permissionsLabel: css({
+    fontWeight: 500,
+    minWidth: theme.spacing(16),
+  }),
+  permissionsValue: css({
+    flex: 1,
+  }),
+  permissionsAction: css({
+    display: 'flex',
+    alignItems: 'center',
+    gap: theme.spacing(1),
   }),
 });
