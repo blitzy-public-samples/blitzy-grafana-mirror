@@ -1,7 +1,9 @@
-import { unaryOperators, type SelectableValue, type UnaryOperationID } from '@grafana/data';
+import { css } from '@emotion/css';
+
+import { unaryOperators, type GrafanaTheme2, type SelectableValue, type UnaryOperationID } from '@grafana/data';
 import { type UnaryOptions, CalculateFieldMode, type CalculateFieldTransformerOptions } from '@grafana/data/internal';
 import { t } from '@grafana/i18n';
-import { InlineField, InlineFieldRow, InlineLabel, Select } from '@grafana/ui';
+import { InlineField, InlineFieldRow, InlineLabel, Select, useStyles2 } from '@grafana/ui';
 
 import { LABEL_WIDTH } from './constants';
 
@@ -12,6 +14,7 @@ export const UnaryOperationEditor = (props: {
 }) => {
   const { options, onChange } = props;
   const { unary } = options;
+  const styles = useStyles2(getStyles);
 
   const updateUnaryOptions = (v: UnaryOptions) => {
     onChange({
@@ -61,7 +64,7 @@ export const UnaryOperationEditor = (props: {
         <InlineField label="(" labelWidth={2}>
           <Select
             placeholder={t('transformers.unary-operation-editor.placeholder-field', 'Field')}
-            className="min-width-11"
+            className={styles.operationSelect}
             options={fieldName}
             value={unary?.fieldName}
             onChange={onUnaryValueChanged}
@@ -72,3 +75,9 @@ export const UnaryOperationEditor = (props: {
     </>
   );
 };
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  operationSelect: css({
+    minWidth: theme.spacing(22),
+  }),
+});
