@@ -2337,9 +2337,6 @@
   "public/app/features/variables/state/sharedReducer.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1
-    },
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
     }
   },
   "public/app/features/variables/state/upgradeLegacyQueries.test.ts": {
