@@ -1,4 +1,4 @@
-import * as React from 'react';
+import { useEffect, useState } from 'react';
 
 import {
   DataTransformerID,
@@ -37,36 +37,26 @@ interface FieldNameInfo {
   name: string;
   count: number;
 }
-export class FilterByNameTransformerEditor extends React.PureComponent<
-  FilterByNameTransformerEditorProps,
-  FilterByNameTransformerEditorState
-> {
-  constructor(props: FilterByNameTransformerEditorProps) {
-    super(props);
-    this.state = {
-      include: props.options.include?.names || [],
-      regex: props.options.include?.pattern,
-      variable: props.options.include?.variable,
-      byVariable: props.options.byVariable || false,
-      options: [],
-      variables: [],
-      selected: [],
-      isRegexValid: true,
-    };
-  }
+export const FilterByNameTransformerEditor = (props: FilterByNameTransformerEditorProps) => {
+  const { input, options, onChange: propsOnChange } = props;
 
-  componentDidMount() {
-    this.initOptions();
-  }
+  const [state, setState] = useState<FilterByNameTransformerEditorState>(() => ({
+    include: options.include?.names || [],
+    regex: options.include?.pattern,
+    variable: options.include?.variable,
+    byVariable: options.byVariable || false,
+    options: [],
+    variables: [],
+    selected: [],
+    isRegexValid: true,
+  }));
 
-  componentDidUpdate(oldProps: FilterByNameTransformerEditorProps) {
-    if (this.props.input !== oldProps.input) {
-      this.initOptions();
-    }
-  }
-
-  private initOptions() {
-    const { input, options } = this.props;
+  // Equivalent to class componentDidMount + componentDidUpdate(oldProps) when input changes.
+  // initOptions is intentionally invoked only when `input` changes; `options` is read inside but
+  // is a stable reference for the duration this effect runs (the parent re-renders provide a fresh
+  // `options` along with each `input`). Including `options` in deps would re-run the effect on
+  // every parent re-render, which the class form did NOT do — preserve original behavior.
+  useEffect(() => {
     const configuredOptions = Array.from(options.include?.names ?? []);
 
     const variables = getTemplateSrv()
@@ -109,151 +99,144 @@ export class FilterByNameTransformerEditor extends React.PureComponent<
     if (configuredOptions.length) {
       const selected: FieldNameInfo[] = allNames.filter((n) => configuredOptions.includes(n.name));
 
-      this.setState({
+      setState((prev) => ({
+        ...prev,
         options: allNames,
         selected: selected.map((s) => s.name),
         variables: variables,
         byVariable: options.byVariable || false,
         variable: options.include?.variable,
         regex: options.include?.pattern,
-      });
+      }));
     } else {
-      this.setState({
+      setState((prev) => ({
+        ...prev,
         options: allNames,
         selected: allNames.map((n) => n.name),
         variables: variables,
         byVariable: options.byVariable || false,
         variable: options.include?.variable,
         regex: options.include?.pattern,
-      });
+      }));
     }
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [input]);
 
-  onFieldToggle = (fieldName: string) => {
-    const { selected } = this.state;
-    if (selected.indexOf(fieldName) > -1) {
-      this.onChange(selected.filter((s) => s !== fieldName));
-    } else {
-      this.onChange([...selected, fieldName]);
-    }
-  };
-
-  onChange = (selected: string[]) => {
-    const { regex, isRegexValid } = this.state;
-    const options: FilterFieldsByNameTransformerOptions = {
-      ...this.props.options,
+  const onFieldChange = (selected: string[]) => {
+    const newOptions: FilterFieldsByNameTransformerOptions = {
+      ...options,
       include: { names: selected },
     };
 
-    if (regex && isRegexValid) {
-      options.include = options.include ?? {};
-      options.include.pattern = regex;
+    if (state.regex && state.isRegexValid) {
+      newOptions.include = newOptions.include ?? {};
+      newOptions.include.pattern = state.regex;
     }
 
-    this.setState({ selected }, () => {
-      this.props.onChange(options);
-    });
+    setState((prev) => ({ ...prev, selected }));
+    propsOnChange(newOptions);
   };
 
-  onInputBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-    const { selected, regex } = this.state;
+  const onFieldToggle = (fieldName: string) => {
+    if (state.selected.indexOf(fieldName) > -1) {
+      onFieldChange(state.selected.filter((s) => s !== fieldName));
+    } else {
+      onFieldChange([...state.selected, fieldName]);
+    }
+  };
+
+  const onInputBlur = (e: React.FocusEvent<HTMLInputElement>) => {
     let isRegexValid = true;
 
     try {
-      if (regex) {
-        stringToJsRegex(regex);
+      if (state.regex) {
+        stringToJsRegex(state.regex);
       }
     } catch (e) {
       isRegexValid = false;
     }
 
     if (isRegexValid) {
-      this.props.onChange({
-        ...this.props.options,
-        include: { pattern: regex },
+      propsOnChange({
+        ...options,
+        include: { pattern: state.regex },
       });
     } else {
-      this.props.onChange({
-        ...this.props.options,
-        include: { names: selected },
+      propsOnChange({
+        ...options,
+        include: { names: state.selected },
       });
     }
 
-    this.setState({ isRegexValid });
+    setState((prev) => ({ ...prev, isRegexValid }));
   };
 
-  onVariableChange = (selected: SelectableValue) => {
-    this.props.onChange({
-      ...this.props.options,
+  const onVariableChange = (selected: SelectableValue) => {
+    propsOnChange({
+      ...options,
       include: { variable: selected.value },
     });
 
-    this.setState({ variable: selected.value });
+    setState((prev) => ({ ...prev, variable: selected.value }));
   };
 
-  onFromVariableChange = (e: React.FormEvent<HTMLInputElement>) => {
+  const onFromVariableChange = (e: React.FormEvent<HTMLInputElement>) => {
     const val = e.currentTarget.checked;
-    this.props.onChange({ ...this.props.options, byVariable: val });
-    this.setState({ byVariable: val });
+    propsOnChange({ ...options, byVariable: val });
+    setState((prev) => ({ ...prev, byVariable: val }));
   };
 
-  render() {
-    const { options, selected, isRegexValid } = this.state;
-    return (
-      <div>
-        <InlineFieldRow label={t('transformers.filter-by-name-transformer-editor.label-use-variable', 'Use variable')}>
-          <InlineField label={t('transformers.filter-by-name-transformer-editor.label-from-variable', 'From variable')}>
-            <InlineSwitch value={this.state.byVariable} onChange={this.onFromVariableChange}></InlineSwitch>
+  const { options: nameOptions, selected, isRegexValid } = state;
+  return (
+    <div>
+      <InlineFieldRow label={t('transformers.filter-by-name-transformer-editor.label-use-variable', 'Use variable')}>
+        <InlineField label={t('transformers.filter-by-name-transformer-editor.label-from-variable', 'From variable')}>
+          <InlineSwitch value={state.byVariable} onChange={onFromVariableChange}></InlineSwitch>
+        </InlineField>
+      </InlineFieldRow>
+      {state.byVariable ? (
+        <InlineFieldRow>
+          <InlineField label={t('transformers.filter-by-name-transformer-editor.label-variable', 'Variable')}>
+            <Select value={state.variable} onChange={onVariableChange} options={state.variables || []}></Select>
           </InlineField>
         </InlineFieldRow>
-        {this.state.byVariable ? (
-          <InlineFieldRow>
-            <InlineField label={t('transformers.filter-by-name-transformer-editor.label-variable', 'Variable')}>
-              <Select
-                value={this.state.variable}
-                onChange={this.onVariableChange}
-                options={this.state.variables || []}
-              ></Select>
-            </InlineField>
-          </InlineFieldRow>
-        ) : (
-          <InlineFieldRow label={t('transformers.filter-by-name-transformer-editor.label-identifier', 'Identifier')}>
-            <InlineField
-              label={t('transformers.filter-by-name-transformer-editor.label-identifier', 'Identifier')}
-              invalid={!isRegexValid}
-              error={!isRegexValid ? 'Invalid pattern' : undefined}
-            >
-              <Input
-                placeholder={t(
-                  'transformers.filter-by-name-transformer-editor.placeholder-regular-expression-pattern',
-                  'Regular expression pattern'
-                )}
-                value={this.state.regex || ''}
-                onChange={(e) => this.setState({ regex: e.currentTarget.value })}
-                onBlur={this.onInputBlur}
-                width={25}
+      ) : (
+        <InlineFieldRow label={t('transformers.filter-by-name-transformer-editor.label-identifier', 'Identifier')}>
+          <InlineField
+            label={t('transformers.filter-by-name-transformer-editor.label-identifier', 'Identifier')}
+            invalid={!isRegexValid}
+            error={!isRegexValid ? 'Invalid pattern' : undefined}
+          >
+            <Input
+              placeholder={t(
+                'transformers.filter-by-name-transformer-editor.placeholder-regular-expression-pattern',
+                'Regular expression pattern'
+              )}
+              value={state.regex || ''}
+              onChange={(e) => setState((prev) => ({ ...prev, regex: e.currentTarget.value }))}
+              onBlur={onInputBlur}
+              width={25}
+            />
+          </InlineField>
+          {nameOptions.map((o, i) => {
+            const label = `${o.name}${o.count > 1 ? ' (' + o.count + ')' : ''}`;
+            const isSelected = selected.indexOf(o.name) > -1;
+            return (
+              <FilterPill
+                key={`${o.name}/${i}`}
+                onClick={() => {
+                  onFieldToggle(o.name);
+                }}
+                label={label}
+                selected={isSelected}
               />
-            </InlineField>
-            {options.map((o, i) => {
-              const label = `${o.name}${o.count > 1 ? ' (' + o.count + ')' : ''}`;
-              const isSelected = selected.indexOf(o.name) > -1;
-              return (
-                <FilterPill
-                  key={`${o.name}/${i}`}
-                  onClick={() => {
-                    this.onFieldToggle(o.name);
-                  }}
-                  label={label}
-                  selected={isSelected}
-                />
-              );
-            })}
-          </InlineFieldRow>
-        )}
-      </div>
-    );
-  }
-}
+            );
+          })}
+        </InlineFieldRow>
+      )}
+    </div>
+  );
+};
 
 export const getFilterFieldsByNameTransformRegistryItem: () => TransformerRegistryItem<FilterFieldsByNameTransformerOptions> =
   () => ({
