@@ -1,8 +1,10 @@
+import { css } from '@emotion/css';
 import { skipToken } from '@reduxjs/toolkit/query';
 import { useParams } from 'react-router-dom-v5-compat';
 
+import { type GrafanaTheme2 } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
-import { Card, EmptyState, Spinner, Stack, Text, TextLink, UserIcon } from '@grafana/ui';
+import { Card, EmptyState, Spinner, Stack, Text, TextLink, UserIcon, useStyles2 } from '@grafana/ui';
 import {
   useGetRepositoryHistoryWithPathQuery,
   useGetRepositoryStatusQuery,
@@ -71,6 +73,8 @@ interface Props {
 }
 
 function HistoryView({ history, path, repo }: Props) {
+  const styles = useStyles2(getStyles);
+
   if (!history.items) {
     return <Trans i18nKey="provisioning.history-view.not-found">Not found</Trans>;
   }
@@ -86,10 +90,7 @@ function HistoryView({ history, path, repo }: Props) {
           <Card.Description>
             <Stack>
               {item.authors.map((a) => (
-                // Replaces inline style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
-                // with @grafana/ui <Stack> per AAP §0.5.3 (layout-only inline styles → Stack).
-                // Original gap of 4px maps to 0.5 spacing units (1 unit = 8px).
-                <Stack key={a.username} direction="row" alignItems="center" gap={0.5}>
+                <span key={a.username} className={styles.author}>
                   {a.avatarURL && (
                     <UserIcon
                       userView={{
@@ -100,7 +101,7 @@ function HistoryView({ history, path, repo }: Props) {
                     />
                   )}
                   <a href={`https://github.com/${a.username}`}>{a.name}</a>
-                </Stack>
+                </span>
               ))}
             </Stack>
           </Card.Description>
@@ -109,3 +110,11 @@ function HistoryView({ history, path, repo }: Props) {
     </Stack>
   );
 }
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  author: css({
+    display: 'flex',
+    alignItems: 'center',
+    gap: theme.spacing(0.5),
+  }),
+});
