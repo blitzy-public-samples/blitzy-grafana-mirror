@@ -10,7 +10,7 @@ interface ProgressBarProps {
   topBottomSpacing?: number;
 }
 const ProgressBar = ({ progress, topBottomSpacing }: ProgressBarProps) => {
-  const styles = useStyles2(getStyles, topBottomSpacing);
+  const styles = useStyles2(getStyles, topBottomSpacing, progress);
   const previousProgress = useRef(0);
   const shouldAnimate = progress !== undefined && progress > previousProgress.current;
 
@@ -33,20 +33,12 @@ const ProgressBar = ({ progress, topBottomSpacing }: ProgressBarProps) => {
       aria-valuemin={0}
       aria-valuemax={100}
     >
-      {/*
-        Dynamic style — `width` is computed at render time from the `progress` prop (0–100). Per
-        AAP §0.5.3, `useStyles2` is the prescribed migration target for static inline styles, but
-        runtime-variable values like this cannot be expressed as a single Emotion class without
-        generating a unique class per render. The static portion (`height`, `background`,
-        `transition`) is already in getStyles via styles.filler / styles.fillerAnimated; only the
-        runtime-variable `width` remains as inline style.
-      */}
-      <div className={shouldAnimate ? styles.fillerAnimated : styles.filler} style={{ width: `${progress}%` }} />
+      <div className={shouldAnimate ? styles.fillerAnimated : styles.filler} />
     </div>
   );
 };
 
-const getStyles = (theme: GrafanaTheme2, topBottomSpacing = 2) => ({
+const getStyles = (theme: GrafanaTheme2, topBottomSpacing = 2, progress = 0) => ({
   container: css({
     height: '10px',
     width: '400px',
@@ -58,10 +50,12 @@ const getStyles = (theme: GrafanaTheme2, topBottomSpacing = 2) => ({
   filler: css({
     height: '100%',
     background: theme.colors.success.text,
+    width: `${progress}%`,
   }),
   fillerAnimated: css({
     height: '100%',
     background: theme.colors.success.text,
+    width: `${progress}%`,
     [theme.transitions.handleMotion('no-preference', 'reduce')]: {
       transition: 'width 0.5s ease-in-out',
     },
