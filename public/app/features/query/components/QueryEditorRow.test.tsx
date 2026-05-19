@@ -6,7 +6,7 @@ import { type DataQuery } from '@grafana/schema';
 import { mockDataSource } from 'app/features/alerting/unified/mocks';
 import { ExpressionDatasourceUID } from 'app/features/expressions/types';
 
-import { filterPanelDataToQuery, type Props, QueryEditorRow } from './QueryEditorRow';
+import { filterPanelDataToQuery, type Props, QueryEditorRow, renderQueryEditorRowWarnings } from './QueryEditorRow';
 
 const mockDS = mockDataSource({
   name: 'test',
@@ -296,18 +296,10 @@ describe('frame results with warnings', () => {
   };
 
   it('should show both badges and de-duplicate messages', () => {
-    // @ts-ignore: there are _way_ too many props to inject here :(
-    const editorRow = new QueryEditorRow({
-      data: dataWithWarningsAndInfo,
-      query: {
-        refId: 'B',
-      },
-    });
-
-    const warningsComponent = editorRow.renderWarnings('warning');
+    const warningsComponent = renderQueryEditorRowWarnings(dataWithWarningsAndInfo, 'B', 'warning');
     expect(warningsComponent).not.toBe(null);
 
-    const infosComponent = editorRow.renderWarnings('info');
+    const infosComponent = renderQueryEditorRowWarnings(dataWithWarningsAndInfo, 'B', 'info');
     expect(infosComponent).not.toBe(null);
 
     render(warningsComponent!);
@@ -317,18 +309,10 @@ describe('frame results with warnings', () => {
   });
 
   it('should show a warning badge and de-duplicate warning messages', () => {
-    // @ts-ignore: there are _way_ too many props to inject here :(
-    const editorRow = new QueryEditorRow({
-      data: dataWithWarningsOnly,
-      query: {
-        refId: 'B',
-      },
-    });
-
-    const warningsComponent = editorRow.renderWarnings('warning');
+    const warningsComponent = renderQueryEditorRowWarnings(dataWithWarningsOnly, 'B', 'warning');
     expect(warningsComponent).not.toBe(null);
 
-    const infosComponent = editorRow.renderWarnings('info');
+    const infosComponent = renderQueryEditorRowWarnings(dataWithWarningsOnly, 'B', 'info');
     expect(infosComponent).toBe(null);
 
     render(warningsComponent!);
@@ -336,18 +320,10 @@ describe('frame results with warnings', () => {
   });
 
   it('should show an info badge and de-duplicate info messages', () => {
-    // @ts-ignore: there are _way_ too many props to inject here :(
-    const editorRow = new QueryEditorRow({
-      data: dataWithInfosOnly,
-      query: {
-        refId: 'B',
-      },
-    });
-
-    const warningsComponent = editorRow.renderWarnings('warning');
+    const warningsComponent = renderQueryEditorRowWarnings(dataWithInfosOnly, 'B', 'warning');
     expect(warningsComponent).toBe(null);
 
-    const infosComponent = editorRow.renderWarnings('info');
+    const infosComponent = renderQueryEditorRowWarnings(dataWithInfosOnly, 'B', 'info');
     expect(infosComponent).not.toBe(null);
 
     render(infosComponent!);
@@ -355,18 +331,10 @@ describe('frame results with warnings', () => {
   });
 
   it('should not show any badge when there are no warnings or info', () => {
-    // @ts-ignore: there are _way_ too many props to inject here :(
-    const editorRow = new QueryEditorRow({
-      data: dataWithoutWarningsOrInfo,
-      query: {
-        refId: 'B',
-      },
-    });
-
-    const warningsComponent = editorRow.renderWarnings('warning');
+    const warningsComponent = renderQueryEditorRowWarnings(dataWithoutWarningsOrInfo, 'B', 'warning');
     expect(warningsComponent).toBe(null);
 
-    const infosComponent = editorRow.renderWarnings('info');
+    const infosComponent = renderQueryEditorRowWarnings(dataWithoutWarningsOrInfo, 'B', 'info');
     expect(infosComponent).toBe(null);
   });
 });
