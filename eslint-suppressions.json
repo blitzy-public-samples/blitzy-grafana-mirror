@@ -667,11 +667,6 @@
       "count": 4
     }
   },
-  "public/app/features/admin/UserLdapSyncInfo.tsx": {
-    "no-restricted-syntax": {
-      "count": 3
-    }
-  },
   "public/app/features/admin/UserOrgs.tsx": {
     "no-restricted-syntax": {
       "count": 2
