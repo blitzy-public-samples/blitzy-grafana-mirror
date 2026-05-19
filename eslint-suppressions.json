@@ -2224,11 +2224,6 @@
       "count": 2
     }
   },
-  "public/app/features/variables/inspect/NetworkGraph.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    }
-  },
   "public/app/features/variables/inspect/utils.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 2

@@ -4,6 +4,18 @@ import type { Network, Options, Data, Edge, Node } from 'vis-network';
 
 import { type GraphEdge, type GraphNode } from './types';
 
+// Minimal structural type for the dynamically-imported `vis-data` module
+// (the value resolved by `await import('vis-data')`). Only the `DataSet`
+// constructor is consumed below, so this captures exactly that surface and
+// avoids `any` per AAP TypeScript strictness rules (§0.9.2.7 / §0.8.6).
+// `typeof DataSet` resolves to the constructor signature of the `DataSet`
+// class even when imported type-only, satisfying
+// `@typescript-eslint/consistent-type-imports` (which disallows inline
+// `typeof import('...')` type annotations).
+interface VisDataModule {
+  DataSet: typeof DataSet;
+}
+
 interface OwnProps {
   nodes: GraphNode[];
   edges: GraphEdge[];
@@ -57,12 +69,13 @@ export const NetworkGraph = ({ nodes, edges, direction, width, height }: Props) 
 
   return (
     <div>
+      {/* Design system gap: width/height are runtime-dynamic from the width/height props with fallbacks ('100%', '60vh') that don't map to GrafanaTheme2 spacing tokens. Box/Stack do not accept dynamic raw CSS dimension values. Kept as inline style per AAP §0.4.4 / §0.9.2.6 (do not approximate). */}
       <div ref={ref} style={{ width: width ?? '100%', height: height ?? '60vh' }} />
     </div>
   );
 };
 
-function toVisNetworkNodes(visData: any, nodes: GraphNode[]): DataSet<Node> {
+function toVisNetworkNodes(visData: VisDataModule, nodes: GraphNode[]): DataSet<Node> {
   const nodesWithStyle = nodes.map((node) => ({
     ...node,
     shape: 'box',
@@ -70,7 +83,12 @@ function toVisNetworkNodes(visData: any, nodes: GraphNode[]): DataSet<Node> {
   return new visData.DataSet(nodesWithStyle);
 }
 
-function toVisNetworkEdges(visData: any, edges: GraphEdge[]): DataSet<Edge> {
+function toVisNetworkEdges(visData: VisDataModule, edges: GraphEdge[]): DataSet<Edge> {
   const edgesWithStyle = edges.map((edge) => ({ ...edge, arrows: 'to', dashes: true }));
-  return new visData.DataSet(edgesWithStyle);
+  // Explicit type parameter: `GraphEdge` has no `id` field, so the inferred
+  // shape of `edgesWithStyle` does not share any property with the default
+  // `PartItem<"id">` constraint of `DataSet`. Telling the constructor that
+  // `Item = Edge` lets it accept the items via the structural overlap of
+  // `from`/`to`. Behavior at runtime is identical to the previous untyped call.
+  return new visData.DataSet<Edge>(edgesWithStyle);
 }
