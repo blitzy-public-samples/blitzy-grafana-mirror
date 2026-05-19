@@ -36,8 +36,6 @@ export function UpgradePage({ navModel }: Props) {
   );
 }
 
-const titleStyles = { fontWeight: 500, fontSize: '26px', lineHeight: '123%' };
-
 interface UpgradeInfoProps {
   editionNotice?: string;
 }
@@ -65,8 +63,8 @@ const getStyles = (theme: GrafanaTheme2) => {
     column: css({
       display: 'grid',
       gridTemplateColumns: '100%',
-      columnGap: '20px',
-      rowGap: '40px',
+      columnGap: theme.spacing(2.5),
+      rowGap: theme.spacing(5),
 
       '@media (min-width: 1050px)': {
         gridTemplateColumns: '50% 50%',
@@ -75,17 +73,36 @@ const getStyles = (theme: GrafanaTheme2) => {
     title: css({
       margin: theme.spacing(4, 0),
     }),
+    enterpriseTitle: css({
+      fontWeight: 500,
+      fontSize: theme.typography.h2.fontSize,
+      lineHeight: theme.typography.h2.lineHeight,
+    }),
+    getEnterpriseSection: css({
+      marginTop: theme.spacing(5),
+      marginBottom: theme.spacing(3.75),
+    }),
+    paragraph: css({
+      paddingTop: theme.spacing(1.5),
+    }),
+    serviceFooter: css({
+      marginTop: theme.spacing(2.5),
+    }),
+    featureSection: css({
+      paddingRight: theme.spacing(1.375),
+    }),
   };
 };
 
 const GetEnterprise = () => {
+  const styles = useStyles2(getStyles);
   return (
-    <div style={{ marginTop: '40px', marginBottom: '30px' }}>
-      <h2 style={titleStyles}>
+    <div className={styles.getEnterpriseSection}>
+      <h2 className={styles.enterpriseTitle}>
         <Trans i18nKey="admin.get-enterprise.title">Get Grafana Enterprise</Trans>
       </h2>
       <CallToAction />
-      <p style={{ paddingTop: '12px' }}>
+      <p className={styles.paragraph}>
         <Trans i18nKey="admin.get-enterprise.description">
           You can use the trial version for free for 30 days. We will remind you about it five days before the trial
           period ends.
@@ -108,6 +125,7 @@ const CallToAction = () => {
 };
 
 const ServiceInfo = () => {
+  const styles = useStyles2(getStyles);
   return (
     <div>
       <h4>
@@ -140,7 +158,7 @@ const ServiceInfo = () => {
         />
       </List>
 
-      <div style={{ marginTop: '20px' }}>
+      <div className={styles.serviceFooter}>
         <strong>
           <Trans i18nKey="admin.get-enterprise.included-heading">Also included:</Trans>
         </strong>
@@ -156,8 +174,9 @@ const ServiceInfo = () => {
 };
 
 const FeatureInfo = () => {
+  const styles = useStyles2(getStyles);
   return (
-    <div style={{ paddingRight: '11px' }}>
+    <div className={styles.featureSection}>
       <h4>
         <Trans i18nKey="admin.get-enterprise.features-heading">Enhanced functionality</Trans>
       </h4>
