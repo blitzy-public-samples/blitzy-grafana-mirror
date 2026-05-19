@@ -1,11 +1,12 @@
+import { css } from '@emotion/css';
 import { useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom-v5-compat';
 
-import { type NavModelItem } from '@grafana/data';
+import { type GrafanaTheme2, type NavModelItem } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
 import { getBackendSrv } from '@grafana/runtime';
-import { Button, Input, Field } from '@grafana/ui';
+import { Button, Field, Input, useStyles2 } from '@grafana/ui';
 import { Page } from 'app/core/components/Page/Page';
 
 interface UserDTO {
@@ -26,6 +27,7 @@ const pageNav: NavModelItem = {
 
 const UserCreatePage = () => {
   const navigate = useNavigate();
+  const styles = useStyles2(getStyles);
   const {
     handleSubmit,
     register,
@@ -44,7 +46,8 @@ const UserCreatePage = () => {
   return (
     <Page navId="global-users" pageNav={pageNav}>
       <Page.Contents>
-        <form onSubmit={handleSubmit(onSubmit)} style={{ maxWidth: '600px' }}>
+        {/* Design system gap: @grafana/ui Form component is deprecated in favor of using react-hook-form's useForm hook directly with native <form>; raw <form> retained per recommended pattern. */}
+        <form onSubmit={handleSubmit(onSubmit)} className={styles.form}>
           <Field
             label={t('admin.user-create-page.label-name', 'Name')}
             required
@@ -85,3 +88,9 @@ const UserCreatePage = () => {
 };
 
 export default UserCreatePage;
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  form: css({
+    maxWidth: theme.spacing(75), // 600px equivalent (8 * 75 = 600)
+  }),
+});
