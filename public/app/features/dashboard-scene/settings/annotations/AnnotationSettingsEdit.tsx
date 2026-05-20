@@ -26,6 +26,7 @@ import {
   Select,
   useStyles2,
   Stack,
+  Text,
   Alert,
   type ComboboxOption,
   Combobox,
@@ -386,9 +387,9 @@ export const AnnotationSettingsEdit = ({ annotation, editIndex, panels, onUpdate
         </Stack>
       </FieldSet>
       <FieldSet>
-        <h3 className="page-heading">
+        <Text element="h3" variant="h3">
           <Trans i18nKey="dashboard-scene.annotation-settings-edit.query">Query</Trans>
-        </h3>
+        </Text>
         {ds?.annotations && dsi && (
           <StandardAnnotationQueryEditor
             datasource={ds}
