@@ -1,4 +1,4 @@
-import { css } from '@emotion/css';
+import { css, cx } from '@emotion/css';
 import { Draggable } from '@hello-pangea/dnd';
 import { type ReactElement } from 'react';
 
@@ -6,7 +6,7 @@ import { type GrafanaTheme2, type TypedVariableModel } from '@grafana/data';
 import { selectors } from '@grafana/e2e-selectors';
 import { t } from '@grafana/i18n';
 import { reportInteraction } from '@grafana/runtime';
-import { Button, Icon, IconButton, useStyles2, useTheme2 } from '@grafana/ui';
+import { Button, Icon, IconButton, useStyles2 } from '@grafana/ui';
 
 import { hasOptions } from '../guard';
 import { VariableUsagesButton } from '../inspect/VariableUsagesButton';
@@ -34,7 +34,6 @@ export function VariableEditorListRow({
   onDuplicate: propsOnDuplicate,
   onDelete: propsOnDelete,
 }: VariableEditorListRowProps): ReactElement {
-  const theme = useTheme2();
   const styles = useStyles2(getStyles);
 
   const definition = getDefinition(variable);
@@ -48,11 +47,8 @@ export function VariableEditorListRow({
         <tr
           ref={provided.innerRef}
           {...provided.draggableProps}
-          style={{
-            userSelect: snapshot.isDragging ? 'none' : 'auto',
-            background: snapshot.isDragging ? theme.colors.background.secondary : undefined,
-            ...provided.draggableProps.style,
-          }}
+          className={cx(snapshot.isDragging ? styles.rowDragging : styles.row)}
+          style={provided.draggableProps.style}
         >
           <td role="gridcell" className={styles.column}>
             <Button
@@ -196,6 +192,13 @@ function getStyles(theme: GrafanaTheme2) {
       display: 'flex',
       gap: theme.spacing(2),
       alignItems: 'center',
+    }),
+    row: css({
+      userSelect: 'auto',
+    }),
+    rowDragging: css({
+      userSelect: 'none',
+      background: theme.colors.background.secondary,
     }),
   };
 }
