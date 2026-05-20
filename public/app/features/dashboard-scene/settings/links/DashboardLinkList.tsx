@@ -61,6 +61,11 @@ export function DashboardLinkList({
 
   return (
     <>
+      {/* Design system gap: InteractiveTable does not support row-level keyboard activation
+       * (tabIndex={0} + onKeyDown for Space/Enter to invoke onEdit), focus management on
+       * <tr> elements, or the ARIA grid pattern used here (role="grid"/role="gridcell").
+       * Kept as raw <table> per AAP §0.4.4 Gaps Inventory.
+       */}
       <table role="grid" className="filter-table filter-table--hover">
         <thead>
           <tr>
@@ -76,17 +81,17 @@ export function DashboardLinkList({
         <tbody>
           {links.map((link, idx) => (
             <tr key={`${link.title}-${idx}`} onKeyDown={(e) => handleKeyDown(e, idx)} tabIndex={0}>
-              <td role="gridcell" className="pointer" onClick={() => onEdit(idx)}>
+              <td role="gridcell" className={styles.pointer} onClick={() => onEdit(idx)}>
                 <Icon name="external-link-alt" /> &nbsp; {link.type}
               </td>
-              <td role="gridcell" className="pointer" onClick={() => onEdit(idx)}>
+              <td role="gridcell" className={styles.pointer} onClick={() => onEdit(idx)}>
                 <Stack>
                   {link.title && <span className={styles.titleWrapper}>{link.title}</span>}
                   {link.type === 'link' && <span className={styles.urlWrapper}>{link.url}</span>}
                   {link.type === 'dashboards' && <TagList tags={link.tags ?? []} />}
                 </Stack>
               </td>
-              <td style={{ width: '1%' }} role="gridcell">
+              <td className={styles.actionCell} role="gridcell">
                 {idx !== 0 && (
                   <IconButton
                     name="arrow-up"
@@ -95,7 +100,7 @@ export function DashboardLinkList({
                   />
                 )}
               </td>
-              <td style={{ width: '1%' }} role="gridcell">
+              <td className={styles.actionCell} role="gridcell">
                 {links.length > 1 && idx !== links.length - 1 ? (
                   <IconButton
                     name="arrow-down"
@@ -104,14 +109,14 @@ export function DashboardLinkList({
                   />
                 ) : null}
               </td>
-              <td style={{ width: '1%' }} role="gridcell">
+              <td className={styles.actionCell} role="gridcell">
                 <IconButton
                   name="copy"
                   onClick={() => onDuplicate(link)}
                   tooltip={t('dashboard-scene.dashboard-link-list.tooltip-copy-link', 'Copy link')}
                 />
               </td>
-              <td style={{ width: '1%' }} role="gridcell">
+              <td className={styles.actionCell} role="gridcell">
                 <DeleteButton
                   aria-label={t(
                     'dashboard-scene.dashboard-link-list.delete-aria-label',
@@ -146,5 +151,11 @@ const getStyles = (theme: GrafanaTheme2) => ({
   }),
   newLinkButton: css({
     marginTop: theme.spacing(3),
+  }),
+  pointer: css({
+    cursor: 'pointer',
+  }),
+  actionCell: css({
+    width: '1%',
   }),
 });
