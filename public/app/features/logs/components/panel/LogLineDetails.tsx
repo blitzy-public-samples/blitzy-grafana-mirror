@@ -217,7 +217,11 @@ export const InlineLogLineDetails = memo(({ logs, log, onResize, timeRange, time
   }, [inlineLogDetailsNoScrolls, autoScrolled, log, scrollRef.current?.scrollHeight]);
 
   return (
-    <div className={`${styles.inlineWrapper} log-line-inline-details`} style={{ maxWidth: detailsWidth }}>
+    // Inline style retained: maxWidth depends on the runtime detailsWidth value (driven by the
+    // Resizable drag handle). Box's maxWidth multiplies by theme.spacing() so it is not suitable
+    // for absolute pixel values, and parameterizing useStyles2 would regenerate CSS class names
+    // on every drag tick. Kept inline per refactor protocol (AAP §0.4.4, §0.9.2.6).
+    <div className={styles.inlineWrapper} style={{ maxWidth: detailsWidth }}>
       <div className={styles.inlineContainer}>
         <LogLineDetailsHeader log={log} search={search} onSearch={handleSearch} />
         {inlineLogDetailsNoScrolls ? (
