@@ -172,6 +172,7 @@ function SpanBar({
       aria-hidden
       data-testid={selectors.components.TraceViewer.spanBar}
     >
+      {/* Dynamic per-span position and color from time-range mapping; cannot be statically classed. */}
       <div
         aria-label={label}
         className={cx(styles.bar)}
@@ -193,10 +194,12 @@ function SpanBar({
               <AccordianLogs interactive={false} isOpen logs={logGroups[positionKey]} timestamp={traceStartTime} />
             }
           >
+            {/* Dynamic per-log-marker position from time-range mapping; cannot be statically classed. */}
             <div data-testid="SpanBar--logMarker" className={cx(styles.logMarker)} style={{ left: positionKey }} />
           </Popover>
         ))}
       </div>
+      {/* Dynamic per-rpc-span position and color from time-range mapping; cannot be statically classed. */}
       {rpc && (
         <div
           className={cx(styles.rpc)}
@@ -224,6 +227,7 @@ function SpanBar({
               </div>
             }
           >
+            {/* Dynamic per-critical-path-section position from time-range mapping; cannot be statically classed. */}
             <div
               data-testid="SpanBar--criticalPath"
               className={styles.criticalPath}
