@@ -28,6 +28,12 @@ export const LogLineDetailsLog = memo(({ log: originalLog, syntaxHighlighting }:
       <div className={`${logStyles.logLine} ${fontSize === 'small' ? logStyles.fontSizeSmall : ''} ${styles.noHover}`}>
         <div className={logStyles.wrappedLogLine}>
           {log.hasAnsi ? (
+            // Semantic classnames retained: 'field', 'no-highlighting', 'log-syntax-highlight' are
+            // consumed by (a) nested CSS selectors '& .field' in styled wrappers in sibling files
+            // (LogLine.tsx, LogList.tsx) and (b) test queries via container.querySelectorAll('.field')
+            // in LogLine.test.tsx and LogList.test.tsx. They are NOT pre-design-system styling
+            // classes from public/sass/_grafana.scss. Kept as raw classnames per refactor protocol
+            // (AAP §0.4.4, §0.9.2.6).
             <span className="field no-highlighting">
               <LogMessageAnsi value={log.body} />
             </span>
