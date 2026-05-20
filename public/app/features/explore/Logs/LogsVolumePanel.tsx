@@ -80,7 +80,7 @@ export function LogsVolumePanel(props: Props) {
   }
 
   return (
-    <div style={{ height }} className={styles.contentContainer}>
+    <div className={styles.contentContainer}>
       <ExploreGraph
         toggleLegendRef={toggleLegendRef}
         vizLegendOverrides={{
@@ -123,6 +123,7 @@ const getStyles = (theme: GrafanaTheme2) => {
       alignItems: 'center',
       justifyContent: 'center',
       position: 'relative',
+      height: 150,
     }),
     streaming: css({
       color: theme.colors.success.text,
