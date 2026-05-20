@@ -282,7 +282,7 @@ export const InfiniteScroll = ({
     <>
       {infiniteLoaderState === 'pre-scroll-top' && (
         <div className={styles.loadMoreTopContainer}>
-          <LogLineMessage style={{}} styles={styles} onClick={loadMoreTop}>
+          <LogLineMessage styles={styles} onClick={loadMoreTop}>
             {t('logs.infinite-scroll.load-more', 'Scroll to load more')}
           </LogLineMessage>
         </div>
