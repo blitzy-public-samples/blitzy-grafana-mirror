@@ -1,5 +1,5 @@
 import { css } from '@emotion/css';
-import { type ReactElement, useEffect, useState } from 'react';
+import { type ReactElement, useEffect, useMemo, useState } from 'react';
 import { useAsyncFn } from 'react-use';
 
 import { type GrafanaTheme2 } from '@grafana/data';
@@ -7,7 +7,17 @@ import { Trans, t } from '@grafana/i18n';
 import { reportInteraction } from '@grafana/runtime';
 import { type SceneVariable, type SceneVariableState } from '@grafana/scenes';
 import { type Dashboard } from '@grafana/schema';
-import { CollapsableSection, Icon, Spinner, Stack, Text, Tooltip, useStyles2 } from '@grafana/ui';
+import {
+  type Column,
+  CollapsableSection,
+  Icon,
+  InteractiveTable,
+  Spinner,
+  Stack,
+  Text,
+  Tooltip,
+  useStyles2,
+} from '@grafana/ui';
 
 import { VariableUsagesButton } from '../../variables/VariableUsagesButton';
 import { getUnknownsNetwork, type UsagesToNetwork } from '../../variables/utils';
@@ -101,36 +111,33 @@ function NoUnknowns(): ReactElement {
 }
 
 function UnknownTable({ usages }: { usages: UsagesToNetwork[] }): ReactElement {
-  const style = useStyles2(getStyles);
+  const columns = useMemo<Array<Column<UsagesToNetwork>>>(
+    () => [
+      {
+        id: 'variable',
+        header: t('variables.unknown-table.variable', 'Variable'),
+        cell: ({ row: { original } }) => {
+          const name = typeof original.variable === 'string' ? original.variable : original.variable.state.name;
+          return <span>{name}</span>;
+        },
+      },
+      {
+        id: 'usages',
+        cell: ({ row: { original } }) => {
+          const name = typeof original.variable === 'string' ? original.variable : original.variable.state.name;
+          return <VariableUsagesButton id={name} usages={usages} isAdhoc={false} />;
+        },
+      },
+    ],
+    [usages]
+  );
+
   return (
-    <table className="filter-table filter-table--hover">
-      <thead>
-        <tr>
-          <th>
-            <Trans i18nKey="variables.unknown-table.variable">Variable</Trans>
-          </th>
-          <th colSpan={5} />
-        </tr>
-      </thead>
-      <tbody>
-        {usages.map((usage) => {
-          const name = typeof usage.variable === 'string' ? usage.variable : usage.variable.state.name;
-          return (
-            <tr key={name}>
-              <td className={style.firstColumn}>
-                <span>{name}</span>
-              </td>
-              <td className={style.defaultColumn} />
-              <td className={style.defaultColumn} />
-              <td className={style.defaultColumn} />
-              <td className={style.lastColumn}>
-                <VariableUsagesButton id={name} usages={usages} isAdhoc={false} />
-              </td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
+    <InteractiveTable
+      columns={columns}
+      data={usages}
+      getRowId={(row) => (typeof row.variable === 'string' ? row.variable : row.variable.state.name)}
+    />
   );
 }
 
@@ -141,20 +148,5 @@ const getStyles = (theme: GrafanaTheme2) => ({
   }),
   infoIcon: css({
     marginLeft: theme.spacing(1),
-  }),
-  defaultColumn: css({
-    width: '1%',
-  }),
-  firstColumn: css({
-    width: '1%',
-    verticalAlign: 'top',
-    color: theme.colors.text.maxContrast,
-  }),
-  lastColumn: css({
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-    width: '100%',
-    textAlign: 'right',
   }),
 });
