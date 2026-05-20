@@ -1,7 +1,7 @@
 import { css } from '@emotion/css';
 
 import { type AdHocVariableFilter, type DataSourceRef, type SelectableValue } from '@grafana/data';
-import { SegmentAsync, useStyles2 } from '@grafana/ui';
+import { SegmentAsync, Stack, useStyles2 } from '@grafana/ui';
 import { getTimeSrv } from 'app/features/dashboard/services/TimeSrv';
 
 import { getDatasourceSrv } from '../../../plugins/datasource_srv';
@@ -29,7 +29,7 @@ export const AdHocFilterValue = ({
   const loadValues = () => fetchFilterValues(datasource, filterKey, allFilters);
 
   return (
-    <div className="gf-form" data-testid="AdHocFilterValue-value-wrapper">
+    <Stack direction="row" gap={0.5} alignItems="center" data-testid="AdHocFilterValue-value-wrapper">
       <SegmentAsync
         className={styles.segment}
         disabled={disabled}
@@ -38,7 +38,7 @@ export const AdHocFilterValue = ({
         onChange={onChange}
         loadOptions={loadValues}
       />
-    </div>
+    </Stack>
   );
 };
 
