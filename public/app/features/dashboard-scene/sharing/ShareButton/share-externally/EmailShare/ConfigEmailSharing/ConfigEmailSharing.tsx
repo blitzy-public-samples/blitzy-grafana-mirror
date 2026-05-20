@@ -48,6 +48,7 @@ export const ConfigEmailSharing = () => {
 
   return (
     <div>
+      {/* Design system gap: react-hook-form useForm() integration — raw <form> required for handleSubmit() composition */}
       <form onSubmit={handleSubmit(onSubmit)}>
         <FieldSet disabled={!hasWritePermissions || isError}>
           <Field
