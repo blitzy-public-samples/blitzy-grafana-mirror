@@ -34,11 +34,9 @@ export function AddVariableButton({ dashboard }: { dashboard: DashboardScene }) 
 
   return (
     <div className={styles.addButton}>
-      <div className="dashboard-canvas-add-button">
-        <Button icon="plus" variant="primary" fill="text" onPointerDown={handlePointerDown}>
-          <Trans i18nKey="dashboard-scene.variable-controls.add-variable">Add variable</Trans>
-        </Button>
-      </div>
+      <Button icon="plus" variant="primary" fill="text" onPointerDown={handlePointerDown}>
+        <Trans i18nKey="dashboard-scene.variable-controls.add-variable">Add variable</Trans>
+      </Button>
     </div>
   );
 }
