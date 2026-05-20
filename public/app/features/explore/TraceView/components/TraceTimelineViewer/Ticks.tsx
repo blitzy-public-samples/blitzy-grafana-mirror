@@ -73,6 +73,7 @@ export default function Ticks({ endTime = null, numTicks, showLabels = null, sta
   for (let i = 0; i < numTicks; i++) {
     const portion = i / (numTicks - 1);
     ticks.push(
+      // Dynamic per-tick position from numTicks; cannot be statically classed.
       <div
         data-testid="TicksID"
         key={portion}
