@@ -69,7 +69,7 @@ export const VariableValuesPreview = ({ options, staticOptions }: VariableValues
   const displayMultiPropsPreview = config.featureToggles.multiPropsVariables && hasOptions && properties.length > 2;
 
   return (
-    <div className={styles.previewContainer} style={{ gap: '8px' }}>
+    <div className={styles.previewContainer}>
       <Text variant="bodySmall" weight="medium">
         <Trans i18nKey="dashboard-scene.variable-values-preview.preview-of-values" values={{ count: options.length }}>
           Preview of values ({'{{count}}'})
