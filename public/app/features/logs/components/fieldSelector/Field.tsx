@@ -5,7 +5,7 @@ import { useCallback } from 'react';
 import { type GrafanaTheme2 } from '@grafana/data';
 import { t } from '@grafana/i18n';
 import { reportInteraction } from '@grafana/runtime';
-import { Checkbox, Icon, useStyles2 } from '@grafana/ui';
+import { Button, Checkbox, Icon, useStyles2 } from '@grafana/ui';
 
 import { getNormalizedFieldName } from '../panel/processing';
 
@@ -45,9 +45,9 @@ export function Field({
           checked={active}
         />
         {showCount && (
-          <button className={styles.labelCount} onClick={handleChange}>
+          <Button variant="secondary" fill="text" size="sm" className={styles.labelCount} onClick={handleChange}>
             {field.stats.percentOfLinesWithLabel}%
-          </button>
+          </Button>
         )}
       </div>
       {draggable && (
