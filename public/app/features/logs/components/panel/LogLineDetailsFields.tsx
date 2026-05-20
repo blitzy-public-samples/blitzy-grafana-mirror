@@ -504,6 +504,11 @@ export const MultipleValue = ({ showCopy, values = [] }: { showCopy?: boolean; v
     return null;
   }
   return (
+    // Design system gap: <table> is used here purely as a layout primitive for a 2-column
+    // value+copy-button presentation inside a CSS Grid cell. @grafana/ui's InteractiveTable
+    // unconditionally renders a header row and adds container chrome that would violate
+    // pixel-equivalent rendering for this inline value list. Kept as raw per refactor protocol
+    // (AAP §0.4.4, §0.9.2.6).
     <table>
       <tbody>
         {values.map((val, i) => {
