@@ -2,7 +2,7 @@ import { Fragment, memo, type ReactNode } from 'react';
 
 import { type AdHocVariableFilter, type DataSourceRef, type SelectableValue } from '@grafana/data';
 import { t } from '@grafana/i18n';
-import { Segment } from '@grafana/ui';
+import { Segment, Stack } from '@grafana/ui';
 
 import { AdHocFilterBuilder } from './AdHocFilterBuilder';
 import { REMOVE_FILTER_KEY } from './AdHocFilterKey';
@@ -89,7 +89,7 @@ export const AdHocFilter = memo(function AdHocFilter({
   };
 
   return (
-    <div className="gf-form-inline">
+    <Stack direction="row" gap={0.5} alignItems="center" wrap="wrap">
       {renderFilters()}
 
       {!disabled && (
@@ -100,6 +100,6 @@ export const AdHocFilter = memo(function AdHocFilter({
           allFilters={getAllFilters()}
         />
       )}
-    </div>
+    </Stack>
   );
 });
