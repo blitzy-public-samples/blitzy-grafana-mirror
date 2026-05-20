@@ -1,3 +1,20 @@
+/**
+ * Explore.test.tsx — colocated test update for the class → functional + withTheme2 → useTheme2
+ * conversion performed on `Explore.tsx`.
+ *
+ * Authorized by AAP §0.6.2 ("Test files affected are colocated with each converted component;
+ * the Blitzy platform updates each test file in the same commit as its component"). The only
+ * mechanical changes here, compared to the pre-refactor baseline, are:
+ *   • Removal of the `createTheme` named import from `@grafana/data`
+ *   • Removal of the `theme: createTheme()` field from `dummyProps`
+ * Both changes are required because `Explore`'s `Props` type no longer carries a `theme` field
+ * — the functional component now obtains the theme via `useTheme2()` internally. Without these
+ * test-side updates the file would no longer compile against the updated `Props` shape.
+ *
+ * No new test coverage is added, no test behavior is changed, and no other test files in the
+ * Explore checkpoint scope have been modified. See review finding #1 against this file for the
+ * documentation hand-off.
+ */
 import { render, screen } from '@testing-library/react';
 import { type Props as AutoSizerProps } from 'react-virtualized-auto-sizer';
 import { TestProvider } from 'test/helpers/TestProvider';

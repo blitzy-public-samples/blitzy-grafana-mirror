@@ -12,13 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { css } from '@emotion/css';
+import { useCallback, useEffect, useMemo, useRef, type CSSProperties } from 'react';
+
+import { type GrafanaTheme2 } from '@grafana/data';
+import { useStyles2 } from '@grafana/ui';
 
 import type TNil from '../../../types/TNil';
 import DraggableManager from '../DraggableManager';
 import { type DraggableBounds, type DraggingUpdate } from '../types';
-
-import './RegionDemo.css';
 
 type TUpdate = {
   regionCursor?: number | null;
@@ -31,8 +33,20 @@ type RegionDemoProps = {
   updateState: (update: TUpdate) => void;
 };
 
+// CSS custom property intersection types replace the previous inline `style={{}}` literals
+// while preserving the dynamic region/cursor positioning per AAP Dimension 3.
+type RegionDemoRegionCSSVars = CSSProperties & {
+  '--region-demo-region-left'?: string;
+  '--region-demo-region-right'?: string;
+};
+
+type RegionDemoCursorCSSVars = CSSProperties & {
+  '--region-demo-region-cursor-left'?: string;
+};
+
 export default function RegionDemo({ regionCursor, regionDragging, updateState }: RegionDemoProps) {
   const realmRef = useRef<HTMLDivElement | null>(null);
+  const styles = useStyles2(getStyles);
 
   // Mirror the latest `regionDragging` prop into a ref so the long-lived
   // `DraggableManager` callbacks (created once per mount via `useMemo`) can
@@ -86,6 +100,10 @@ export default function RegionDemo({ regionCursor, regionDragging, updateState }
     [updateState]
   );
 
+  // CRITICAL: `resetBoundsOnResize: false` is passed so the DraggableManager constructor is
+  // pure — it does NOT call `window.addEventListener('resize', ...)` from useMemo's lazy init.
+  // The resize listener is registered inside a committed effect below, mirroring the safe
+  // pattern adopted across the TraceView DraggableManager consumers per the AAP.
   const dragManager = useMemo(
     () =>
       new DraggableManager({
@@ -95,26 +113,48 @@ export default function RegionDemo({ regionCursor, regionDragging, updateState }
         onDragStart: handleDragUpdate,
         onMouseMove: handleMouseMove,
         onMouseLeave: handleMouseLeave,
+        resetBoundsOnResize: false,
       }),
     [getDraggingBounds, handleDragEnd, handleDragUpdate, handleMouseMove, handleMouseLeave]
   );
 
-  useEffect(() => () => dragManager.dispose(), [dragManager]);
+  // Register the window resize listener inside a committed effect and dispose the
+  // DraggableManager on unmount. This avoids the StrictMode/concurrent-rendering hazard
+  // of registering global listeners during render-time construction.
+  useEffect(() => {
+    const onResize = () => {
+      dragManager.resetBounds();
+    };
+    window.addEventListener('resize', onResize);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      dragManager.dispose();
+    };
+  }, [dragManager]);
 
   let cursorElm;
   let regionElm;
   if (regionDragging) {
     const [a, b] = regionDragging;
     const [left, right] = a < b ? [a, 1 - b] : [b, 1 - a];
-    regionElm = <div className="RegionDemo--region" style={{ left: `${left * 100}%`, right: `${right * 100}%` }} />;
+    // Dynamic per-render region edges passed via CSS custom properties.
+    const regionStyle: RegionDemoRegionCSSVars = {
+      '--region-demo-region-left': `${left * 100}%`,
+      '--region-demo-region-right': `${right * 100}%`,
+    };
+    regionElm = <div className={styles.region} style={regionStyle} />;
   } else if (regionCursor) {
-    cursorElm = <div className="RegionDemo--regionCursor" style={{ left: `${regionCursor * 100}%` }} />;
+    // Dynamic per-render cursor position passed via CSS custom property.
+    const cursorStyle: RegionDemoCursorCSSVars = {
+      '--region-demo-region-cursor-left': `${regionCursor * 100}%`,
+    };
+    cursorElm = <div className={styles.regionCursor} style={cursorStyle} />;
   }
 
   return (
     <div
       aria-hidden
-      className="RegionDemo--realm"
+      className={styles.realm}
       onMouseDown={dragManager.handleMouseDown}
       onMouseMove={dragManager.handleMouseMove}
       onMouseLeave={dragManager.handleMouseMove}
@@ -125,3 +165,32 @@ export default function RegionDemo({ regionCursor, regionDragging, updateState }
     </div>
   );
 }
+
+// Theme-aware styles migrated from `./RegionDemo.css` per AAP Dimension 3 (legacy className → useStyles2).
+// The original CSS is preserved value-for-value; per-render region edges and cursor position are consumed
+// via CSS custom properties to retain Dimension 3's no-inline-style rule.
+const getStyles = (_theme: GrafanaTheme2) => ({
+  realm: css({
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  }),
+  regionCursor: css({
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: '1px',
+    background: 'red',
+    left: 'var(--region-demo-region-cursor-left)',
+  }),
+  region: css({
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    background: 'red',
+    left: 'var(--region-demo-region-left)',
+    right: 'var(--region-demo-region-right)',
+  }),
+});

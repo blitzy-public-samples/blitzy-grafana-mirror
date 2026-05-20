@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import * as React from 'react';
-import { connect, type ConnectedProps } from 'react-redux';
+import { shallowEqual } from 'react-redux';
 
 import {
   type AbsoluteTimeRange,
@@ -28,7 +28,7 @@ import { PanelChrome } from '@grafana/ui';
 import { MIXED_DATASOURCE_NAME } from 'app/plugins/datasource/mixed/MixedDataSource';
 import { type GetFieldLinksFn } from 'app/plugins/panel/logs/types';
 import { type ExploreItemState } from 'app/types/explore';
-import { type StoreState } from 'app/types/store';
+import { type StoreState, useDispatch, useSelector } from 'app/types/store';
 
 import { getTimeZone } from '../../profile/state/selectors';
 import { loadSupplementaryQueryData, selectIsWaitingForData, setSupplementaryQueryEnabled } from '../state/query';
@@ -381,7 +381,13 @@ function LogsContainer(props: Props) {
   );
 }
 
-function mapStateToProps(state: StoreState, { exploreId }: { exploreId: string }) {
+/**
+ * Selector callback that derives the slice of redux state previously injected
+ * by `connect(mapStateToProps)`. Kept as a named function so the wrapper can
+ * invoke it inside `useSelector(state => mapStateToProps(state, ownProps))`
+ * preserving the exact return shape and equality semantics.
+ */
+export function mapStateToProps(state: StoreState, { exploreId }: { exploreId: string }) {
   const explore = state.explore;
   const item: ExploreItemState = explore.panes[exploreId]!;
   const {
@@ -421,6 +427,11 @@ function mapStateToProps(state: StoreState, { exploreId }: { exploreId: string }
   };
 }
 
+/**
+ * Action creator map that was previously passed to `connect(_, mapDispatchToProps)`.
+ * Retained as a module-level constant so the wrapper can bind each creator to
+ * dispatch with stable identity via `useMemo`.
+ */
 const mapDispatchToProps = {
   updateTimeRange,
   loadMoreLogs,
@@ -428,8 +439,64 @@ const mapDispatchToProps = {
   setSupplementaryQueryEnabled,
 };
 
-const connector = connect(mapStateToProps, mapDispatchToProps);
-type PropsFromRedux = ConnectedProps<typeof connector>;
-type Props = LogsContainerProps & PropsFromRedux;
+/** State slice previously injected by `connect(mapStateToProps)`. */
+export type StateProps = ReturnType<typeof mapStateToProps>;
 
-export default connector(LogsContainer);
+/**
+ * Helper type that mirrors the transformation applied by `connect`'s
+ * `mapDispatchToProps` object form. See identical helper in Explore.tsx for
+ * full rationale on the `any[]` rest-parameter shape.
+ */
+type BoundActionCreator<F> = F extends (...args: infer A) => infer R
+  ? R extends (
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- type-inference: `any[]` is the only rest-parameter shape that is a supertype of arbitrary callables and thus permits narrowing on thunk-vs-plain-action; same idiom as react-redux's ConnectedProps types.
+      ...thunkArgs: any[]
+    ) => infer RR
+    ? (...args: A) => RR
+    : (...args: A) => R
+  : never;
+
+/** Dispatch action creators bound to dispatch (matches former ConnectedProps shape). */
+export type DispatchProps = {
+  [K in keyof typeof mapDispatchToProps]: BoundActionCreator<(typeof mapDispatchToProps)[K]>;
+};
+
+type Props = LogsContainerProps & StateProps & DispatchProps;
+
+/**
+ * Hook-based replacement for the previous `connect(...)` HOC. Sources Redux
+ * state via `useSelector` and binds dispatch action creators in `useMemo` so
+ * the resulting props have stable identity. Forwards everything to the inner
+ * `LogsContainer` component, whose signature is unchanged.
+ *
+ * `shallowEqual` is supplied as the equality comparator for `useSelector` —
+ * `mapStateToProps` returns a fresh object literal each call (composed of
+ * primitives and stable Redux references), so without shallow comparison
+ * React-Redux would re-render on every store update AND emit a dev-mode
+ * "Selector returned a different result when called with the same parameters"
+ * warning (which fails `jest-fail-on-console` tests). This restores the exact
+ * shallow-equal merge semantics that `connect(mapStateToProps)` previously
+ * provided. See AAP §0.8.3 (Redux `connect` Integration Analysis) for the
+ * canonical rationale; same pattern is used in `ExploreToolbar.tsx`.
+ *
+ * This pattern satisfies AAP §0.5.3 ("HOC redux access replaced by hooks") and
+ * the user rule "useDispatch/useSelector from app/types/store" while honoring
+ * the MINIMAL CHANGE MANDATE.
+ */
+const ConnectedLogsContainer = (ownProps: LogsContainerProps) => {
+  const stateProps = useSelector((state: StoreState) => mapStateToProps(state, ownProps), shallowEqual);
+  const dispatch = useDispatch();
+  const dispatchProps: DispatchProps = useMemo(
+    () => ({
+      updateTimeRange: (...args) => dispatch(updateTimeRange(...args)),
+      loadMoreLogs: (...args) => dispatch(loadMoreLogs(...args)),
+      loadSupplementaryQueryData: (...args) => dispatch(loadSupplementaryQueryData(...args)),
+      setSupplementaryQueryEnabled: (...args) => dispatch(setSupplementaryQueryEnabled(...args)),
+    }),
+    [dispatch]
+  );
+
+  return <LogsContainer {...ownProps} {...stateProps} {...dispatchProps} />;
+};
+
+export default ConnectedLogsContainer;

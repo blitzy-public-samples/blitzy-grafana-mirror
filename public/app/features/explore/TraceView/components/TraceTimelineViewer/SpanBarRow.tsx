@@ -14,6 +14,7 @@
 
 import { css, keyframes } from '@emotion/css';
 import cx from 'classnames';
+import { type CSSProperties } from 'react';
 import * as React from 'react';
 
 import { type GrafanaTheme2, type TraceKeyValuePair } from '@grafana/data';
@@ -286,6 +287,8 @@ const getStyles = stylesFactory((theme: GrafanaTheme2, showSpanFilterMatchesOnly
       fontSize: '0.6em',
       marginRight: '0.25rem',
       padding: '1px',
+      // Dynamic per-span error-icon background color consumed via CSS custom property.
+      backgroundColor: 'var(--span-error-icon-bg)',
     }),
     rpcColorMarker: css({
       label: 'rpcColorMarker',
@@ -297,6 +300,8 @@ const getStyles = stylesFactory((theme: GrafanaTheme2, showSpanFilterMatchesOnly
       padding: '1px',
       width: '1em',
       verticalAlign: 'middle',
+      // Dynamic per-rpc-span background color consumed via CSS custom property.
+      background: 'var(--span-rpc-color-marker-bg)',
     }),
     labelRight: css({
       label: 'labelRight',
@@ -309,6 +314,8 @@ const getStyles = stylesFactory((theme: GrafanaTheme2, showSpanFilterMatchesOnly
     spanLink: css({
       label: 'spanLink',
       paddingInline: '4px',
+      // Dynamic per-span border-bottom color consumed via CSS custom property.
+      borderBottom: '2px solid var(--span-link-border-color)',
     }),
     viewCell: css({
       label: 'viewCell',
@@ -316,6 +323,22 @@ const getStyles = stylesFactory((theme: GrafanaTheme2, showSpanFilterMatchesOnly
     }),
   };
 });
+
+// CSS custom property intersection types replace the previous inline `style={{}}` literals
+// while preserving pixel-precise visual treatment per the AAP Dimension 3 migration protocol.
+// Each typed local variable carries only the variables the corresponding element consumes
+// via `var(--…)` references inside the colocated Emotion classes above.
+type SpanErrorIconCSSVars = CSSProperties & {
+  '--span-error-icon-bg'?: string;
+};
+
+type SpanRpcColorMarkerCSSVars = CSSProperties & {
+  '--span-rpc-color-marker-bg'?: string;
+};
+
+type SpanLinkCSSVars = CSSProperties & {
+  '--span-link-border-color'?: string;
+};
 
 export type SpanBarRowProps = {
   className?: string;
@@ -496,18 +519,17 @@ const UnthemedSpanBarRow = React.memo<SpanBarRowProps>((props) => {
             role="switch"
             tabIndex={0}
           >
-            {showErrorIcon && (
-              <Icon
-                name={'exclamation-circle'}
-                // Dynamic per-span error-icon color; cannot be statically classed.
-                style={{
-                  backgroundColor: span.errorIconColor
-                    ? autoColor(theme, span.errorIconColor)
-                    : autoColor(theme, '#db2828'),
-                }}
-                className={styles.errorIcon}
-              />
-            )}
+            {showErrorIcon && (() => {
+              // Dynamic per-span error-icon background color passed via CSS custom property.
+              const errorIconStyle: SpanErrorIconCSSVars = {
+                '--span-error-icon-bg': span.errorIconColor
+                  ? autoColor(theme, span.errorIconColor)
+                  : autoColor(theme, '#db2828'),
+              };
+              return (
+                <Icon name={'exclamation-circle'} style={errorIconStyle} className={styles.errorIcon} />
+              );
+            })()}
             {showServiceName && (
               <span
                 className={cx(styles.svcName, {
@@ -517,21 +539,30 @@ const UnthemedSpanBarRow = React.memo<SpanBarRowProps>((props) => {
                 {`${serviceDisplayName} `}
               </span>
             )}
-            {rpc && (
-              <span>
-                <Icon name={'arrow-right'} /> {/* Dynamic per-rpc-span color; cannot be statically classed. */}
-                <i className={styles.rpcColorMarker} style={{ background: rpc.color }} />
-                {rpc.serviceName}
-              </span>
-            )}
-            {noInstrumentedServer && (
-              <span>
-                <Icon name={'arrow-right'} />{' '}
-                {/* Dynamic per-uninstrumented-server color; cannot be statically classed. */}
-                <i className={styles.rpcColorMarker} style={{ background: noInstrumentedServer.color }} />
-                {noInstrumentedServer.serviceName}
-              </span>
-            )}
+            {rpc && (() => {
+              // Dynamic per-rpc-span color marker background passed via CSS custom property.
+              const rpcMarkerStyle: SpanRpcColorMarkerCSSVars = { '--span-rpc-color-marker-bg': rpc.color };
+              return (
+                <span>
+                  <Icon name={'arrow-right'} />
+                  <i className={styles.rpcColorMarker} style={rpcMarkerStyle} />
+                  {rpc.serviceName}
+                </span>
+              );
+            })()}
+            {noInstrumentedServer && (() => {
+              // Dynamic per-uninstrumented-server color marker background passed via CSS custom property.
+              const noServerMarkerStyle: SpanRpcColorMarkerCSSVars = {
+                '--span-rpc-color-marker-bg': noInstrumentedServer.color,
+              };
+              return (
+                <span>
+                  <Icon name={'arrow-right'} />{' '}
+                  <i className={styles.rpcColorMarker} style={noServerMarkerStyle} />
+                  {noInstrumentedServer.serviceName}
+                </span>
+              );
+            })()}
             <span className={styles.endpointName}>{rpc ? rpc.operationName : operationName}</span>
             <span className={styles.endpointName}> {getSpanBarLabel(span, spanBarOptions, label)}</span>
           </button>
@@ -544,16 +575,15 @@ const UnthemedSpanBarRow = React.memo<SpanBarRowProps>((props) => {
                   return null;
                 }
 
+                // Dynamic per-span border-bottom color passed via CSS custom property.
+                const spanLinkStyle: SpanLinkCSSVars = { '--span-link-border-color': `${color}CF` };
                 return (
                   <a
                     href={links[0].href}
                     // Needs to have target otherwise preventDefault would not work due to angularRouter.
                     target={'_blank'}
                     className={styles.spanLink}
-                    // Dynamic per-span border color; cannot be statically classed.
-                    style={{
-                      borderBottom: `2px solid ${color}CF`,
-                    }}
+                    style={spanLinkStyle}
                     rel="noopener noreferrer"
                     onClick={
                       links[0].onClick

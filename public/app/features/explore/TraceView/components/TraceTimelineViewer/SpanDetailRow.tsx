@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import { css } from '@emotion/css';
-import React from 'react';
+import React, { type CSSProperties } from 'react';
 
 import { type CoreApp, type GrafanaTheme2, type LinkModel, type TimeRange, type TraceLog } from '@grafana/data';
 import { type TraceToProfilesOptions } from '@grafana/o11y-ds-frontend';
@@ -63,6 +63,8 @@ const getStyles = stylesFactory((theme: GrafanaTheme2) => {
     infoWrapper: css({
       label: 'infoWrapper',
       padding: '0.75rem',
+      // Dynamic per-span border-top color consumed via CSS custom property.
+      borderTopColor: 'var(--span-detail-info-border-top-color)',
     }),
     cell: css({
       label: 'cell',
@@ -82,6 +84,12 @@ const getStyles = stylesFactory((theme: GrafanaTheme2) => {
     }),
   };
 });
+
+// CSS custom property intersection type replaces the previous inline `style={{}}` literal
+// while preserving the dynamic per-span border-top color per the AAP Dimension 3 protocol.
+type SpanDetailInfoWrapperCSSVars = CSSProperties & {
+  '--span-detail-info-border-top-color'?: string;
+};
 
 export type SpanDetailRowProps = {
   color: string;
@@ -156,6 +164,12 @@ const UnthemedSpanDetailRow = React.memo<SpanDetailRowProps>((props) => {
 
   const styles = getStyles(theme);
 
+  // Dynamic per-span border-top color passed via CSS custom property. Replaces the previous
+  // inline `style={{}}` literal per AAP Dimension 3 while preserving the per-span visual treatment.
+  const infoWrapperStyle: SpanDetailInfoWrapperCSSVars = {
+    '--span-detail-info-border-top-color': color,
+  };
+
   return (
     <TimelineRow>
       <TimelineRow.Cell width={1} className={styles.cell}>
@@ -171,8 +185,7 @@ const UnthemedSpanDetailRow = React.memo<SpanDetailRowProps>((props) => {
           />
         </div>
         <div className={styles.detailWrapper}>
-          {/* Dynamic per-span border-top color; cannot be statically classed. */}
-          <div className={styles.infoWrapper} style={{ borderTopColor: color }}>
+          <div className={styles.infoWrapper} style={infoWrapperStyle}>
             <SpanDetail
               color={color}
               detailState={detailState}

@@ -204,4 +204,13 @@ const LiveLogs = (props: Props) => {
   );
 };
 
-export const LiveLogsWithTheme = LiveLogs;
+// Wrap the functional component in `React.memo` to preserve the original `PureComponent`
+// shallow-equality semantics. The class form was `class LiveLogs extends PureComponent<Props>`,
+// which short-circuited re-renders when all `Props` keys shallow-equaled the previous render's
+// props. Live log tailing is a high-frequency render path (new rows arrive continuously), and
+// dropping shallow-equality memoization without a replacement would cause avoidable re-renders
+// of the entire log feed on every parent update — per Checkpoint 10 review finding ("Source
+// class was a `PureComponent`, but the functional conversion is exported as a plain function
+// without `React.memo` … Live log streaming can re-render frequently"). React.memo's default
+// shallow-prop comparator matches `PureComponent`'s `shouldComponentUpdate` semantics exactly.
+export const LiveLogsWithTheme = React.memo(LiveLogs);

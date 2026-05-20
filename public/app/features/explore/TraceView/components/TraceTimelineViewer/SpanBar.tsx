@@ -15,7 +15,7 @@
 import { css } from '@emotion/css';
 import cx from 'classnames';
 import { groupBy as _groupBy } from 'lodash';
-import { useState } from 'react';
+import { type CSSProperties, useState } from 'react';
 import * as React from 'react';
 
 import { type GrafanaTheme2 } from '@grafana/data';
@@ -50,6 +50,10 @@ const getStyles = (theme: GrafanaTheme2) => {
       position: 'absolute',
       height: '40%',
       top: '30%',
+      // Dynamic per-span position and color from time-range mapping consumed via CSS custom properties.
+      background: 'var(--span-bar-bg)',
+      left: 'var(--span-bar-left)',
+      width: 'var(--span-bar-width)',
     }),
     rpc: css({
       label: 'rpc',
@@ -57,6 +61,10 @@ const getStyles = (theme: GrafanaTheme2) => {
       top: '35%',
       bottom: '35%',
       zIndex: 1,
+      // Dynamic per-rpc-span position and color from time-range mapping consumed via CSS custom properties.
+      background: 'var(--span-rpc-bg)',
+      left: 'var(--span-rpc-left)',
+      width: 'var(--span-rpc-width)',
     }),
     label: css({
       label: 'label',
@@ -76,6 +84,8 @@ const getStyles = (theme: GrafanaTheme2) => {
       minWidth: '1px',
       position: 'absolute',
       top: '20%',
+      // Dynamic per-log-marker position from time-range mapping consumed via CSS custom property.
+      left: 'var(--span-log-marker-left)',
       '&:hover': {
         backgroundColor: autoColor(theme, '#464c54'),
       },
@@ -100,6 +110,9 @@ const getStyles = (theme: GrafanaTheme2) => {
       background: autoColor(theme, '#f1f1f1'),
       borderLeft: `1px solid ${autoColor(theme, '#2c3235')}`,
       borderRight: `1px solid ${autoColor(theme, '#2c3235')}`,
+      // Dynamic per-critical-path-section position from time-range mapping consumed via CSS custom properties.
+      left: 'var(--span-critical-path-left)',
+      width: 'var(--span-critical-path-width)',
     }),
   };
 };
@@ -124,6 +137,31 @@ export type Props = {
   longLabel: string;
   shortLabel: string;
   criticalPath: CriticalPathSection[];
+};
+
+// CSS custom property intersection types replace the previous inline `style={{}}` literals
+// while preserving pixel-precise positioning per the AAP Dimension 3 migration protocol.
+// Each typed local variable carries only the variables the corresponding element consumes
+// via `var(--…)` references inside the colocated Emotion classes above.
+type SpanBarCSSVars = CSSProperties & {
+  '--span-bar-bg'?: string;
+  '--span-bar-left'?: string;
+  '--span-bar-width'?: string;
+};
+
+type SpanRpcCSSVars = CSSProperties & {
+  '--span-rpc-bg'?: string;
+  '--span-rpc-left'?: string;
+  '--span-rpc-width'?: string;
+};
+
+type SpanLogMarkerCSSVars = CSSProperties & {
+  '--span-log-marker-left'?: string;
+};
+
+type SpanCriticalPathCSSVars = CSSProperties & {
+  '--span-critical-path-left'?: string;
+  '--span-critical-path-width'?: string;
 };
 
 function toPercent(value: number) {
@@ -161,6 +199,24 @@ function SpanBar({
   });
   const styles = useStyles2(getStyles);
 
+  // Dynamic per-span position and color from time-range mapping passed as CSS custom properties
+  // consumed by the colocated Emotion `bar` class. Replaces the previous inline `style={{}}` literal
+  // per AAP Dimension 3 while preserving pixel-precise positioning.
+  const barStyle: SpanBarCSSVars = {
+    '--span-bar-bg': color,
+    '--span-bar-left': toPercent(viewStart),
+    '--span-bar-width': toPercent(viewEnd - viewStart),
+  };
+
+  // Dynamic per-rpc-span position and color passed via CSS custom properties.
+  const rpcStyle: SpanRpcCSSVars | undefined = rpc
+    ? {
+        '--span-rpc-bg': rpc.color,
+        '--span-rpc-left': toPercent(rpc.viewStart),
+        '--span-rpc-width': toPercent(rpc.viewEnd - rpc.viewStart),
+      }
+    : undefined;
+
   return (
     <div
       className={cx(styles.wrapper, className)}
@@ -172,49 +228,40 @@ function SpanBar({
       aria-hidden
       data-testid={selectors.components.TraceViewer.spanBar}
     >
-      {/* Dynamic per-span position and color from time-range mapping; cannot be statically classed. */}
-      <div
-        aria-label={label}
-        className={cx(styles.bar)}
-        style={{
-          background: color,
-          left: toPercent(viewStart),
-          width: toPercent(viewEnd - viewStart),
-        }}
-      >
+      <div aria-label={label} className={cx(styles.bar)} style={barStyle}>
         <div className={cx(styles.label, labelClassName)} data-testid="SpanBar--label">
           {label}
         </div>
       </div>
       <div>
-        {Object.keys(logGroups).map((positionKey) => (
-          <Popover
-            key={positionKey}
-            content={
-              <AccordianLogs interactive={false} isOpen logs={logGroups[positionKey]} timestamp={traceStartTime} />
-            }
-          >
-            {/* Dynamic per-log-marker position from time-range mapping; cannot be statically classed. */}
-            <div data-testid="SpanBar--logMarker" className={cx(styles.logMarker)} style={{ left: positionKey }} />
-          </Popover>
-        ))}
+        {Object.keys(logGroups).map((positionKey) => {
+          // Dynamic per-log-marker position passed via CSS custom property.
+          const logMarkerStyle: SpanLogMarkerCSSVars = {
+            '--span-log-marker-left': positionKey,
+          };
+          return (
+            <Popover
+              key={positionKey}
+              content={
+                <AccordianLogs interactive={false} isOpen logs={logGroups[positionKey]} timestamp={traceStartTime} />
+              }
+            >
+              <div data-testid="SpanBar--logMarker" className={cx(styles.logMarker)} style={logMarkerStyle} />
+            </Popover>
+          );
+        })}
       </div>
-      {/* Dynamic per-rpc-span position and color from time-range mapping; cannot be statically classed. */}
-      {rpc && (
-        <div
-          className={cx(styles.rpc)}
-          style={{
-            background: rpc.color,
-            left: toPercent(rpc.viewStart),
-            width: toPercent(rpc.viewEnd - rpc.viewStart),
-          }}
-        />
-      )}
+      {rpc && rpcStyle && <div className={cx(styles.rpc)} style={rpcStyle} />}
       {criticalPath?.map((each, index) => {
         const critcalPathViewBounds = getViewedBounds(each.section_start, each.section_end);
         const criticalPathViewStart = critcalPathViewBounds.start;
         const criticalPathViewEnd = critcalPathViewBounds.end;
         const key = `${each.spanId}-${index}`;
+        // Dynamic per-critical-path-section position passed via CSS custom properties.
+        const criticalPathStyle: SpanCriticalPathCSSVars = {
+          '--span-critical-path-left': toPercentInDecimal(criticalPathViewStart),
+          '--span-critical-path-width': toPercentInDecimal(criticalPathViewEnd - criticalPathViewStart),
+        };
         return (
           <Tooltip
             key={key}
@@ -227,14 +274,10 @@ function SpanBar({
               </div>
             }
           >
-            {/* Dynamic per-critical-path-section position from time-range mapping; cannot be statically classed. */}
             <div
               data-testid="SpanBar--criticalPath"
               className={styles.criticalPath}
-              style={{
-                left: toPercentInDecimal(criticalPathViewStart),
-                width: toPercentInDecimal(criticalPathViewEnd - criticalPathViewStart),
-              }}
+              style={criticalPathStyle}
             />
           </Tooltip>
         );

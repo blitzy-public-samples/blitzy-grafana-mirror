@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import { css, cx } from '@emotion/css';
-import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, type CSSProperties, type ReactNode } from 'react';
 
 import { stylesFactory } from '@grafana/ui';
 
@@ -39,7 +39,7 @@ export const getStyles = stylesFactory(() => {
       position: 'absolute',
       top: 0,
       bottom: 0,
-      left: 0,
+      left: 'var(--timeline-viewing-layer-cursor-left, 0)',
       width: '1px',
       backgroundColor: 'red',
     }),
@@ -48,6 +48,9 @@ export const getStyles = stylesFactory(() => {
       position: 'absolute',
       top: 0,
       bottom: 0,
+      // Dynamic drag-marker position and width from view-range mapping consumed via CSS custom properties.
+      left: 'var(--timeline-viewing-layer-dragged-left)',
+      width: 'var(--timeline-viewing-layer-dragged-width)',
     }),
     TimelineViewingLayerDraggedDraggingLeft: css({
       label: 'TimelineViewingLayerDraggedDraggingLeft',
@@ -79,6 +82,17 @@ export const getStyles = stylesFactory(() => {
     }),
   };
 });
+
+// CSS custom property intersection types replace the previous inline `style={{}}` literals
+// while preserving the dynamic drag/cursor positioning per AAP Dimension 3.
+type TimelineViewingLayerDraggedCSSVars = CSSProperties & {
+  '--timeline-viewing-layer-dragged-left'?: string;
+  '--timeline-viewing-layer-dragged-width'?: string;
+};
+
+type TimelineViewingLayerCursorCSSVars = CSSProperties & {
+  '--timeline-viewing-layer-cursor-left'?: string;
+};
 
 export type TimelineViewingLayerProps = {
   /**
@@ -165,11 +179,15 @@ function getMarkers(viewStart: number, viewEnd: number, from: number, to: number
     [styles.TimelineViewingLayerDraggedReframeDrag]: !isShift,
     [styles.TimelineViewingLayerDraggedShiftDrag]: isShift,
   });
+  // Dynamic drag-marker position and width from view-range mapping passed via CSS custom properties.
+  const draggedStyle: TimelineViewingLayerDraggedCSSVars = {
+    '--timeline-viewing-layer-dragged-left': left,
+    '--timeline-viewing-layer-dragged-width': width,
+  };
   return (
-    // Dynamic drag-marker position and width from view-range mapping; cannot be statically classed.
     <div
       className={cx(styles.TimelineViewingLayerDragged, styles.TimelineViewingLayerDraggedDraggingLeft, cls)}
-      style={{ left, width }}
+      style={draggedStyle}
       data-testid="Dragged"
     />
   );
@@ -194,8 +212,18 @@ export default function TimelineViewingLayer(props: TimelineViewingLayerProps) {
   propsRef.current = props;
 
   // DraggableManager instance — created once, lazily, on first render so it
-  // is available when render passes its handlers to the JSX. This mirrors the
-  // original constructor's eager initialization.
+  // is available when render passes its handlers to the JSX.
+  //
+  // CRITICAL: `resetBoundsOnResize: false` is passed so the DraggableManager
+  // constructor is pure — i.e. it does NOT call `window.addEventListener('resize', ...)`
+  // during construction. This eliminates the render-time side effect identified
+  // in Checkpoint 10 review finding ("`DraggableManager` is constructed during
+  // render via a ref-null guard … this is a side effect during render and risks
+  // leaked listeners in StrictMode/concurrent rendering"). With the constructor
+  // pure, the ref-null guard pattern is safe even in StrictMode/aborted concurrent
+  // renders. The window resize listener is registered explicitly inside the
+  // committed `useLayoutEffect` below so it is only ever active for committed
+  // component instances and is always paired with a `removeEventListener` cleanup.
   const draggerReframeRef = useRef<DraggableManager | null>(null);
   if (draggerReframeRef.current === null) {
     draggerReframeRef.current = new DraggableManager({
@@ -238,6 +266,7 @@ export default function TimelineViewingLayer(props: TimelineViewingLayerProps) {
         manager.resetBounds();
         propsRef.current.updateViewRangeTime(start, end, 'timeline-header');
       },
+      resetBoundsOnResize: false,
     });
   }
 
@@ -250,12 +279,20 @@ export default function TimelineViewingLayer(props: TimelineViewingLayerProps) {
     draggerReframeRef.current?.resetBounds();
   }, [boundsInvalidator]);
 
-  // Equivalent to componentWillUnmount: dispose of the DraggableManager when
-  // the component unmounts. useLayoutEffect with [] deps guarantees the
-  // cleanup runs once on unmount, matching the class semantic exactly.
+  // Register the window resize listener inside a committed effect and dispose
+  // the DraggableManager on unmount. Because we passed `resetBoundsOnResize:
+  // false` to the constructor, the manager does NOT register its own resize
+  // listener — we register it here, ONCE per committed mount, with a
+  // guaranteed cleanup path. This mirrors the original class's componentDidMount
+  // + componentWillUnmount semantics while removing the render-time side effect.
   useLayoutEffect(() => {
     const draggerReframe = draggerReframeRef.current;
+    const onResize = () => {
+      draggerReframe?.resetBounds();
+    };
+    window.addEventListener('resize', onResize);
     return () => {
+      window.removeEventListener('resize', onResize);
       draggerReframe?.dispose();
     };
   }, []);
@@ -270,6 +307,10 @@ export default function TimelineViewingLayer(props: TimelineViewingLayerProps) {
     cusrorPosition = `${mapToViewSubRange(viewStart, viewEnd, cursor) * 100}%`;
   }
   const styles = getStyles();
+  // Dynamic per-render cursor-guide horizontal position passed via CSS custom property.
+  const cursorStyle: TimelineViewingLayerCursorCSSVars | undefined = cusrorPosition
+    ? { '--timeline-viewing-layer-cursor-left': cusrorPosition }
+    : undefined;
   return (
     <div
       aria-hidden
@@ -280,11 +321,10 @@ export default function TimelineViewingLayer(props: TimelineViewingLayerProps) {
       onMouseMove={draggerReframe.handleMouseMove}
       data-testid="TimelineViewingLayer"
     >
-      {cusrorPosition != null && (
-        // Dynamic per-render cursor-guide position from pointer location; cannot be statically classed.
+      {cusrorPosition != null && cursorStyle && (
         <div
           className={styles.TimelineViewingLayerCursorGuide}
-          style={{ left: cusrorPosition }}
+          style={cursorStyle}
           data-testid="TimelineViewingLayer--cursorGuide"
         />
       )}

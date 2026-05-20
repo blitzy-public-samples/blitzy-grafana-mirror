@@ -18,12 +18,12 @@ import memoizeOne from 'memoize-one';
 import * as React from 'react';
 import { useCallback, useLayoutEffect, useMemo, useRef, type CSSProperties, type RefObject } from 'react';
 
-import { type CoreApp, type GrafanaTheme2, type LinkModel, type TimeRange, type TraceLog } from '@grafana/data';
+import { type CoreApp, type LinkModel, type TimeRange, type TraceLog } from '@grafana/data';
 import { t } from '@grafana/i18n';
 import { type TraceToProfilesOptions } from '@grafana/o11y-ds-frontend';
 import { config, reportInteraction } from '@grafana/runtime';
 import { type TimeZone } from '@grafana/schema';
-import { stylesFactory, withTheme2, ToolbarButton } from '@grafana/ui';
+import { stylesFactory, useTheme2, ToolbarButton } from '@grafana/ui';
 
 import { PEER_SERVICE } from '../constants/tag-keys';
 import { type SpanBarOptions } from '../settings/SpanBarSettings';
@@ -101,7 +101,6 @@ type TVirtualizedTraceViewOwnProps = {
   hoverIndentGuideIds: Set<string>;
   addHoverIndentGuideId: (spanID: string) => void;
   removeHoverIndentGuideId: (spanID: string) => void;
-  theme: GrafanaTheme2;
   createSpanLink?: SpanLinkFunc;
   scrollElement?: Element;
   focusedSpanId?: string;
@@ -246,14 +245,24 @@ const memoizedChildSpansMap = memoizeOne(childSpansMap);
 //   - `memoizeOne(...)` instance member (`getVisibleSpanIds`) → `useMemo(() => memoizeOne(...), [])` reading the
 //     latest `getRowStates` via a ref so it stays in sync with prop changes without re-creating the memoizer
 //
-// Public API surface preserved byte-identical:
-//   - `export type VirtualizedTraceViewProps`
+// Public API surface preserved with one intentional change per AAP §0.6.2 (Theme HOC unwinding) and
+// Checkpoint 10 code review finding (VirtualizedTraceView.tsx "withTheme2 retained"):
+//   - `export type VirtualizedTraceViewProps` (no longer includes `theme`; consumers no longer need to
+//     supply it because the component now reads the theme internally via `useTheme2()`).
 //   - `export const DEFAULT_HEIGHTS`
 //   - `export const UnthemedVirtualizedTraceView` (was a class, now a memoized FC; same JSX call shape)
-//   - `export default withTheme2(UnthemedVirtualizedTraceView)`
+//   - `export default UnthemedVirtualizedTraceView` (was `withTheme2(UnthemedVirtualizedTraceView)`).
+//     The HOC wrapper has been removed in favor of the `useTheme2()` hook inside the component body so
+//     functional consumers don't pay the wrapper indirection and Checkpoint 10's "no withTheme2 in
+//     converted Explore components" requirement is satisfied.
 export const UnthemedVirtualizedTraceView = React.memo(function UnthemedVirtualizedTraceView(
   props: VirtualizedTraceViewProps
 ) {
+  // Replaces the previous `theme` injection via `withTheme2(UnthemedVirtualizedTraceView)`. The theme
+  // is read once per render here and closed over by the `renderSpanBarRow` / `renderSpanDetailRow`
+  // callbacks below; this preserves the prior behavior where `theme` was an arg to `getColorByKey(...)`
+  // inside those render paths while removing the HOC wrapper at module scope.
+  const theme = useTheme2();
   // Replaces `listView: ListView | TNil` instance field. ListView is a React class component exposing
   // imperative methods (`scrollToIndex`, `getTopVisibleIndex`, `getBottomVisibleIndex`, `getRowPosition`,
   // `getViewHeight`) via its `ref` prop.
@@ -470,10 +479,12 @@ export const UnthemedVirtualizedTraceView = React.memo(function UnthemedVirtuali
         focusedSpanId,
         focusedSpanIdForSearch,
         showSpanFilterMatchesOnly,
-        theme,
         datasourceType,
         criticalPath,
       } = props;
+      // `theme` previously came from `props.theme` (injected by `withTheme2`); it now comes from the
+      // outer `useTheme2()` call. The deps array includes `theme` to honor `react-hooks/exhaustive-deps`
+      // and to keep `getColorByKey(..., theme)` results in sync when the active theme changes.
       // to avert flow error
       if (!trace) {
         return null;
@@ -570,7 +581,7 @@ export const UnthemedVirtualizedTraceView = React.memo(function UnthemedVirtuali
         </div>
       );
     },
-    [props, getViewedBounds, getChildSpansMap, getClippingFn]
+    [props, theme, getViewedBounds, getChildSpansMap, getClippingFn]
   );
 
   const renderSpanDetailRow = useCallback(
@@ -598,7 +609,6 @@ export const UnthemedVirtualizedTraceView = React.memo(function UnthemedVirtuali
         createSpanLink,
         focusedSpanId,
         createFocusSpanLink,
-        theme,
         datasourceType,
         datasourceUid,
         traceFlameGraphs,
@@ -607,6 +617,9 @@ export const UnthemedVirtualizedTraceView = React.memo(function UnthemedVirtuali
         timeRange,
         app,
       } = props;
+      // `theme` previously came from `props.theme` (injected by `withTheme2`); it now comes from the
+      // outer `useTheme2()` call. The deps array includes `theme` so `getColorByKey(..., theme)` is
+      // recomputed if the active theme changes (light/dark switch).
       const detailState = detailStates.get(spanID);
       if (!trace || !detailState) {
         return null;
@@ -661,7 +674,7 @@ export const UnthemedVirtualizedTraceView = React.memo(function UnthemedVirtuali
         </div>
       );
     },
-    [props]
+    [props, theme]
   );
 
   const renderRow = useCallback(
@@ -744,4 +757,8 @@ export const UnthemedVirtualizedTraceView = React.memo(function UnthemedVirtuali
 
 UnthemedVirtualizedTraceView.displayName = 'UnthemedVirtualizedTraceView';
 
-export default withTheme2(UnthemedVirtualizedTraceView);
+// Previously exported as `withTheme2(UnthemedVirtualizedTraceView)` to inject `theme` as a prop. The
+// HOC has been removed and the component now reads the active theme internally via `useTheme2()`, so
+// the default export is the memoized component itself. Consumers that previously passed `theme={...}`
+// no longer need to (the prop is no longer part of `VirtualizedTraceViewProps`).
+export default UnthemedVirtualizedTraceView;

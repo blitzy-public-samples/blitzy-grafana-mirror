@@ -1718,7 +1718,7 @@
   },
   "public/app/features/explore/state/utils.ts": {
     "@typescript-eslint/consistent-type-assertions": {
-      "count": 4
+      "count": 2
     }
   },
   "public/app/features/expressions/ExpressionDatasource.ts": {

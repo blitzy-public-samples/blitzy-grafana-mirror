@@ -19,7 +19,7 @@ import { type CoreApp, type GrafanaTheme2, type LinkModel, type TimeRange, type 
 import { type SpanBarOptions, type TraceToProfilesOptions } from '@grafana/o11y-ds-frontend';
 import { config, reportInteraction } from '@grafana/runtime';
 import { type TimeZone } from '@grafana/schema';
-import { stylesFactory, withTheme2 } from '@grafana/ui';
+import { stylesFactory, useTheme2 } from '@grafana/ui';
 
 import { autoColor } from '../Theme';
 import { merge as mergeShortcuts } from '../keyboard-shortcuts';
@@ -97,7 +97,6 @@ export type TProps = {
   detailToggle: (spanID: string) => void;
   addHoverIndentGuideId: (spanID: string) => void;
   removeHoverIndentGuideId: (spanID: string) => void;
-  theme: GrafanaTheme2;
   createSpanLink?: SpanLinkFunc;
   scrollElement?: Element;
   focusedSpanId?: string;
@@ -130,7 +129,6 @@ export function UnthemedTraceTimelineViewer(props: TProps) {
     updateViewRangeTime,
     viewRange,
     traceTimeline,
-    theme,
     topOfViewRef,
     focusedSpanIdForSearch,
     collapseAll: collapseAllProp,
@@ -142,6 +140,11 @@ export function UnthemedTraceTimelineViewer(props: TProps) {
     trace,
     ...rest
   } = props;
+  // `theme` previously came from `props.theme` (injected by `withTheme2`); it now comes from the
+  // `useTheme2()` hook. This unwinds the `withTheme2` HOC per AAP §0.6.2 and Checkpoint 10 review
+  // finding (`TraceTimelineViewer/index.tsx withTheme2 retained`). The downstream `styles =
+  // getStyles(theme)` call below is unchanged so JSON-markup color tokens remain pixel-equivalent.
+  const theme = useTheme2();
 
   const [height, setHeight] = useState(0);
 
@@ -230,4 +233,9 @@ export function UnthemedTraceTimelineViewer(props: TProps) {
   );
 }
 
-export default withTheme2(UnthemedTraceTimelineViewer);
+// Previously exported as `withTheme2(UnthemedTraceTimelineViewer)` to inject `theme` as a prop. The
+// HOC has been removed and the component now reads the active theme internally via `useTheme2()`.
+// Consumers (e.g., `TraceView.tsx`) never passed `theme={...}` explicitly — they relied on the HOC —
+// so removing the wrapper is a no-op for callers and aligns with the AAP functional-component
+// conversion mandate (AAP §0.6.2 Rule T2 / Checkpoint 10 finding `withTheme2 retained`).
+export default UnthemedTraceTimelineViewer;

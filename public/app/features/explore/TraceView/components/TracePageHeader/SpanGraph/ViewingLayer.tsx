@@ -14,7 +14,7 @@
 
 import { css } from '@emotion/css';
 import cx from 'classnames';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { type CSSProperties, useCallback, useEffect, useRef, useState } from 'react';
 
 import { type GrafanaTheme2 } from '@grafana/data';
 import { Trans } from '@grafana/i18n';
@@ -53,6 +53,11 @@ export const getStyles = (theme: GrafanaTheme2) => {
       cursor: 'vertical-text',
       position: 'relative',
       zIndex: 1,
+      // The per-render trace-driven height is supplied via the `--viewing-layer-height` CSS
+      // custom property on `style`. This replaces the prior `style={{ height }}` inline
+      // declaration so the Emotion class stays stable across renders (per AAP §0.8.9 bounded
+      // class generation; mirrors `ProgressBar.tsx`'s `ProgressCSSVar` pattern).
+      height: 'var(--viewing-layer-height)',
       [`&:hover > .${ViewingLayerResetZoomHoverClassName}`]: {
         display: 'unset',
       },
@@ -105,6 +110,14 @@ export type ViewingLayerProps = {
   updateNextViewRangeTime: (update: ViewRangeTimeUpdate) => void;
   viewRange: ViewRange;
 };
+
+// CSS-custom-property typing for the dynamic per-render height carried via `style={{...}}`.
+// Mirrors the `ProgressCSSVar` pattern in
+// `public/app/features/provisioning/Shared/ProgressBar.tsx`: the type extends
+// `CSSProperties` with an optional `--viewing-layer-height` key so the runtime value can flow
+// through `style` without an `as`-cast (per ESLint
+// `@typescript-eslint/consistent-type-assertions: ['error', { assertionStyle: 'never' }]`).
+type ViewingLayerCSSVars = CSSProperties & { '--viewing-layer-height'?: string };
 
 /**
  * Designate the tags for the different dragging managers. Exported for tests.
@@ -249,9 +262,18 @@ export function UnthemedViewingLayer(props: ViewingLayerProps) {
   // The handlers passed in have stable identity (each is wrapped in
   // useCallback with [] deps) and read the latest props/viewRange via
   // propsRef.current at invocation time — so the draggers never need to be
-  // recreated when props change. This mirrors the original class's
-  // constructor-time creation while preserving the same window-listener
-  // lifetime guarantees (created once on mount, disposed once on unmount).
+  // recreated when props change.
+  //
+  // CRITICAL: `resetBoundsOnResize: false` is passed so the DraggableManager
+  // constructor is pure — i.e. it does NOT call `window.addEventListener('resize', ...)`
+  // during construction. This eliminates the render-time side effect identified
+  // in Checkpoint 10 review finding ("DraggableManager construction has side
+  // effects because its constructor registers a `window.resize` listener … can
+  // leak in React StrictMode/concurrent aborted renders"). The window resize
+  // listener is registered explicitly inside the committed `useEffect` below so
+  // it is only ever active for committed component instances and is always
+  // paired with a corresponding `removeEventListener` cleanup. `useState` lazy
+  // init is still safe because the constructor is now side-effect-free.
   const [draggerReframe] = useState(
     () =>
       new DraggableManager({
@@ -261,6 +283,7 @@ export function UnthemedViewingLayer(props: ViewingLayerProps) {
         onDragStart: handleReframeDragUpdate,
         onMouseMove: handleReframeMouseMove,
         onMouseLeave: handleReframeMouseLeave,
+        resetBoundsOnResize: false,
         tag: dragTypes.REFRAME,
       })
   );
@@ -273,6 +296,7 @@ export function UnthemedViewingLayer(props: ViewingLayerProps) {
         onDragStart: handleScrubberDragUpdate,
         onMouseEnter: handleScrubberEnterLeave,
         onMouseLeave: handleScrubberEnterLeave,
+        resetBoundsOnResize: false,
         tag: dragTypes.SHIFT_START,
       })
   );
@@ -285,6 +309,7 @@ export function UnthemedViewingLayer(props: ViewingLayerProps) {
         onDragStart: handleScrubberDragUpdate,
         onMouseEnter: handleScrubberEnterLeave,
         onMouseLeave: handleScrubberEnterLeave,
+        resetBoundsOnResize: false,
         tag: dragTypes.SHIFT_END,
       })
   );
@@ -293,11 +318,22 @@ export function UnthemedViewingLayer(props: ViewingLayerProps) {
   // the reframe dragger to call resetBounds on it.
   draggerReframeRef.current = draggerReframe;
 
-  // Dispose draggers on unmount — mirrors the class's componentWillUnmount.
-  // dispose() removes the window 'resize' listener and clears callback
-  // references so the dragger is fully torn down.
+  // Register the window resize listener for each dragger inside a committed
+  // effect, and dispose the draggers on unmount. Because we passed
+  // `resetBoundsOnResize: false` to each constructor, the managers do NOT
+  // register their own resize listeners — we register them here, ONCE per
+  // committed mount, with a guaranteed cleanup path. This mirrors the original
+  // class's componentDidMount + componentWillUnmount semantics while removing
+  // the render-time side effect.
   useEffect(() => {
+    const onResize = () => {
+      draggerReframe.resetBounds();
+      draggerStart.resetBounds();
+      draggerEnd.resetBounds();
+    };
+    window.addEventListener('resize', onResize);
     return () => {
+      window.removeEventListener('resize', onResize);
       draggerReframe.dispose();
       draggerStart.dispose();
       draggerEnd.dispose();
@@ -348,11 +384,16 @@ export function UnthemedViewingLayer(props: ViewingLayerProps) {
     cursorPosition = `${cursor * 100}%`;
   }
 
+  // The `height` value is computed per-render from the `height` prop and varies by trace.
+  // It is exposed via the `--viewing-layer-height` CSS custom property so the
+  // `styles.ViewingLayer` Emotion class reads it via `height: var(--viewing-layer-height)`.
+  // This satisfies the Checkpoint 10 finding "Inline style remains: `style={{ height }}`"
+  // by removing the literal `height` declaration while preserving per-render numeric
+  // sizing — the established Grafana pattern for high-cardinality runtime dimensional values.
+  const viewingLayerStyle: ViewingLayerCSSVars = { '--viewing-layer-height': `${height}px` };
+
   return (
-    // The `height` style is computed per-render from the `height` prop and
-    // varies by trace; it cannot be encoded as a static Emotion class so it
-    // is intentionally retained as an inline `style` per AAP §0.5.3.
-    <div aria-hidden className={styles.ViewingLayer} style={{ height }}>
+    <div aria-hidden className={styles.ViewingLayer} style={viewingLayerStyle}>
       {(viewStart !== 0 || viewEnd !== 1) && (
         <Button
           onClick={resetTimeZoomClickHandler}
