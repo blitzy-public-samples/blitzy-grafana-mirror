@@ -1,6 +1,7 @@
+import { css } from '@emotion/css';
 import useAsyncFn from 'react-use/lib/useAsyncFn';
 
-import { type SelectableValue } from '@grafana/data';
+import { type GrafanaTheme2, type SelectableValue } from '@grafana/data';
 import { selectors as e2eSelectors } from '@grafana/e2e-selectors';
 import { Trans, t } from '@grafana/i18n';
 import {
@@ -11,7 +12,7 @@ import {
   type VizPanel,
 } from '@grafana/scenes';
 import { type Dashboard } from '@grafana/schema';
-import { Button, ClipboardButton, Field, Input, Modal, RadioButtonGroup, Stack } from '@grafana/ui';
+import { Button, ClipboardButton, Field, Input, Modal, RadioButtonGroup, Stack, useStyles2 } from '@grafana/ui';
 import { createSuccessNotification } from 'app/core/copy/appNotification';
 import { notifyApp } from 'app/core/reducers/appNotification';
 import { getTrackingSource, shareDashboardType } from 'app/features/dashboard/components/ShareModal/utils';
@@ -204,6 +205,8 @@ function ShareSnapshotTabRenderer({ model }: SceneComponentProps<ShareSnapshotTa
     return await getDashboardSnapshotSrv().deleteSnapshot(key);
   });
 
+  const styles = useStyles2(getStyles);
+
   // If snapshot has been deleted - show message and allow to close modal
   if (deleteSnapshotResult.value) {
     return (
@@ -303,7 +306,7 @@ function ShareSnapshotTabRenderer({ model }: SceneComponentProps<ShareSnapshotTa
             />
           </Field>
 
-          <div style={{ alignSelf: 'flex-end', padding: '5px' }}>
+          <div className={styles.deleteSnapshotContainer}>
             <Trans i18nKey="share-modal.snapshot.mistake-message">Did you make a mistake? </Trans>&nbsp;
             <Button
               fill="outline"
@@ -321,3 +324,10 @@ function ShareSnapshotTabRenderer({ model }: SceneComponentProps<ShareSnapshotTa
     </>
   );
 }
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  deleteSnapshotContainer: css({
+    alignSelf: 'flex-end',
+    padding: theme.spacing(0.625),
+  }),
+});
