@@ -2,15 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { type Props as AutoSizerProps } from 'react-virtualized-auto-sizer';
 import { TestProvider } from 'test/helpers/TestProvider';
 
-import {
-  CoreApp,
-  createTheme,
-  type DataSourceApi,
-  EventBusSrv,
-  LoadingState,
-  PluginExtensionTypes,
-  store,
-} from '@grafana/data';
+import { CoreApp, type DataSourceApi, EventBusSrv, LoadingState, PluginExtensionTypes, store } from '@grafana/data';
 import { selectors } from '@grafana/e2e-selectors';
 import { usePluginLinks } from '@grafana/runtime';
 import { configureStore } from 'app/store/configureStore';
@@ -87,7 +79,6 @@ const dummyProps: Props = {
   timeZone: 'UTC',
   queryResponse: makeEmptyQueryResponse(LoadingState.NotStarted),
   addQueryRow: jest.fn(),
-  theme: createTheme(),
   showMetrics: true,
   showLogs: true,
   showTable: true,

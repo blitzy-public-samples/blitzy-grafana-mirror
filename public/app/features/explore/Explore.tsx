@@ -1,6 +1,6 @@
 import { css, cx } from '@emotion/css';
 import { get, groupBy } from 'lodash';
-import { PureComponent } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { connect, type ConnectedProps } from 'react-redux';
 import AutoSizer, { type HorizontalSize } from 'react-virtualized-auto-sizer';
 
@@ -27,8 +27,8 @@ import {
   ErrorBoundaryAlert,
   PanelContainer,
   ScrollContainer,
-  type Themeable2,
-  withTheme2,
+  useStyles2,
+  useTheme2,
 } from '@grafana/ui';
 import { FILTER_FOR_OPERATOR, FILTER_OUT_OPERATOR } from '@grafana/ui/internal';
 import { supportedFeatures } from 'app/core/history/richHistoryStorageProvider';
@@ -101,19 +101,20 @@ const getStyles = (theme: GrafanaTheme2) => {
       bottom: 0,
       display: 'flex',
     }),
+    // Outer wrapper that hosts the scroll container; migrated from inline style.
+    outerScrollWrapper: css({
+      position: 'relative',
+      height: '100%',
+      paddingLeft: theme.spacing(2),
+    }),
   };
 };
 
-export interface ExploreProps extends Themeable2 {
+export interface ExploreProps {
   exploreId: string;
-  theme: GrafanaTheme2;
   eventBus: EventBus;
   setShowQueryInspector: (value: boolean) => void;
   showQueryInspector: boolean;
-}
-
-interface ExploreState {
-  contentOutlineVisible: boolean;
 }
 
 export type Props = ExploreProps & ConnectedProps<typeof connector>;
@@ -143,229 +144,301 @@ export type Props = ExploreProps & ConnectedProps<typeof connector>;
  * `format`, to indicate eventual transformations by the datasources' result transformers.
  */
 
-export class Explore extends PureComponent<Props, ExploreState> {
-  scrollElement: HTMLDivElement | undefined;
-  graphEventBus: EventBus;
-  logsEventBus: EventBus;
+export const Explore = (props: Props) => {
+  const {
+    exploreId,
+    eventBus,
+    setShowQueryInspector,
+    showQueryInspector,
+    datasourceInstance,
+    queryKeys,
+    queries,
+    isLive,
+    graphResult,
+    queryResponse,
+    syncedTimes,
+    timeZone,
+    showLogs,
+    showMetrics,
+    showTable,
+    showTrace,
+    showCustom,
+    showNodeGraph,
+    showRawPrometheus,
+    showFlameGraph,
+    compact,
+    logsSample,
+    showLogsSample,
+    correlationEditorHelperData,
+    correlationEditorDetails,
+    queryLibraryRef,
+    queriesChangedIndexAtRun,
+    // dispatch action props from mapDispatchToProps:
+    changeDatasource,
+    changeSize,
+    modifyQueries,
+    scanStart,
+    scanStopAction,
+    setQueries,
+    updateTimeRange,
+    addQueryRow,
+    splitOpen,
+    setSupplementaryQueryEnabled,
+    changeCompactMode,
+  } = props;
 
-  constructor(props: Props) {
-    super(props);
-    this.state = {
-      contentOutlineVisible: store.getBool(CONTENT_OUTLINE_LOCAL_STORAGE_KEYS.visible, true),
-    };
-    this.graphEventBus = props.eventBus.newScopedBus('graph', { onlyLocal: false });
-    this.logsEventBus = props.eventBus.newScopedBus('logs', { onlyLocal: false });
-  }
+  // Theme is obtained via the hook in lieu of the previous `withTheme2` HOC injection.
+  const theme = useTheme2();
+  const styles = useStyles2(getStyles);
 
-  onChangeTime = (rawRange: RawTimeRange) => {
-    const { updateTimeRange, exploreId } = this.props;
-    updateTimeRange({ exploreId, rawRange });
-  };
+  // State previously initialized in the class constructor.
+  const [contentOutlineVisible, setContentOutlineVisible] = useState<boolean>(() =>
+    store.getBool(CONTENT_OUTLINE_LOCAL_STORAGE_KEYS.visible, true)
+  );
 
-  // Use this in help pages to set page to a single query
-  onClickExample = (query: DataQuery) => {
-    this.props.setQueries(this.props.exploreId, [query]);
-  };
+  // Instance variable previously stored on the class (`scrollElement`), mutated by the
+  // ScrollContainer ref callback. Translated to a stable mutable ref.
+  const scrollElementRef = useRef<HTMLDivElement | undefined>(undefined);
 
-  onCellFilterAdded = (filter: AdHocFilterItem) => {
-    const { value, key, operator } = filter;
-    if (operator === FILTER_FOR_OPERATOR) {
-      this.onClickFilterLabel(key, value);
-    }
+  // Scoped event buses previously created once-per-mount in the constructor. `useMemo`
+  // keyed on the parent `eventBus` preserves the original single-creation semantics
+  // (the parent supplies a stable bus from the page-level shell).
+  const graphEventBus = useMemo(() => eventBus.newScopedBus('graph', { onlyLocal: false }), [eventBus]);
+  const logsEventBus = useMemo(() => eventBus.newScopedBus('logs', { onlyLocal: false }), [eventBus]);
 
-    if (operator === FILTER_OUT_OPERATOR) {
-      this.onClickFilterOutLabel(key, value);
-    }
-  };
+  const onChangeTime = useCallback(
+    (rawRange: RawTimeRange) => {
+      updateTimeRange({ exploreId, rawRange });
+    },
+    [updateTimeRange, exploreId]
+  );
 
-  onContentOutlineToogle = () => {
-    store.set(CONTENT_OUTLINE_LOCAL_STORAGE_KEYS.visible, !this.state.contentOutlineVisible);
-    this.setState((state) => {
-      const newContentOutlineVisible = this.props.compact ? true : !state.contentOutlineVisible;
+  /**
+   * Used by Logs details.
+   */
+  const onModifyQueries = useCallback(
+    (action: QueryFixAction, refId?: string) => {
+      const modifier = async (query: DataQuery, modification: QueryFixAction) => {
+        // This gives Logs Details support to modify the query that produced the log line.
+        // If not present, all queries are modified.
+        if (refId && refId !== query.refId) {
+          return query;
+        }
+        const { datasource } = query;
+        if (datasource == null) {
+          return query;
+        }
+        const ds = await getDataSourceSrv().get(datasource);
+        const toggleableFilters = ['ADD_FILTER', 'ADD_FILTER_OUT'];
+        if (hasToggleableQueryFiltersSupport(ds) && toggleableFilters.includes(modification.type)) {
+          return ds.toggleQueryFilter(query, {
+            type: modification.type === 'ADD_FILTER' ? 'FILTER_FOR' : 'FILTER_OUT',
+            options: modification.options ?? {},
+            frame: modification.frame,
+          });
+        }
+        if (ds.modifyQuery) {
+          return ds.modifyQuery(query, modification);
+        } else {
+          return query;
+        }
+      };
+      modifyQueries(exploreId, action, modifier);
+    },
+    [modifyQueries, exploreId]
+  );
+
+  /**
+   * Used by Logs details.
+   */
+  const onClickFilterLabel = useCallback(
+    (key: string, value: string | number, frame?: DataFrame) => {
+      onModifyQueries(
+        {
+          type: 'ADD_FILTER',
+          options: { key, value: value.toString() },
+          frame,
+        },
+        frame?.refId
+      );
+    },
+    [onModifyQueries]
+  );
+
+  /**
+   * Used by Logs details.
+   */
+  const onClickFilterOutLabel = useCallback(
+    (key: string, value: string | number, frame?: DataFrame) => {
+      onModifyQueries(
+        {
+          type: 'ADD_FILTER_OUT',
+          options: { key, value: value.toString() },
+          frame,
+        },
+        frame?.refId
+      );
+    },
+    [onModifyQueries]
+  );
+
+  /**
+   * Used by Logs Popover Menu.
+   */
+  const onClickFilterString = useCallback(
+    (value: string | number, refId?: string) => {
+      onModifyQueries({ type: 'ADD_STRING_FILTER', options: { value: value.toString() } }, refId);
+    },
+    [onModifyQueries]
+  );
+
+  /**
+   * Used by Logs Popover Menu.
+   */
+  const onClickFilterOutString = useCallback(
+    (value: string | number, refId?: string) => {
+      onModifyQueries({ type: 'ADD_STRING_FILTER_OUT', options: { value: value.toString() } }, refId);
+    },
+    [onModifyQueries]
+  );
+
+  const onCellFilterAdded = useCallback(
+    (filter: AdHocFilterItem) => {
+      const { value, key, operator } = filter;
+      if (operator === FILTER_FOR_OPERATOR) {
+        onClickFilterLabel(key, value);
+      }
+
+      if (operator === FILTER_OUT_OPERATOR) {
+        onClickFilterOutLabel(key, value);
+      }
+    },
+    [onClickFilterLabel, onClickFilterOutLabel]
+  );
+
+  const onContentOutlineToogle = useCallback(() => {
+    store.set(CONTENT_OUTLINE_LOCAL_STORAGE_KEYS.visible, !contentOutlineVisible);
+    setContentOutlineVisible((current) => {
+      const newContentOutlineVisible = compact ? true : !current;
       reportInteraction('explore_toolbar_contentoutline_clicked', {
         item: 'outline',
         type: newContentOutlineVisible ? 'open' : 'close',
       });
-      return {
-        contentOutlineVisible: newContentOutlineVisible,
-      };
+      return newContentOutlineVisible;
     });
-    this.props.changeCompactMode(this.props.exploreId, false);
-  };
+    changeCompactMode(exploreId, false);
+  }, [contentOutlineVisible, compact, changeCompactMode, exploreId]);
 
   /**
    * Used by Logs details.
    * Returns true if the query identified by `refId` has a filter with the provided key and value.
    * @alpha
    */
-  isFilterLabelActive = async (key: string, value: string | number, refId?: string) => {
-    const query = this.props.queries.find((q) => q.refId === refId);
-    if (!query) {
+  const isFilterLabelActive = useCallback(
+    async (key: string, value: string | number, refId?: string) => {
+      const query = queries.find((q) => q.refId === refId);
+      if (!query) {
+        return false;
+      }
+      const ds = await getDataSourceSrv().get(query.datasource);
+      if (hasToggleableQueryFiltersSupport(ds) && ds.queryHasFilter(query, { key, value: value.toString() })) {
+        return true;
+      }
       return false;
-    }
-    const ds = await getDataSourceSrv().get(query.datasource);
-    if (hasToggleableQueryFiltersSupport(ds) && ds.queryHasFilter(query, { key, value: value.toString() })) {
-      return true;
-    }
-    return false;
-  };
+    },
+    [queries]
+  );
 
-  /**
-   * Used by Logs details.
-   */
-  onClickFilterLabel = (key: string, value: string | number, frame?: DataFrame) => {
-    this.onModifyQueries(
-      {
-        type: 'ADD_FILTER',
-        options: { key, value: value.toString() },
-        frame,
-      },
-      frame?.refId
-    );
-  };
+  const onClickAddQueryRowButton = useCallback(() => {
+    addQueryRow(exploreId, queryKeys.length);
+  }, [addQueryRow, exploreId, queryKeys.length]);
 
-  /**
-   * Used by Logs details.
-   */
-  onClickFilterOutLabel = (key: string, value: string | number, frame?: DataFrame) => {
-    this.onModifyQueries(
-      {
-        type: 'ADD_FILTER_OUT',
-        options: { key, value: value.toString() },
-        frame,
-      },
-      frame?.refId
-    );
-  };
+  const onResize = useCallback(
+    (size: HorizontalSize) => {
+      changeSize(exploreId, size);
+    },
+    [changeSize, exploreId]
+  );
 
-  /**
-   * Used by Logs Popover Menu.
-   */
-  onClickFilterString = (value: string | number, refId?: string) => {
-    this.onModifyQueries({ type: 'ADD_STRING_FILTER', options: { value: value.toString() } }, refId);
-  };
-
-  /**
-   * Used by Logs Popover Menu.
-   */
-  onClickFilterOutString = (value: string | number, refId?: string) => {
-    this.onModifyQueries({ type: 'ADD_STRING_FILTER_OUT', options: { value: value.toString() } }, refId);
-  };
-
-  onClickAddQueryRowButton = () => {
-    const { exploreId, queryKeys } = this.props;
-    this.props.addQueryRow(exploreId, queryKeys.length);
-  };
-
-  /**
-   * Used by Logs details.
-   */
-  onModifyQueries = (action: QueryFixAction, refId?: string) => {
-    const modifier = async (query: DataQuery, modification: QueryFixAction) => {
-      // This gives Logs Details support to modify the query that produced the log line.
-      // If not present, all queries are modified.
-      if (refId && refId !== query.refId) {
-        return query;
-      }
-      const { datasource } = query;
-      if (datasource == null) {
-        return query;
-      }
-      const ds = await getDataSourceSrv().get(datasource);
-      const toggleableFilters = ['ADD_FILTER', 'ADD_FILTER_OUT'];
-      if (hasToggleableQueryFiltersSupport(ds) && toggleableFilters.includes(modification.type)) {
-        return ds.toggleQueryFilter(query, {
-          type: modification.type === 'ADD_FILTER' ? 'FILTER_FOR' : 'FILTER_OUT',
-          options: modification.options ?? {},
-          frame: modification.frame,
-        });
-      }
-      if (ds.modifyQuery) {
-        return ds.modifyQuery(query, modification);
-      } else {
-        return query;
-      }
-    };
-    this.props.modifyQueries(this.props.exploreId, action, modifier);
-  };
-
-  onResize = (size: HorizontalSize) => {
-    this.props.changeSize(this.props.exploreId, size);
-  };
-
-  onStartScanning = () => {
+  const onStartScanning = useCallback(() => {
     // Scanner will trigger a query
-    this.props.scanStart(this.props.exploreId);
-  };
+    scanStart(exploreId);
+  }, [scanStart, exploreId]);
 
-  onStopScanning = () => {
-    this.props.scanStopAction({ exploreId: this.props.exploreId });
-  };
+  const onStopScanning = useCallback(() => {
+    scanStopAction({ exploreId });
+  }, [scanStopAction, exploreId]);
 
-  onUpdateTimeRange = (absoluteRange: AbsoluteTimeRange) => {
-    const { exploreId, updateTimeRange } = this.props;
-    updateTimeRange({ exploreId, absoluteRange });
-  };
+  const onUpdateTimeRange = useCallback(
+    (absoluteRange: AbsoluteTimeRange) => {
+      updateTimeRange({ exploreId, absoluteRange });
+    },
+    [updateTimeRange, exploreId]
+  );
 
   /**
    * Used for interaction from the visualizations. Will open split view in compact mode.
    */
-  onSplitOpen = (panelType: string) => {
-    return async (options?: SplitOpenOptions) => {
-      let compact = false;
+  const onSplitOpen = useCallback(
+    (panelType: string) => {
+      return async (options?: SplitOpenOptions) => {
+        let compactSplit = false;
 
-      /**
-       * Temporary fix grafana-clickhouse-datasource as it requires the query editor to be fully rendered to update the query
-       * Proposed fixes:
-       * - https://github.com/grafana/clickhouse-datasource/issues/1363 - handle query update in data source
-       * - https://github.com/grafana/grafana/issues/110868 - allow data links to provide meta info if the link can be handled in compact mode (default to false)
-       * Update:
-       * More data source may struggle with this setting: https://github.com/grafana/grafana/issues/112075
-       * We're making it enabled for tempo only and will try to make it optional for other data sources in the future.
-       */
-      const dsType = getDataSourceSrv().getInstanceSettings({ uid: options?.datasourceUid })?.type;
-      if (dsType === 'tempo' || options?.queries?.every((q) => q.datasource?.type === 'tempo')) {
-        compact = true;
-      }
+        /**
+         * Temporary fix grafana-clickhouse-datasource as it requires the query editor to be fully rendered to update the query
+         * Proposed fixes:
+         * - https://github.com/grafana/clickhouse-datasource/issues/1363 - handle query update in data source
+         * - https://github.com/grafana/grafana/issues/110868 - allow data links to provide meta info if the link can be handled in compact mode (default to false)
+         * Update:
+         * More data source may struggle with this setting: https://github.com/grafana/grafana/issues/112075
+         * We're making it enabled for tempo only and will try to make it optional for other data sources in the future.
+         */
+        const dsType = getDataSourceSrv().getInstanceSettings({ uid: options?.datasourceUid })?.type;
+        if (dsType === 'tempo' || options?.queries?.every((q) => q.datasource?.type === 'tempo')) {
+          compactSplit = true;
+        }
 
-      this.props.splitOpen(options ? { ...options, compact } : options);
-      if (options && this.props.datasourceInstance) {
-        const target = (await getDataSourceSrv().get(options.datasourceUid)).type;
-        const source =
-          this.props.datasourceInstance.uid === MIXED_DATASOURCE_NAME
-            ? get(this.props.queries, '0.datasource.type')
-            : this.props.datasourceInstance.type;
-        const tracking = {
-          origin: 'panel',
-          panelType,
-          source,
-          target,
-          exploreId: this.props.exploreId,
-        };
-        reportInteraction('grafana_explore_split_view_opened', tracking);
-      }
-    };
-  };
+        splitOpen(options ? { ...options, compact: compactSplit } : options);
+        if (options && datasourceInstance) {
+          const target = (await getDataSourceSrv().get(options.datasourceUid)).type;
+          const source =
+            datasourceInstance.uid === MIXED_DATASOURCE_NAME
+              ? get(queries, '0.datasource.type')
+              : datasourceInstance.type;
+          const tracking = {
+            origin: 'panel',
+            panelType,
+            source,
+            target,
+            exploreId,
+          };
+          reportInteraction('grafana_explore_split_view_opened', tracking);
+        }
+      };
+    },
+    [splitOpen, datasourceInstance, queries, exploreId]
+  );
 
-  onPinLineCallback = () => {
-    this.setState({ contentOutlineVisible: true });
-  };
+  const onPinLineCallback = useCallback(() => {
+    setContentOutlineVisible(true);
+  }, []);
 
-  renderEmptyState(exploreContainerStyles: string) {
+  // Derived value previously stored as a class field: `splitOpenFnLogs = this.onSplitOpen('logs')`.
+  const splitOpenFnLogs = useMemo(() => onSplitOpen('logs'), [onSplitOpen]);
+
+  const renderEmptyState = (exploreContainerStyles: string) => {
     return (
       <div className={cx(exploreContainerStyles)}>
         <NoDataSourceCallToAction />
       </div>
     );
-  }
+  };
 
-  renderNoData() {
+  const renderNoData = () => {
     return <NoData />;
-  }
+  };
 
-  renderCustom(width: number) {
-    const { timeZone, queryResponse, eventBus } = this.props;
-
+  const renderCustom = (width: number) => {
     const groupedByPlugin = groupBy(queryResponse?.customFrames, 'meta.preferredVisualisationPluginId');
 
     return Object.entries(groupedByPlugin).map(([pluginId, frames], index) => {
@@ -380,17 +453,15 @@ export class Explore extends PureComponent<Props, ExploreState> {
             timeRange={queryResponse.timeRange}
             height={400}
             width={width}
-            splitOpenFn={this.onSplitOpen(pluginId)}
+            splitOpenFn={onSplitOpen(pluginId)}
             eventBus={eventBus}
           />
         </ContentOutlineItem>
       );
     });
-  }
+  };
 
-  renderGraphPanel(width: number) {
-    const { graphResult, timeZone, queryResponse, showFlameGraph, queriesChangedIndexAtRun } = this.props;
-
+  const renderGraphPanel = (width: number) => {
     return (
       <ContentOutlineItem panelId="Graph" title={t('explore.explore.title-graph', 'Graph')} icon="graph-bar">
         <GraphContainer
@@ -399,36 +470,34 @@ export class Explore extends PureComponent<Props, ExploreState> {
           width={width}
           timeRange={queryResponse.timeRange}
           timeZone={timeZone}
-          onChangeTime={this.onUpdateTimeRange}
+          onChangeTime={onUpdateTimeRange}
           annotations={queryResponse.annotations}
-          splitOpenFn={this.onSplitOpen('graph')}
+          splitOpenFn={onSplitOpen('graph')}
           loadingState={queryResponse.state}
-          eventBus={this.graphEventBus}
+          eventBus={graphEventBus}
           queriesChangedIndexAtRun={queriesChangedIndexAtRun}
         />
       </ContentOutlineItem>
     );
-  }
+  };
 
-  renderTablePanel(width: number) {
-    const { exploreId, timeZone, eventBus } = this.props;
+  const renderTablePanel = (width: number) => {
     return (
       <ContentOutlineItem panelId="Table" title={t('explore.explore.title-table', 'Table')} icon="table">
         <TableContainer
           ariaLabel={selectors.pages.Explore.General.table}
           width={width}
           exploreId={exploreId}
-          onCellFilterAdded={this.onCellFilterAdded}
+          onCellFilterAdded={onCellFilterAdded}
           timeZone={timeZone}
-          splitOpenFn={this.onSplitOpen('table')}
+          splitOpenFn={onSplitOpen('table')}
           eventBus={eventBus}
         />
       </ContentOutlineItem>
     );
-  }
+  };
 
-  renderRawPrometheus(width: number) {
-    const { exploreId, datasourceInstance, timeZone } = this.props;
+  const renderRawPrometheus = (width: number) => {
     return (
       <ContentOutlineItem
         panelId="Raw Prometheus"
@@ -440,18 +509,15 @@ export class Explore extends PureComponent<Props, ExploreState> {
           ariaLabel={selectors.pages.Explore.General.table}
           width={width}
           exploreId={exploreId}
-          onCellFilterAdded={datasourceInstance?.modifyQuery ? this.onCellFilterAdded : undefined}
+          onCellFilterAdded={datasourceInstance?.modifyQuery ? onCellFilterAdded : undefined}
           timeZone={timeZone}
-          splitOpenFn={this.onSplitOpen('table')}
+          splitOpenFn={onSplitOpen('table')}
         />
       </ContentOutlineItem>
     );
-  }
+  };
 
-  splitOpenFnLogs = this.onSplitOpen('logs');
-
-  renderLogsPanel(width: number) {
-    const { exploreId, syncedTimes, theme, queryResponse } = this.props;
+  const renderLogsPanel = (width: number) => {
     const spacing = parseInt(theme.spacing(2).slice(0, -2), 10);
     // Need to make ContentOutlineItem a flex container so the gap works
     const logsContentOutlineWrapper = css({
@@ -471,32 +537,22 @@ export class Explore extends PureComponent<Props, ExploreState> {
           loadingState={queryResponse.state}
           syncedTimes={syncedTimes}
           width={width - spacing}
-          onClickFilterLabel={this.onClickFilterLabel}
-          onClickFilterOutLabel={this.onClickFilterOutLabel}
-          onStartScanning={this.onStartScanning}
-          onStopScanning={this.onStopScanning}
-          eventBus={this.logsEventBus}
-          splitOpenFn={this.splitOpenFnLogs}
-          isFilterLabelActive={this.isFilterLabelActive}
-          onClickFilterString={this.onClickFilterString}
-          onClickFilterOutString={this.onClickFilterOutString}
-          onPinLineCallback={this.onPinLineCallback}
+          onClickFilterLabel={onClickFilterLabel}
+          onClickFilterOutLabel={onClickFilterOutLabel}
+          onStartScanning={onStartScanning}
+          onStopScanning={onStopScanning}
+          eventBus={logsEventBus}
+          splitOpenFn={splitOpenFnLogs}
+          isFilterLabelActive={isFilterLabelActive}
+          onClickFilterString={onClickFilterString}
+          onClickFilterOutString={onClickFilterOutString}
+          onPinLineCallback={onPinLineCallback}
         />
       </ContentOutlineItem>
     );
-  }
+  };
 
-  renderLogsSamplePanel() {
-    const {
-      logsSample,
-      timeZone,
-      setSupplementaryQueryEnabled,
-      exploreId,
-      datasourceInstance,
-      queries,
-      queryResponse,
-    } = this.props;
-
+  const renderLogsSamplePanel = () => {
     return (
       <ContentOutlineItem
         panelId="Logs Sample"
@@ -509,7 +565,7 @@ export class Explore extends PureComponent<Props, ExploreState> {
           enabled={logsSample.enabled}
           queries={queries}
           datasourceInstance={datasourceInstance}
-          splitOpen={this.onSplitOpen('logsSample')}
+          splitOpen={onSplitOpen('logsSample')}
           setLogsSampleEnabled={(enabled: boolean) =>
             setSupplementaryQueryEnabled(exploreId, enabled, SupplementaryQueryType.LogsSample)
           }
@@ -517,10 +573,9 @@ export class Explore extends PureComponent<Props, ExploreState> {
         />
       </ContentOutlineItem>
     );
-  }
+  };
 
-  renderNodeGraphPanel() {
-    const { exploreId, showTrace, queryResponse, datasourceInstance } = this.props;
+  const renderNodeGraphPanel = () => {
     const datasourceType = datasourceInstance ? datasourceInstance?.type : 'unknown';
 
     return (
@@ -534,14 +589,13 @@ export class Explore extends PureComponent<Props, ExploreState> {
           exploreId={exploreId}
           withTraceView={showTrace}
           datasourceType={datasourceType}
-          splitOpenFn={this.onSplitOpen('nodeGraph')}
+          splitOpenFn={onSplitOpen('nodeGraph')}
         />
       </ContentOutlineItem>
     );
-  }
+  };
 
-  renderFlameGraphPanel() {
-    const { queryResponse } = this.props;
+  const renderFlameGraphPanel = () => {
     return (
       <ContentOutlineItem
         panelId="Flame Graph"
@@ -551,10 +605,9 @@ export class Explore extends PureComponent<Props, ExploreState> {
         <FlameGraphExploreContainer dataFrames={queryResponse.flameGraphFrames} />
       </ContentOutlineItem>
     );
-  }
+  };
 
-  renderTraceViewPanel() {
-    const { queryResponse, exploreId } = this.props;
+  const renderTraceViewPanel = () => {
     const dataFrames = queryResponse.series.filter((series) => series.meta?.preferredVisualisationType === 'trace');
 
     return (
@@ -564,228 +617,194 @@ export class Explore extends PureComponent<Props, ExploreState> {
           <TraceViewContainer
             exploreId={exploreId}
             dataFrames={dataFrames}
-            splitOpenFn={this.onSplitOpen('traceView')}
-            scrollElement={this.scrollElement}
+            splitOpenFn={onSplitOpen('traceView')}
+            scrollElement={scrollElementRef.current}
             timeRange={queryResponse.timeRange}
           />
         </ContentOutlineItem>
       )
     );
+  };
+
+  const showPanels = queryResponse && queryResponse.state !== LoadingState.NotStarted;
+  const richHistoryRowButtonHidden = !supportedFeatures().queryHistoryAvailable;
+  const showNoData =
+    queryResponse.state === LoadingState.Done &&
+    [
+      queryResponse.logsFrames,
+      queryResponse.graphFrames,
+      queryResponse.nodeGraphFrames,
+      queryResponse.flameGraphFrames,
+      queryResponse.tableFrames,
+      queryResponse.rawPrometheusFrames,
+      queryResponse.traceFrames,
+      queryResponse.customFrames,
+    ].every((e) => e.length === 0);
+
+  let correlationsBox = undefined;
+  const isCorrelationsEditorMode = correlationEditorDetails?.editorMode;
+  const showCorrelationHelper = Boolean(isCorrelationsEditorMode || correlationEditorDetails?.correlationDirty);
+  if (showCorrelationHelper && correlationEditorHelperData !== undefined) {
+    correlationsBox = <CorrelationHelper exploreId={exploreId} correlations={correlationEditorHelperData} />;
   }
 
-  render() {
-    const {
-      datasourceInstance,
-      exploreId,
-      graphResult,
-      queryResponse,
-      isLive,
-      theme,
-      showMetrics,
-      showTable,
-      showRawPrometheus,
-      showLogs,
-      showTrace,
-      showCustom,
-      showNodeGraph,
-      showFlameGraph,
-      showLogsSample,
-      correlationEditorDetails,
-      correlationEditorHelperData,
-      showQueryInspector,
-      setShowQueryInspector,
-      compact,
-      queryLibraryRef,
-    } = this.props;
-    const { contentOutlineVisible } = this.state;
-    const styles = getStyles(theme);
-    const showPanels = queryResponse && queryResponse.state !== LoadingState.NotStarted;
-    const richHistoryRowButtonHidden = !supportedFeatures().queryHistoryAvailable;
-    const showNoData =
-      queryResponse.state === LoadingState.Done &&
-      [
-        queryResponse.logsFrames,
-        queryResponse.graphFrames,
-        queryResponse.nodeGraphFrames,
-        queryResponse.flameGraphFrames,
-        queryResponse.tableFrames,
-        queryResponse.rawPrometheusFrames,
-        queryResponse.traceFrames,
-        queryResponse.customFrames,
-      ].every((e) => e.length === 0);
-
-    let correlationsBox = undefined;
-    const isCorrelationsEditorMode = correlationEditorDetails?.editorMode;
-    const showCorrelationHelper = Boolean(isCorrelationsEditorMode || correlationEditorDetails?.correlationDirty);
-    if (showCorrelationHelper && correlationEditorHelperData !== undefined) {
-      correlationsBox = <CorrelationHelper exploreId={exploreId} correlations={correlationEditorHelperData} />;
-    }
-
-    return (
-      <ContentOutlineContextProvider refreshDependencies={this.props.queries}>
-        <ExploreToolbar
-          exploreId={exploreId}
-          onChangeTime={this.onChangeTime}
-          onContentOutlineToogle={this.onContentOutlineToogle}
-          isContentOutlineOpen={contentOutlineVisible}
-        />
-        <div
-          style={{
-            position: 'relative',
-            height: '100%',
-            paddingLeft: theme.spacing(2),
-          }}
-        >
-          <div className={styles.wrapper}>
-            {contentOutlineVisible && !compact && (
-              <ContentOutline scroller={this.scrollElement} panelId={`content-outline-container-${exploreId}`} />
-            )}
-            <ScrollContainer
-              data-testid={selectors.pages.Explore.General.scrollView}
-              ref={(scrollElement) => {
-                this.scrollElement = scrollElement || undefined;
-              }}
-            >
-              <div className={styles.exploreContainer}>
-                {datasourceInstance ? (
-                  <>
-                    <ContentOutlineItem
-                      panelId="Queries"
-                      title={t('explore.explore.title-queries', 'Queries')}
-                      icon="arrow"
-                      mergeSingleChild={true}
-                    >
-                      <PanelContainer className={styles.queryContainer}>
-                        {correlationsBox}
-                        <QueryRows
-                          exploreId={exploreId}
-                          // Don't simply pass isOpen here to avoid opening the row when content outline is openend and
-                          // triggers exiting from compact mode. If it's confusing we can change the behavior to exit
-                          // compact mode explicitly with a button in the UI instead of exiting when row is opened or
-                          // content outline is opened.
-                          isOpen={compact ? false : undefined}
-                          changeCompactMode={(compact: boolean) =>
-                            this.props.changeCompactMode(this.props.exploreId, false)
-                          }
-                        />
-                        <SecondaryActions
-                          // do not allow people to add queries with potentially different datasources in correlations editor mode
-                          addQueryRowButtonDisabled={
-                            isLive || (isCorrelationsEditorMode && datasourceInstance.meta.mixed) || !!queryLibraryRef
-                          }
-                          // We cannot show multiple traces at the same time right now so we do not show add query button.
-                          //TODO:unification
-                          addQueryRowButtonHidden={false}
-                          richHistoryRowButtonHidden={richHistoryRowButtonHidden}
-                          queryInspectorButtonActive={showQueryInspector}
-                          onClickAddQueryRowButton={this.onClickAddQueryRowButton}
-                          onClickQueryInspectorButton={() => setShowQueryInspector(!showQueryInspector)}
-                          onSelectQueryFromLibrary={async (query) => {
-                            const { changeDatasource, queries, setQueries } = this.props;
-                            const newQueries = [
-                              ...queries,
-                              {
-                                ...query,
-                                refId: getNextRefId(queries),
-                              },
-                            ];
-                            setQueries(exploreId, newQueries);
-                            if (query.datasource?.uid) {
-                              const uniqueDatasources = new Set(newQueries.map((q) => q.datasource?.uid));
-                              const isMixed = uniqueDatasources.size > 1;
-                              const newDatasourceRef = {
-                                uid: isMixed ? MIXED_DATASOURCE_NAME : query.datasource.uid,
-                              };
-                              const shouldChangeDatasource = datasourceInstance.uid !== newDatasourceRef.uid;
-                              if (shouldChangeDatasource) {
-                                await changeDatasource({ exploreId, datasource: newDatasourceRef });
-                              }
-                            }
-                          }}
-                        />
-                        <ResponseErrorContainer exploreId={exploreId} />
-                      </PanelContainer>
-                    </ContentOutlineItem>
-                    <AutoSizer onResize={this.onResize} disableHeight>
-                      {({ width }) => {
-                        if (width === 0) {
-                          return null;
+  return (
+    <ContentOutlineContextProvider refreshDependencies={queries}>
+      <ExploreToolbar
+        exploreId={exploreId}
+        onChangeTime={onChangeTime}
+        onContentOutlineToogle={onContentOutlineToogle}
+        isContentOutlineOpen={contentOutlineVisible}
+      />
+      <div className={styles.outerScrollWrapper}>
+        <div className={styles.wrapper}>
+          {contentOutlineVisible && !compact && (
+            <ContentOutline scroller={scrollElementRef.current} panelId={`content-outline-container-${exploreId}`} />
+          )}
+          <ScrollContainer
+            data-testid={selectors.pages.Explore.General.scrollView}
+            ref={(scrollElement) => {
+              scrollElementRef.current = scrollElement || undefined;
+            }}
+          >
+            <div className={styles.exploreContainer}>
+              {datasourceInstance ? (
+                <>
+                  <ContentOutlineItem
+                    panelId="Queries"
+                    title={t('explore.explore.title-queries', 'Queries')}
+                    icon="arrow"
+                    mergeSingleChild={true}
+                  >
+                    <PanelContainer className={styles.queryContainer}>
+                      {correlationsBox}
+                      <QueryRows
+                        exploreId={exploreId}
+                        // Don't simply pass isOpen here to avoid opening the row when content outline is openend and
+                        // triggers exiting from compact mode. If it's confusing we can change the behavior to exit
+                        // compact mode explicitly with a button in the UI instead of exiting when row is opened or
+                        // content outline is opened.
+                        isOpen={compact ? false : undefined}
+                        changeCompactMode={(compact: boolean) => changeCompactMode(exploreId, false)}
+                      />
+                      <SecondaryActions
+                        // do not allow people to add queries with potentially different datasources in correlations editor mode
+                        addQueryRowButtonDisabled={
+                          isLive || (isCorrelationsEditorMode && datasourceInstance.meta.mixed) || !!queryLibraryRef
                         }
+                        // We cannot show multiple traces at the same time right now so we do not show add query button.
+                        //TODO:unification
+                        addQueryRowButtonHidden={false}
+                        richHistoryRowButtonHidden={richHistoryRowButtonHidden}
+                        queryInspectorButtonActive={showQueryInspector}
+                        onClickAddQueryRowButton={onClickAddQueryRowButton}
+                        onClickQueryInspectorButton={() => setShowQueryInspector(!showQueryInspector)}
+                        onSelectQueryFromLibrary={async (query) => {
+                          const newQueries = [
+                            ...queries,
+                            {
+                              ...query,
+                              refId: getNextRefId(queries),
+                            },
+                          ];
+                          setQueries(exploreId, newQueries);
+                          if (query.datasource?.uid) {
+                            const uniqueDatasources = new Set(newQueries.map((q) => q.datasource?.uid));
+                            const isMixed = uniqueDatasources.size > 1;
+                            const newDatasourceRef = {
+                              uid: isMixed ? MIXED_DATASOURCE_NAME : query.datasource.uid,
+                            };
+                            const shouldChangeDatasource = datasourceInstance.uid !== newDatasourceRef.uid;
+                            if (shouldChangeDatasource) {
+                              await changeDatasource({ exploreId, datasource: newDatasourceRef });
+                            }
+                          }
+                        }}
+                      />
+                      <ResponseErrorContainer exploreId={exploreId} />
+                    </PanelContainer>
+                  </ContentOutlineItem>
+                  <AutoSizer onResize={onResize} disableHeight>
+                    {({ width }) => {
+                      if (width === 0) {
+                        return null;
+                      }
 
-                        return (
-                          <main className={cx(styles.exploreMain)} style={{ width }}>
-                            <ErrorBoundaryAlert boundaryName="explore-main">
-                              {showPanels && (
-                                <>
-                                  {showMetrics && graphResult && (
-                                    <ErrorBoundaryAlert boundaryName="explore-graph-panel">
-                                      {this.renderGraphPanel(width)}
-                                    </ErrorBoundaryAlert>
-                                  )}
-                                  {showRawPrometheus && (
-                                    <ErrorBoundaryAlert boundaryName="explore-raw-prometheus">
-                                      {this.renderRawPrometheus(width)}
-                                    </ErrorBoundaryAlert>
-                                  )}
-                                  {showTable && (
-                                    <ErrorBoundaryAlert boundaryName="explore-table-panel">
-                                      {this.renderTablePanel(width)}
-                                    </ErrorBoundaryAlert>
-                                  )}
-                                  {showLogs && (
-                                    <ErrorBoundaryAlert boundaryName="explore-logs-panel">
-                                      {this.renderLogsPanel(width)}
-                                    </ErrorBoundaryAlert>
-                                  )}
-                                  {showNodeGraph && (
-                                    <ErrorBoundaryAlert boundaryName="explore-node-graph-panel">
-                                      {this.renderNodeGraphPanel()}
-                                    </ErrorBoundaryAlert>
-                                  )}
-                                  {showFlameGraph && (
-                                    <ErrorBoundaryAlert boundaryName="explore-flame-graph-panel">
-                                      {this.renderFlameGraphPanel()}
-                                    </ErrorBoundaryAlert>
-                                  )}
-                                  {showTrace && (
-                                    <ErrorBoundaryAlert boundaryName="explore-trace-view-panel">
-                                      {this.renderTraceViewPanel()}
-                                    </ErrorBoundaryAlert>
-                                  )}
-                                  {showLogsSample && (
-                                    <ErrorBoundaryAlert boundaryName="explore-logs-sample-panel">
-                                      {this.renderLogsSamplePanel()}
-                                    </ErrorBoundaryAlert>
-                                  )}
-                                  {showCustom && (
-                                    <ErrorBoundaryAlert boundaryName="explore-custom-panel">
-                                      {this.renderCustom(width)}
-                                    </ErrorBoundaryAlert>
-                                  )}
-                                  {showNoData && (
-                                    <ErrorBoundaryAlert boundaryName="explore-no-data">
-                                      {this.renderNoData()}
-                                    </ErrorBoundaryAlert>
-                                  )}
-                                </>
-                              )}
-                            </ErrorBoundaryAlert>
-                          </main>
-                        );
-                      }}
-                    </AutoSizer>
-                  </>
-                ) : (
-                  this.renderEmptyState(styles.exploreContainer)
-                )}
-              </div>
-            </ScrollContainer>
-          </div>
+                      return (
+                        // Dynamic width from AutoSizer; cannot be statically classed via useStyles2
+                        // because the value is computed per-render. Inline style is the correct idiom here.
+                        <main className={cx(styles.exploreMain)} style={{ width }}>
+                          <ErrorBoundaryAlert boundaryName="explore-main">
+                            {showPanels && (
+                              <>
+                                {showMetrics && graphResult && (
+                                  <ErrorBoundaryAlert boundaryName="explore-graph-panel">
+                                    {renderGraphPanel(width)}
+                                  </ErrorBoundaryAlert>
+                                )}
+                                {showRawPrometheus && (
+                                  <ErrorBoundaryAlert boundaryName="explore-raw-prometheus">
+                                    {renderRawPrometheus(width)}
+                                  </ErrorBoundaryAlert>
+                                )}
+                                {showTable && (
+                                  <ErrorBoundaryAlert boundaryName="explore-table-panel">
+                                    {renderTablePanel(width)}
+                                  </ErrorBoundaryAlert>
+                                )}
+                                {showLogs && (
+                                  <ErrorBoundaryAlert boundaryName="explore-logs-panel">
+                                    {renderLogsPanel(width)}
+                                  </ErrorBoundaryAlert>
+                                )}
+                                {showNodeGraph && (
+                                  <ErrorBoundaryAlert boundaryName="explore-node-graph-panel">
+                                    {renderNodeGraphPanel()}
+                                  </ErrorBoundaryAlert>
+                                )}
+                                {showFlameGraph && (
+                                  <ErrorBoundaryAlert boundaryName="explore-flame-graph-panel">
+                                    {renderFlameGraphPanel()}
+                                  </ErrorBoundaryAlert>
+                                )}
+                                {showTrace && (
+                                  <ErrorBoundaryAlert boundaryName="explore-trace-view-panel">
+                                    {renderTraceViewPanel()}
+                                  </ErrorBoundaryAlert>
+                                )}
+                                {showLogsSample && (
+                                  <ErrorBoundaryAlert boundaryName="explore-logs-sample-panel">
+                                    {renderLogsSamplePanel()}
+                                  </ErrorBoundaryAlert>
+                                )}
+                                {showCustom && (
+                                  <ErrorBoundaryAlert boundaryName="explore-custom-panel">
+                                    {renderCustom(width)}
+                                  </ErrorBoundaryAlert>
+                                )}
+                                {showNoData && (
+                                  <ErrorBoundaryAlert boundaryName="explore-no-data">
+                                    {renderNoData()}
+                                  </ErrorBoundaryAlert>
+                                )}
+                              </>
+                            )}
+                          </ErrorBoundaryAlert>
+                        </main>
+                      );
+                    }}
+                  </AutoSizer>
+                </>
+              ) : (
+                renderEmptyState(styles.exploreContainer)
+              )}
+            </div>
+          </ScrollContainer>
         </div>
-      </ContentOutlineContextProvider>
-    );
-  }
-}
+      </div>
+    </ContentOutlineContextProvider>
+  );
+};
 
 function mapStateToProps(state: StoreState, { exploreId }: ExploreProps) {
   const explore = state.explore;
@@ -869,4 +888,4 @@ const mapDispatchToProps = {
 
 const connector = connect(mapStateToProps, mapDispatchToProps);
 
-export default withTheme2(connector(Explore));
+export default connector(Explore);
