@@ -510,6 +510,15 @@ export const LogRowContextModal: React.FunctionComponent<LogRowContextModalProps
         </div>
       </div>
       <div ref={scrollElement} className={styles.logRowGroups}>
+        {/*
+          Design system gap: This <table> is a layout structure (not tabular data) hosting heterogeneous rows:
+          loading indicators with IntersectionObserver refs for infinite scroll, an empty <tr ref={preEntryElement}>
+          scroll-target placeholder, a sticky <tr ref={entryElement} data-testid="entry-row"> entry row, and LogRows
+          children whose internal <table> elements (see LogRows.tsx) produce a nested-table structure inside <td>
+          cells. InteractiveTable from @grafana/ui does not support per-row refs, sticky-row positioning,
+          heterogeneous row content, or nested tables inside cells. Kept as raw HTML per refactor protocol
+          (AAP §0.4.4, §0.9.2.6).
+        */}
         <table>
           <tbody>
             <tr>
