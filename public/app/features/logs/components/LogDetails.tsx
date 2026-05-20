@@ -147,6 +147,12 @@ export const LogDetails = memo(
         <td className={levelClassName} aria-label={t('logs.un-themed-log-details.aria-label-log-level', 'Log level')} />
         <td colSpan={4}>
           <div className={styles.logDetailsContainer}>
+            {/*
+              Design system gap: This nested <table> integrates with LogDetailsRow components that render <tr> directly
+              with conditional stats-expansion rows. InteractiveTable from @grafana/ui does not support custom row
+              components rendering <tr> with arbitrary colSpan and expansion siblings. Kept as raw HTML per refactor
+              protocol (AAP §0.4.4, §0.9.2.6).
+            */}
             <table className={styles.logDetailsTable}>
               <tbody>
                 {displayedFields && displayedFields.length > 0 && (
