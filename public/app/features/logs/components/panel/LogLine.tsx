@@ -351,6 +351,16 @@ const Log = memo(
     );
     return (
       <>
+        {/*
+          Semantic classnames retained: 'field', 'no-highlighting', 'log-line-body',
+          'log-syntax-highlight', 'prism-syntax-highlight' are consumed by:
+          (1) nested CSS selectors '& .field' within getStyles below (line ~730) and in
+              the sibling LogList.tsx file,
+          (2) test queries via container.querySelectorAll('.field') in LogLine.test.tsx
+              and LogList.test.tsx.
+          They are NOT pre-design-system styling classes from public/sass/_grafana.scss.
+          Kept as raw classnames per refactor protocol (AAP §0.4.4, §0.9.2.6).
+        */}
         {showTime && (
           <span className={`${styles.timestamp} level-${log.logLevel} field`}>
             {timestampResolution === 'ms' ? log.timestamp : log.timestampNs}{' '}
