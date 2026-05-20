@@ -1,11 +1,9 @@
-import { PureComponent } from 'react';
-import { connect, type ConnectedProps } from 'react-redux';
-import { bindActionCreators } from 'redux';
+import { useCallback, useEffect, useState } from 'react';
 
 import { locationService } from '@grafana/runtime';
 import { Page } from 'app/core/components/Page/Page';
 import { type SettingsPageProps } from 'app/features/dashboard/components/DashboardSettings/types';
-import { type StoreState, type ThunkDispatch } from 'app/types/store';
+import { useDispatch, useSelector } from 'app/types/store';
 
 import { VariablesUnknownTable } from '../inspect/VariablesUnknownTable';
 import { toKeyedAction } from '../state/keyedVariablesReducer';
@@ -19,125 +17,129 @@ import { VariableEditorEditor } from './VariableEditorEditor';
 import { VariableEditorList } from './VariableEditorList';
 import { createNewVariable, initListMode } from './actions';
 
-const mapStateToProps = (state: StoreState, ownProps: OwnProps) => {
-  const { uid } = ownProps.dashboard;
-  const templatingState = getVariablesState(uid, state);
-  return {
-    variables: getEditorVariables(uid, state),
-    idInEditor: templatingState.editor.id,
-    usagesNetwork: templatingState.inspect.usagesNetwork,
-    usages: templatingState.inspect.usages,
-  };
-};
+/**
+ * VariableEditorContainer renders the dashboard's variable editor page.
+ *
+ * Converted from a `PureComponent` wrapped by `connect(mapStateToProps, mapDispatchToProps)`
+ * to a hooks-based functional component per AAP Cohort 1:
+ * - `connect` HOC -> `useSelector` / `useDispatch` from `app/types/store`.
+ * - Class state `{ variableId }` -> `useState<KeyedVariableIdentifier | undefined>`.
+ * - `componentDidMount` -> `useEffect(fn, [dashboard.uid])` invoking `initListMode`.
+ * - `bindActionCreators` thunk dispatches -> inlined `dispatch(...)` calls.
+ *
+ * Public API preserved: the file continues to export a `VariableEditorContainer`
+ * symbol consumed by `DashboardSettings.tsx`. No prop interface changes; the
+ * runtime Redux wiring and rendered children are unchanged.
+ */
+export function VariableEditorContainer({ dashboard, editIndex, sectionNav }: SettingsPageProps) {
+  const dispatch = useDispatch();
 
-const mapDispatchToProps = (dispatch: ThunkDispatch) => {
-  return {
-    ...bindActionCreators({ createNewVariable, initListMode }, dispatch),
-    changeVariableOrder: (identifier: KeyedVariableIdentifier, fromIndex: number, toIndex: number) =>
+  // Replaces `mapStateToProps` — re-evaluated whenever the relevant slice of the
+  // store changes. Reads are scoped to the dashboard's keyed templating state.
+  const variables = useSelector((state) => getEditorVariables(dashboard.uid, state));
+  const { usagesNetwork, usages } = useSelector((state) => {
+    const templatingState = getVariablesState(dashboard.uid, state);
+    return {
+      // `idInEditor` was selected by the original `mapStateToProps` but never read
+      // in `render()`; we omit it from the destructured selector output without
+      // changing observable behaviour.
+      usagesNetwork: templatingState.inspect.usagesNetwork,
+      usages: templatingState.inspect.usages,
+    };
+  });
+
+  const [variableId, setVariableId] = useState<KeyedVariableIdentifier | undefined>(undefined);
+
+  // Replaces `componentDidMount`. Re-runs only when the dashboard UID changes,
+  // matching the original mount-time call site (the dashboard prop is stable
+  // for the lifetime of this page in practice but we list it explicitly to
+  // honour exhaustive-deps).
+  useEffect(() => {
+    dispatch(initListMode(dashboard.uid));
+  }, [dispatch, dashboard.uid]);
+
+  const onEditVariable = useCallback(
+    (identifier: KeyedVariableIdentifier) => {
+      const index = variables.findIndex((x) => x.id === identifier.id);
+      locationService.partial({ editIndex: index });
+    },
+    [variables]
+  );
+
+  const onNewVariable = useCallback(() => {
+    dispatch(createNewVariable(dashboard.uid));
+  }, [dispatch, dashboard.uid]);
+
+  const onChangeVariableOrder = useCallback(
+    (identifier: KeyedVariableIdentifier, fromIndex: number, toIndex: number) => {
       dispatch(
-        toKeyedAction(
-          identifier.rootStateKey,
-          changeVariableOrder(toVariablePayload(identifier, { fromIndex, toIndex }))
-        )
-      ),
-    duplicateVariable: (identifier: KeyedVariableIdentifier) =>
-      dispatch(
-        toKeyedAction(
-          identifier.rootStateKey,
-          duplicateVariable(toVariablePayload(identifier, { newId: undefined as unknown as string }))
-        )
-      ),
-    removeVariable: (identifier: KeyedVariableIdentifier) => {
-      dispatch(
-        toKeyedAction(identifier.rootStateKey, removeVariable(toVariablePayload(identifier, { reIndex: true })))
+        toKeyedAction(identifier.rootStateKey, changeVariableOrder(toVariablePayload(identifier, { fromIndex, toIndex })))
       );
     },
-  };
-};
+    [dispatch]
+  );
 
-interface OwnProps extends SettingsPageProps {}
+  const onDuplicateVariable = useCallback(
+    (identifier: KeyedVariableIdentifier) => {
+      dispatch(
+        toKeyedAction(
+          identifier.rootStateKey,
+          // `newId` is generated by the reducer when undefined. Casting `undefined` to
+          // `string` here matches the original (pre-conversion) payload shape exactly;
+          // we preserve the runtime contract verbatim.
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- preserved from the pre-conversion implementation; `newId` is filled in by the reducer
+          duplicateVariable(toVariablePayload(identifier, { newId: undefined as unknown as string }))
+        )
+      );
+    },
+    [dispatch]
+  );
 
-const connector = connect(mapStateToProps, mapDispatchToProps);
+  const onModalOpen = useCallback((identifier: KeyedVariableIdentifier) => {
+    setVariableId(identifier);
+  }, []);
 
-type Props = OwnProps & ConnectedProps<typeof connector>;
+  const onModalClose = useCallback(() => {
+    setVariableId(undefined);
+  }, []);
 
-interface State {
-  variableId?: KeyedVariableIdentifier;
-}
+  const onRemoveVariable = useCallback(() => {
+    if (!variableId) {
+      return;
+    }
+    dispatch(toKeyedAction(variableId.rootStateKey, removeVariable(toVariablePayload(variableId, { reIndex: true }))));
+    setVariableId(undefined);
+  }, [dispatch, variableId]);
 
-class VariableEditorContainerUnconnected extends PureComponent<Props, State> {
-  state: State = {
-    variableId: undefined,
-  };
+  const variableToEdit = editIndex != null ? variables[editIndex] : undefined;
+  const node = sectionNav.node;
+  const parentItem = node.parentItem;
+  const subPageNav = variableToEdit ? { text: variableToEdit.name, parentItem } : parentItem;
 
-  componentDidMount() {
-    this.props.initListMode(this.props.dashboard.uid);
-  }
-
-  onEditVariable = (identifier: KeyedVariableIdentifier) => {
-    const index = this.props.variables.findIndex((x) => x.id === identifier.id);
-    locationService.partial({ editIndex: index });
-  };
-
-  onNewVariable = () => {
-    this.props.createNewVariable(this.props.dashboard.uid);
-  };
-
-  onChangeVariableOrder = (identifier: KeyedVariableIdentifier, fromIndex: number, toIndex: number) => {
-    this.props.changeVariableOrder(identifier, fromIndex, toIndex);
-  };
-
-  onDuplicateVariable = (identifier: KeyedVariableIdentifier) => {
-    this.props.duplicateVariable(identifier);
-  };
-
-  onModalOpen = (identifier: KeyedVariableIdentifier) => {
-    this.setState({ variableId: identifier });
-  };
-
-  onModalClose = () => {
-    this.setState({ variableId: undefined });
-  };
-
-  onRemoveVariable = () => {
-    this.props.removeVariable(this.state.variableId!);
-    this.onModalClose();
-  };
-
-  render() {
-    const { editIndex, variables, sectionNav } = this.props;
-    const variableToEdit = editIndex != null ? variables[editIndex] : undefined;
-    const node = sectionNav.node;
-    const parentItem = node.parentItem;
-    const subPageNav = variableToEdit ? { text: variableToEdit.name, parentItem } : parentItem;
-
-    return (
-      <Page navModel={this.props.sectionNav} pageNav={subPageNav}>
-        {!variableToEdit && (
-          <VariableEditorList
-            variables={this.props.variables}
-            onAdd={this.onNewVariable}
-            onEdit={this.onEditVariable}
-            onChangeOrder={this.onChangeVariableOrder}
-            onDuplicate={this.onDuplicateVariable}
-            onDelete={this.onModalOpen}
-            usages={this.props.usages}
-            usagesNetwork={this.props.usagesNetwork}
-          />
-        )}
-        {!variableToEdit && this.props.variables.length > 0 && (
-          <VariablesUnknownTable variables={this.props.variables} dashboard={this.props.dashboard} />
-        )}
-        {variableToEdit && <VariableEditorEditor identifier={toKeyedVariableIdentifier(variableToEdit)} />}
-        <ConfirmDeleteModal
-          isOpen={this.state.variableId !== undefined}
-          varName={this.state.variableId?.id ?? ''}
-          onConfirm={this.onRemoveVariable}
-          onDismiss={this.onModalClose}
+  return (
+    <Page navModel={sectionNav} pageNav={subPageNav}>
+      {!variableToEdit && (
+        <VariableEditorList
+          variables={variables}
+          onAdd={onNewVariable}
+          onEdit={onEditVariable}
+          onChangeOrder={onChangeVariableOrder}
+          onDuplicate={onDuplicateVariable}
+          onDelete={onModalOpen}
+          usages={usages}
+          usagesNetwork={usagesNetwork}
         />
-      </Page>
-    );
-  }
+      )}
+      {!variableToEdit && variables.length > 0 && (
+        <VariablesUnknownTable variables={variables} dashboard={dashboard} />
+      )}
+      {variableToEdit && <VariableEditorEditor identifier={toKeyedVariableIdentifier(variableToEdit)} />}
+      <ConfirmDeleteModal
+        isOpen={variableId !== undefined}
+        varName={variableId?.id ?? ''}
+        onConfirm={onRemoveVariable}
+        onDismiss={onModalClose}
+      />
+    </Page>
+  );
 }
-
-export const VariableEditorContainer = connector(VariableEditorContainerUnconnected);

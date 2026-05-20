@@ -13,7 +13,13 @@ export const LEGACY_VARIABLE_QUERY_EDITOR_NAME = 'Grafana-LegacyVariableQueryEdi
 
 export const LegacyVariableQueryEditor = ({ onChange, query }: VariableQueryEditorProps) => {
   const styles = useStyles2(getStyles);
-  const [value, setValue] = useState(query);
+  // The legacy variable query editor displays the query as text in a <TextArea>.
+  // `VariableQueryEditorProps['query']` defaults to `unknown` to honestly represent
+  // the heterogeneous shapes legacy datasources pass at runtime (most are plain
+  // strings; some flow through dashboard-scene's union of `string | SceneDataQuery`).
+  // Narrow defensively here so the textarea always receives a `string`.
+  const initialValue = typeof query === 'string' ? query : '';
+  const [value, setValue] = useState(initialValue);
 
   const onValueChange = (event: React.FormEvent<HTMLTextAreaElement>) => {
     setValue(event.currentTarget.value);

@@ -43,6 +43,12 @@ export interface Props {
 }
 
 export const QueryGroup = memo((props: Props) => {
+  // Destructure stable prop identities for use in useCallback/useEffect dependency arrays
+  // (review finding Q-1). Capturing individual prop fields rather than the full `props`
+  // object avoids recreating callbacks on every parent render and restores the
+  // class-method identity stability that the original PureComponent relied on.
+  const { queryRunner, options, onOptionsChange, onRunQueries, onOpenQueryInspector } = props;
+
   // Memoize the dataSourceSrv() lookup once-per-component-instance, matching the original
   // class's `dataSourceSrv = getDataSourceSrv()` instance field semantics (stable identity
   // across renders).
@@ -100,13 +106,13 @@ export const QueryGroup = memo((props: Props) => {
   // (subscription cleanup) — see AAP §0.8.4 Subscription pattern. The empty dep array
   // preserves the original componentDidMount-once semantics.
   useEffect(() => {
-    const sub: Unsubscribable = props.queryRunner
+    const sub: Unsubscribable = queryRunner
       .getData({ withTransforms: false, withFieldConfig: false })
       .subscribe({
         next: (newData: PanelData) => setData(newData),
       });
 
-    setNewQueriesAndDatasource(props.options);
+    setNewQueriesAndDatasource(options);
 
     return () => {
       sub.unsubscribe();
@@ -122,31 +128,31 @@ export const QueryGroup = memo((props: Props) => {
   useEffect(() => {
     let cancelled = false;
     const checkAndReload = async () => {
-      const currentDS = await getDataSourceSrv().get(props.options.dataSource);
+      const currentDS = await getDataSourceSrv().get(options.dataSource);
       if (cancelled) {
         return;
       }
       if (dataSource && currentDS.uid !== dataSource?.uid) {
-        setNewQueriesAndDatasource(props.options);
+        setNewQueriesAndDatasource(options);
       }
     };
     checkAndReload();
     return () => {
       cancelled = true;
     };
-  }, [props.options, dataSource, setNewQueriesAndDatasource]);
+  }, [options, dataSource, setNewQueriesAndDatasource]);
 
   // Replacement for the original `onChange` class method (lines 189–194). Stable so
   // dependents (onQueriesChange, onChangeDataSource) don't change identity on every
   // render unless props change.
   const onChange = useCallback(
     (changedProps: Partial<QueryGroupOptions>) => {
-      props.onOptionsChange({
-        ...props.options,
+      onOptionsChange({
+        ...options,
         ...changedProps,
       });
     },
-    [props]
+    [onOptionsChange, options]
   );
 
   // Replacement for the original `onQueriesChange` class arrow method (lines 254–257).
@@ -192,10 +198,10 @@ export const QueryGroup = memo((props: Props) => {
       setDsSettings(newSettings);
 
       if (defaultQueries) {
-        props.onRunQueries();
+        onRunQueries();
       }
     },
-    [dsSettings, queries, dataSourceSrv, onChange, props]
+    [dsSettings, queries, dataSourceSrv, onChange, onRunQueries]
   );
 
   // Replacement for the original `newQuery` instance method (lines 173–187).
@@ -238,11 +244,11 @@ export const QueryGroup = memo((props: Props) => {
 
   // Replacement for the original `onUpdateAndRun` class arrow method (lines 209–212).
   const onUpdateAndRun = useCallback(
-    (options: QueryGroupOptions) => {
-      props.onOptionsChange(options);
-      props.onRunQueries();
+    (updatedOptions: QueryGroupOptions) => {
+      onOptionsChange(updatedOptions);
+      onRunQueries();
     },
-    [props]
+    [onOptionsChange, onRunQueries]
   );
 
   // Replacement for the original `onCloseHelp` class arrow method (lines 238–240).
@@ -267,11 +273,11 @@ export const QueryGroup = memo((props: Props) => {
       <QueryGroupTopSection
         data={data}
         dataSource={dataSource}
-        options={props.options}
+        options={options}
         dsSettings={dsSettings}
         onOptionsChange={onUpdateAndRun}
         onDataSourceChange={onChangeDataSource}
-        onOpenQueryInspector={props.onOpenQueryInspector}
+        onOpenQueryInspector={onOpenQueryInspector}
       />
     );
   };
@@ -285,7 +291,7 @@ export const QueryGroup = memo((props: Props) => {
           dsSettings={settings}
           onQueriesChange={onQueriesChange}
           onAddQuery={onAddQuery}
-          onRunQueries={props.onRunQueries}
+          onRunQueries={onRunQueries}
           data={data}
         />
       </div>

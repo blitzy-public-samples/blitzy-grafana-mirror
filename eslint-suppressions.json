@@ -2161,19 +2161,6 @@
       "count": 1
     }
   },
-  "public/app/features/variables/editor/VariableEditorContainer.tsx": {
-    "@typescript-eslint/consistent-type-assertions": {
-      "count": 2
-    },
-    "react-prefer-function-component/react-prefer-function-component": {
-      "count": 1
-    }
-  },
-  "public/app/features/variables/editor/VariableEditorEditor.tsx": {
-    "react-prefer-function-component/react-prefer-function-component": {
-      "count": 1
-    }
-  },
   "public/app/features/variables/editor/VariableEditorList.tsx": {
     "@grafana/no-aria-label-selectors": {
       "count": 2
@@ -2189,11 +2176,6 @@
       "count": 2
     }
   },
-  "public/app/features/variables/pickers/OptionsPicker/OptionsPicker.tsx": {
-    "react-prefer-function-component/react-prefer-function-component": {
-      "count": 1
-    }
-  },
   "public/app/features/variables/pickers/PickerRenderer.tsx": {
     "react/no-unescaped-entities": {
       "count": 1
@@ -2201,14 +2183,6 @@
   },
   "public/app/features/variables/pickers/shared/VariableOptions.tsx": {
     "@grafana/no-aria-label-selectors": {
-      "count": 1
-    }
-  },
-  "public/app/features/variables/query/QueryVariableEditor.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    },
-    "react-prefer-function-component/react-prefer-function-component": {
       "count": 1
     }
   },

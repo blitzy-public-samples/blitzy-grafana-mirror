@@ -50,6 +50,11 @@ export interface Props {
 }
 
 export const QueryEditorRows = memo((props: Props): ReactNode => {
+  // Destructure every prop the body reads so that `useCallback` dependency
+  // arrays can list the specific stable identities the handlers depend on,
+  // rather than the entire `props` object (which is a fresh reference each
+  // render and would defeat the purpose of memoising the handlers — see Q-1
+  // in the Checkpoint 9 review).
   const {
     dsSettings,
     data,
@@ -57,133 +62,135 @@ export const QueryEditorRows = memo((props: Props): ReactNode => {
     app,
     history,
     eventBus,
+    onQueriesChange,
     onAddQuery,
     onRunQueries,
     onQueryCopied,
     onQueryRemoved,
     onQueryToggled,
     onQueryOpenChanged,
+    onUpdateDatasources,
     onQueryReplacedFromLibrary,
     queryRowWrapper,
     queryLibraryRef,
     onCancelQueryLibraryEdit,
     isOpen,
+    panelRef,
   } = props;
 
   const onRemoveQuery = useCallback(
     (query: DataQuery) => {
-      props.onQueriesChange(props.queries.filter((item) => item !== query));
+      onQueriesChange(queries.filter((item) => item !== query));
     },
-    [props]
+    [onQueriesChange, queries]
   );
 
-  const onChangeQuery = (query: DataQuery, index: number) => {
-    const { queries, onQueriesChange } = props;
-
-    // update query in array
-    onQueriesChange(
-      queries.map((item, itemIndex) => {
-        if (itemIndex === index) {
-          return query;
-        }
-        return item;
-      })
-    );
-
-    if (props.panelRef) {
-      const panel = props.panelRef.resolve();
-      const hideSeriesOverrideIndex = panel.state.fieldConfig.overrides.findIndex(
-        isSystemOverrideWithRef('hideSeriesFrom')
+  const onChangeQuery = useCallback(
+    (query: DataQuery, index: number) => {
+      // update query in array
+      onQueriesChange(
+        queries.map((item, itemIndex) => {
+          if (itemIndex === index) {
+            return query;
+          }
+          return item;
+        })
       );
 
-      if (hideSeriesOverrideIndex !== -1) {
-        const newOverrides = [...panel.state.fieldConfig.overrides];
-        newOverrides.splice(hideSeriesOverrideIndex, 1);
+      if (panelRef) {
+        const panel = panelRef.resolve();
+        const hideSeriesOverrideIndex = panel.state.fieldConfig.overrides.findIndex(
+          isSystemOverrideWithRef('hideSeriesFrom')
+        );
 
-        panel.setState({ fieldConfig: { ...panel.state.fieldConfig, overrides: newOverrides } });
-      }
-    }
-  };
+        if (hideSeriesOverrideIndex !== -1) {
+          const newOverrides = [...panel.state.fieldConfig.overrides];
+          newOverrides.splice(hideSeriesOverrideIndex, 1);
 
-  const onReplaceQuery = (query: DataQuery, index: number) => {
-    const { queries, onQueriesChange, onUpdateDatasources, dsSettings, onRunQueries } = props;
-
-    // Replace old query with new query, preserving the original refId
-    const newQueries = queries.map((item, itemIndex) => {
-      if (itemIndex === index) {
-        return { ...query, refId: item.refId };
-      }
-      return item;
-    });
-    onQueriesChange(newQueries, { skipAutoImport: true });
-
-    // Update datasources based on the new query set
-    if (query.datasource?.uid) {
-      const uniqueDatasources = new Set(newQueries.map((q) => q.datasource?.uid));
-      const isMixed = uniqueDatasources.size > 1;
-      const newDatasourceRef = {
-        uid: isMixed ? MIXED_DATASOURCE_NAME : query.datasource.uid,
-      };
-      const shouldChangeDatasource = dsSettings.uid !== newDatasourceRef.uid;
-      if (shouldChangeDatasource) {
-        onUpdateDatasources?.(newDatasourceRef);
-      }
-    }
-
-    onRunQueries();
-  };
-
-  const onDataSourceChange = (dataSource: DataSourceInstanceSettings, index: number) => {
-    const { queries, onQueriesChange } = props;
-
-    Promise.all(
-      queries.map(async (item, itemIndex) => {
-        if (itemIndex !== index) {
-          return item;
+          panel.setState({ fieldConfig: { ...panel.state.fieldConfig, overrides: newOverrides } });
         }
+      }
+    },
+    [onQueriesChange, queries, panelRef]
+  );
 
-        const dataSourceRef = getDataSourceRef(dataSource);
+  const onReplaceQuery = useCallback(
+    (query: DataQuery, index: number) => {
+      // Replace old query with new query, preserving the original refId
+      const newQueries = queries.map((item, itemIndex) => {
+        if (itemIndex === index) {
+          return { ...query, refId: item.refId };
+        }
+        return item;
+      });
+      onQueriesChange(newQueries, { skipAutoImport: true });
 
-        if (item.datasource) {
-          const previous = getDataSourceSrv().getInstanceSettings(item.datasource);
+      // Update datasources based on the new query set
+      if (query.datasource?.uid) {
+        const uniqueDatasources = new Set(newQueries.map((q) => q.datasource?.uid));
+        const isMixed = uniqueDatasources.size > 1;
+        const newDatasourceRef = {
+          uid: isMixed ? MIXED_DATASOURCE_NAME : query.datasource.uid,
+        };
+        const shouldChangeDatasource = dsSettings.uid !== newDatasourceRef.uid;
+        if (shouldChangeDatasource) {
+          onUpdateDatasources?.(newDatasourceRef);
+        }
+      }
 
-          if (previous?.type === dataSource.type) {
-            return {
-              ...item,
-              datasource: dataSourceRef,
-            };
+      onRunQueries();
+    },
+    [queries, onQueriesChange, onUpdateDatasources, dsSettings, onRunQueries]
+  );
+
+  const onDataSourceChange = useCallback(
+    (dataSource: DataSourceInstanceSettings, index: number) => {
+      Promise.all(
+        queries.map(async (item, itemIndex) => {
+          if (itemIndex !== index) {
+            return item;
           }
+
+          const dataSourceRef = getDataSourceRef(dataSource);
+
+          if (item.datasource) {
+            const previous = getDataSourceSrv().getInstanceSettings(item.datasource);
+
+            if (previous?.type === dataSource.type) {
+              return {
+                ...item,
+                datasource: dataSourceRef,
+              };
+            }
+          }
+
+          const ds = await getDataSourceSrv().get(dataSourceRef);
+
+          return { ...ds.getDefaultQuery?.(CoreApp.PanelEditor), ...item, datasource: dataSourceRef };
+        })
+      ).then(
+        (values) => onQueriesChange(values),
+        () => {
+          throw new Error(`Failed to get datasource ${dataSource.name ?? dataSource.uid}`);
         }
-
-        const ds = await getDataSourceSrv().get(dataSourceRef);
-
-        return { ...ds.getDefaultQuery?.(CoreApp.PanelEditor), ...item, datasource: dataSourceRef };
-      })
-    ).then(
-      (values) => onQueriesChange(values),
-      () => {
-        throw new Error(`Failed to get datasource ${dataSource.name ?? dataSource.uid}`);
-      }
-    );
-  };
+      );
+    },
+    [queries, onQueriesChange]
+  );
 
   const onDragStart = useCallback(
     (result: DragStart) => {
-      const { queries, dsSettings } = props;
-
       reportInteraction('query_row_reorder_started', {
         startIndex: result.source.index,
         numberOfQueries: queries.length,
         datasourceType: dsSettings.type,
       });
     },
-    [props]
+    [queries, dsSettings]
   );
 
   const onDragEnd = useCallback(
     (result: DropResult) => {
-      const { queries, onQueriesChange, dsSettings } = props;
-
       if (!result || !result.destination) {
         return;
       }
@@ -212,7 +219,7 @@ export const QueryEditorRows = memo((props: Props): ReactNode => {
         datasourceType: dsSettings.type,
       });
     },
-    [props]
+    [queries, onQueriesChange, dsSettings]
   );
 
   return (

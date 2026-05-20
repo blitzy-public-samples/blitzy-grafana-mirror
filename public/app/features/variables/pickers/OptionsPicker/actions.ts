@@ -23,6 +23,27 @@ import {
   updateSearchQuery,
 } from './reducer';
 
+/**
+ * Callback invoked by `openOptions` / `commitChangesToVariable` when the
+ * picker's underlying variable has changed.
+ *
+ * Declared via the method-syntax bivariance pattern (`{ m(...): R }['m']`) so
+ * that consumers parameterized by a narrower subtype of `VariableWithOptions`
+ * (such as `OptionsPicker<Model extends VariableWithOptions | VariableWithMultiSupport>`,
+ * whose `onVariableChange: (variable: Model) => void` callback flows through
+ * `bindActionCreators` to these action slots) can still be assigned here.
+ * Under `strictFunctionTypes`, plain function-type properties are checked
+ * contravariantly and would reject a `(Model) => void` callback at a
+ * `(VariableWithOptions) => void` slot; method-syntax declarations are
+ * checked bivariantly, which restores the original `any`-era variance
+ * compatibility that the picker relies on.
+ *
+ * Runtime contract: the action only invokes `callback` with the variable
+ * looked up by the identifier the picker provided — so the callback never
+ * receives a variable outside the picker's parameterized Model at runtime.
+ */
+export type VariableChangeCallback = { _(updated: VariableWithOptions): void }['_'];
+
 export const navigateOptions = (rootStateKey: string, key: NavigationKey, clearOthers: boolean): ThunkResult<void> => {
   return async (dispatch, getState) => {
     if (key === NavigationKey.cancel) {
@@ -96,7 +117,7 @@ const setVariable = async (updated: VariableWithOptions) => {
   return;
 };
 
-export const commitChangesToVariable = (key: string, callback?: (updated: VariableWithOptions) => void): ThunkResult<void> => {
+export const commitChangesToVariable = (key: string, callback?: VariableChangeCallback): ThunkResult<void> => {
   return async (dispatch, getState) => {
     const picker = getVariablesState(key, getState()).optionsPicker;
     const identifier: KeyedVariableIdentifier = { id: picker.id, rootStateKey: key, type: 'query' };
@@ -131,7 +152,7 @@ export const commitChangesToVariable = (key: string, callback?: (updated: Variab
 };
 
 export const openOptions =
-  (identifier: KeyedVariableIdentifier, callback?: (updated: VariableWithOptions) => void): ThunkResult<void> =>
+  (identifier: KeyedVariableIdentifier, callback?: VariableChangeCallback): ThunkResult<void> =>
   async (dispatch, getState) => {
     const { id, rootStateKey: uid } = identifier;
     const picker = getVariablesState(uid, getState()).optionsPicker;

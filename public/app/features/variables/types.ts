@@ -36,9 +36,29 @@ export const initialVariableModelState: BaseVariableModel = {
   description: null,
 };
 
-export interface VariableQueryEditorProps<TQuery = string, TDataSource = DataSourceApi> {
+/**
+ * Props for legacy variable query editor components.
+ *
+ * `TQuery` defaults to `unknown` because the legacy variable query editor union
+ * (see `VariableQueryEditorType`) is consumed by call sites that pass either a
+ * plain `string` query (the legacy default for most datasources, e.g. Graphite,
+ * InfluxDB query strings) or an object query shape (e.g. dashboard-scene's
+ * `QueryVariable['state']['query']` union of `string | SceneDataQuery`). Using
+ * `unknown` as the default preserves the original `any`-typed runtime semantics
+ * while still requiring explicit consumers (such as `LegacyVariableQueryEditor`)
+ * to narrow to the concrete `string` shape they actually expect.
+ *
+ * `onChange` is declared with method syntax (rather than function-property syntax)
+ * to opt into TypeScript's bivariant parameter check. This is required because
+ * the legacy editor union is heterogeneously typed: some editors call `onChange`
+ * with `string`, others with `string | SceneDataQuery`, and the type system
+ * cannot statically prove which editor will be selected at runtime by the
+ * `isLegacyQueryEditor` guard. Method syntax restores the original `any`-era
+ * bivariant compatibility while keeping the structural shape of the prop fixed.
+ */
+export interface VariableQueryEditorProps<TQuery = unknown, TDataSource = DataSourceApi> {
   query: TQuery;
-  onChange: (query: TQuery, definition: string) => void;
+  onChange(query: TQuery, definition: string): void;
   datasource: TDataSource;
   templateSrv: TemplateSrv;
 }

@@ -40,6 +40,14 @@ interface Props {
     searchWords: string[];
     highlightClassName: string;
   };
+  /**
+   * @deprecated The theme is now resolved internally via `useTheme2()`. This
+   * optional prop is preserved for backward source compatibility with the
+   * pre-conversion class-component API (when `UnThemedLogMessageAnsi` was the
+   * un-themed `PureComponent` wrapped by `withTheme2(...)`) and is intentionally
+   * ignored at runtime. Will be removed in a future cleanup.
+   */
+  theme?: GrafanaTheme2;
 }
 
 export const LogMessageAnsi = memo(({ value, highlight }: Props) => {
@@ -87,3 +95,16 @@ export const LogMessageAnsi = memo(({ value, highlight }: Props) => {
 });
 
 LogMessageAnsi.displayName = 'LogMessageAnsi';
+
+/**
+ * @deprecated Use `LogMessageAnsi` directly. This named export is preserved for
+ * backward compatibility with the pre-conversion class-component API. Before
+ * the class→functional conversion, `UnThemedLogMessageAnsi` was the unthemed
+ * `PureComponent` class that `withTheme2(...)` wrapped to produce
+ * `LogMessageAnsi`. After the conversion the component resolves the theme
+ * itself via `useTheme2()`, so this alias renders identically to
+ * `LogMessageAnsi`. Existing imports such as
+ * `import { UnThemedLogMessageAnsi } from './LogMessageAnsi'` continue to work
+ * unchanged.
+ */
+export const UnThemedLogMessageAnsi = LogMessageAnsi;
