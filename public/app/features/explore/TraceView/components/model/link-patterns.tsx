@@ -22,14 +22,14 @@ const parameterRegExp = /#\{([^{}]*)\}/g;
 
 type ProcessedTemplate = {
   parameters: string[];
-  template: (template: { [key: string]: any }) => string;
+  template: (data: Record<string, unknown>) => string;
 };
 
 export type ProcessedLinkPattern = {
-  object: any;
+  object: unknown;
   type: (link: string) => boolean;
   key: (link: string) => boolean;
-  value: (value: any) => boolean;
+  value: (value: unknown) => boolean;
   url: ProcessedTemplate;
   text: ProcessedTemplate;
   parameters: string[];
@@ -46,14 +46,14 @@ function getParamNames(str: string) {
   return Array.from(names);
 }
 
-function stringSupplant(str: string, encodeFn: (unencoded: any) => string, map: Record<string, any>) {
+function stringSupplant(str: string, encodeFn: (unencoded: string) => string, map: Record<string, unknown>) {
   return str.replace(parameterRegExp, (_, name) => {
     const value = map[name];
-    return value == null ? '' : encodeFn(value);
+    return value == null ? '' : encodeFn(String(value));
   });
 }
 
-export function processTemplate(template: unknown, encodeFn: (unencoded: any) => string): ProcessedTemplate {
+export function processTemplate(template: unknown, encodeFn: (unencoded: string) => string): ProcessedTemplate {
   if (typeof template !== 'string') {
     /*
 
@@ -95,10 +95,17 @@ export function createTestFunction(entry?: unknown) {
   throw new Error(`Invalid value: ${entry}`);
 }
 
-const identity = (a: any): typeof a => a;
+const identity = <T,>(a: T): T => a;
 
-export function processLinkPattern(pattern: any): ProcessedLinkPattern | null {
+function isObjectInput(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+export function processLinkPattern(pattern: unknown): ProcessedLinkPattern | null {
   try {
+    if (!isObjectInput(pattern)) {
+      throw new Error('Invalid link pattern');
+    }
     const url = processTemplate(pattern.url, encodeURIComponent);
     const text = processTemplate(pattern.text, identity);
     return {
@@ -117,7 +124,7 @@ export function processLinkPattern(pattern: any): ProcessedLinkPattern | null {
   }
 }
 
-function callTemplate(template: ProcessedTemplate, data: any) {
+function callTemplate(template: ProcessedTemplate, data: Record<string, unknown>) {
   return template.template(data);
 }
 
@@ -130,7 +137,7 @@ export function computeTraceLink(linkPatterns: ProcessedLinkPattern[], trace: Tr
   linkPatterns
     ?.filter((pattern) => pattern?.type('traces'))
     .forEach((pattern) => {
-      const parameterValues: Record<string, any> = {};
+      const parameterValues: Record<string, unknown> = {};
       const allParameters = pattern?.parameters.every((parameter) => {
         const key = parameter as keyof Trace;
         if (validKeys.includes(key)) {
