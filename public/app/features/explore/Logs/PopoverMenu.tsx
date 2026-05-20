@@ -60,6 +60,11 @@ export const PopoverMenu = ({
 
   return (
     <>
+      {/*
+        Dynamic positioning: `top` and `left` are derived from the `x`/`y` cursor coordinates
+        passed as props at text-selection time. Per AAP §0.5.3 / §0.6.1, dynamic per-render
+        style values that cannot be statically classed via useStyles2 may remain inline.
+      */}
       <div className={styles.menu} style={{ top: y, left: x }}>
         <Menu ref={containerRef}>
           <Menu.Item
