@@ -285,6 +285,12 @@ export const LogRows = memo(
             onDismiss={onDisableCancel}
           />
         )}
+        {/*
+          Design system gap: LogRows is a virtualized log-table renderer integrated with a custom popover-selection
+          layer, dedup strategies, contain:strict CSS optimization, and per-row LogRow/PreviewLogRow components that
+          render <tr> directly. InteractiveTable from @grafana/ui does not support this rendering model. Kept as raw
+          HTML per refactor protocol (AAP §0.4.4, §0.9.2.6).
+        */}
         <table className={cx(styles.logsRowsTable, props.overflowingContent ? '' : styles.logsRowsTableContain)}>
           <tbody>
             {orderedRows.map((row, index) =>
