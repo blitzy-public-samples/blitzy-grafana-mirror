@@ -54,6 +54,9 @@ const styles = {
     fontSize: '12px',
     lineHeight: 1.25,
   }),
+  row: css({
+    overflow: 'hidden',
+  }),
 };
 
 const mobileWidthThreshold = 480;
@@ -170,7 +173,10 @@ const RawListContainer = (props: RawListContainerProps) => {
                 }
 
                 return (
-                  <div role="row" style={{ ...style, overflow: 'hidden' }}>
+                  // The `style` prop is provided by react-window's VariableSizeList render-prop and contains
+                  // dynamic per-row positioning (position, top, left, width, height) that must be applied
+                  // inline to the rendered DOM element; it cannot be statically classed via useStyles2.
+                  <div role="row" className={styles.row} style={style}>
                     <RawListItem
                       isExpandedView={isExpandedView}
                       valueLabels={filteredValueLabels}
