@@ -25,6 +25,13 @@ export const getStyles = () => ({
       cursor: 'col-resize',
       fillOpacity: 0,
       fill: '#44f',
+      // Sub-pixel offset that centers the 9px-wide expansion rect on its
+      // anchor x-percent. Migrated from inline `style={{ transform: ... }}`
+      // per AAP §0.5.3 (Rule T3 — non-layout inline styles → useStyles2).
+      // The value is a visual-fidelity offset (half of the 9px width) and
+      // intentionally remains a raw pixel value rather than a theme token,
+      // per AAP §0.4.3 token mapping.
+      transform: 'translate(-4.5px)',
     }),
     'scrubber-handle-expansion'
   ),
@@ -33,6 +40,10 @@ export const getStyles = () => ({
       label: 'ScrubberHandle',
       cursor: 'col-resize',
       fill: '#555',
+      // Sub-pixel offset that centers the 3px-wide handle rect on its
+      // anchor x-percent. Migrated from inline `style={{ transform: ... }}`
+      // per AAP §0.5.3. Raw pixel value retained for visual fidelity.
+      transform: 'translate(-1.5px)',
     }),
     'scrubber-handle'
   ),
@@ -96,7 +107,6 @@ export default function Scrubber({ isDragging, onMouseDown, onMouseEnter, onMous
           data-testid="scrubber-component-rect-1"
           x={xPercent}
           className={styles.ScrubberHandleExpansion}
-          style={{ transform: `translate(-4.5px)` }}
           width="9"
           height="20"
         />
@@ -104,7 +114,6 @@ export default function Scrubber({ isDragging, onMouseDown, onMouseEnter, onMous
           data-testid="scrubber-component-rect-2"
           x={xPercent}
           className={styles.ScrubberHandle}
-          style={{ transform: `translate(-1.5px)` }}
           width="3"
           height="20"
         />
