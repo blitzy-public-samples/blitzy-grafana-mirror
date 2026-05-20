@@ -55,10 +55,12 @@ export const makeExplorePaneState = (overrides?: Partial<ExploreItemState>): Exp
     from: null,
     to: null,
     raw: DEFAULT_RANGE,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- makeExplorePaneState produces an uninitialized pane: `from` and `to` are intentionally null until the user selects a range. TimeRange requires non-null DateTime values, and loosening ExploreItemState.range to a nullable type would ripple through every consumer (MINIMAL CHANGE MANDATE).
   } as any,
   absoluteRange: {
     from: null,
     to: null,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Same rationale as `range` above: AbsoluteTimeRange requires non-null `from`/`to` numbers, but the uninitialized pane intentionally uses null sentinels until the user selects a range.
   } as any,
   scanning: false,
   queryKeys: [],
