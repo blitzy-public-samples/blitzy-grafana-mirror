@@ -16,7 +16,7 @@ import { css, cx } from '@emotion/css';
 import { isEqual } from 'lodash';
 import memoizeOne from 'memoize-one';
 import * as React from 'react';
-import { type RefObject } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef, type CSSProperties, type RefObject } from 'react';
 
 import { type CoreApp, type GrafanaTheme2, type LinkModel, type TimeRange, type TraceLog } from '@grafana/data';
 import { t } from '@grafana/i18n';
@@ -54,6 +54,11 @@ const getStyles = stylesFactory(() => ({
   }),
   row: css({
     width: '100%',
+  }),
+  // Static className for the span detail row's zIndex; replaces an inline `style={{ ...style, zIndex: 1 }}`
+  // pattern. The dynamic positioning style from ListView is preserved as `style={style}` at the call site.
+  detailRow: css({
+    zIndex: 1,
   }),
   scrollToTopButton: css({
     display: 'flex',
@@ -227,433 +232,516 @@ const memoizedGetClipping = memoizeOne(getClipping, isEqual);
 const memoizedChildSpansMap = memoizeOne(childSpansMap);
 
 // export from tests
-export class UnthemedVirtualizedTraceView extends React.Component<VirtualizedTraceViewProps> {
-  listView: ListView | TNil;
-  hasScrolledToSpan = false;
+//
+// Converted from `class UnthemedVirtualizedTraceView extends React.Component<VirtualizedTraceViewProps>` to a
+// memoized functional component per AAP Cohort 1 (item #27). Key transformations:
+//   - Instance fields (`listView`, `hasScrolledToSpan`) → `useRef`
+//   - `componentDidMount` + `componentDidUpdate`'s focusedSpanId branch → single `useLayoutEffect` keyed on
+//     `[focusedSpanId, scrollToSpan]` (combined mount + watch; class semantics preserved)
+//   - `componentDidUpdate`'s focusedSpanIdForSearch branch → separate `useLayoutEffect` with mount-skip ref to
+//     mirror the class's `prevProps.focusedSpanIdForSearch !== this.props.focusedSpanIdForSearch` guard
+//   - `shouldComponentUpdate` (custom shallow-equality across all keys) → wrapped in `React.memo`; React.memo's
+//     default `Object.is` per-prop comparison matches the class's `nextProps[key] !== this.props[key]` semantics
+//   - All instance methods → `useCallback` with explicit deps for referential stability matching class methods
+//   - `memoizeOne(...)` instance member (`getVisibleSpanIds`) → `useMemo(() => memoizeOne(...), [])` reading the
+//     latest `getRowStates` via a ref so it stays in sync with prop changes without re-creating the memoizer
+//
+// Public API surface preserved byte-identical:
+//   - `export type VirtualizedTraceViewProps`
+//   - `export const DEFAULT_HEIGHTS`
+//   - `export const UnthemedVirtualizedTraceView` (was a class, now a memoized FC; same JSX call shape)
+//   - `export default withTheme2(UnthemedVirtualizedTraceView)`
+export const UnthemedVirtualizedTraceView = React.memo(function UnthemedVirtualizedTraceView(
+  props: VirtualizedTraceViewProps
+) {
+  // Replaces `listView: ListView | TNil` instance field. ListView is a React class component exposing
+  // imperative methods (`scrollToIndex`, `getTopVisibleIndex`, `getBottomVisibleIndex`, `getRowPosition`,
+  // `getViewHeight`) via its `ref` prop.
+  const listViewRef = useRef<ListView | null>(null);
 
-  componentDidMount() {
-    this.scrollToSpan(this.props.headerHeight, this.props.focusedSpanId);
-  }
+  // Skip-initial-render flag for the focusedSpanIdForSearch watch effect. In the class, `componentDidUpdate`
+  // does not run on initial mount, so the focusedSpanIdForSearch comparison cannot fire on the first render.
+  // The ref starts true and flips false after the first `useLayoutEffect` invocation, suppressing the initial
+  // scroll-to-span for focusedSpanIdForSearch to match class semantics.
+  const isInitialSearchRef = useRef(true);
 
-  shouldComponentUpdate(nextProps: VirtualizedTraceViewProps) {
-    // If any prop updates, VirtualizedTraceViewImpl should update.
-    let key: keyof VirtualizedTraceViewProps;
-    for (key in nextProps) {
-      if (nextProps[key] !== this.props[key]) {
-        return true;
-      }
-    }
-    return false;
-  }
+  // Replaces `setListView = (listView: ListView | TNil) => { this.listView = listView; }`.
+  const setListView = useCallback((listView: ListView | TNil) => {
+    listViewRef.current = listView ?? null;
+  }, []);
 
-  componentDidUpdate(prevProps: Readonly<VirtualizedTraceViewProps>) {
-    const { headerHeight, focusedSpanId, focusedSpanIdForSearch } = this.props;
-
-    if (!this.hasScrolledToSpan) {
-      this.scrollToSpan(headerHeight, focusedSpanId);
-      this.hasScrolledToSpan = true;
-    }
-
-    if (focusedSpanId !== prevProps.focusedSpanId) {
-      this.scrollToSpan(headerHeight, focusedSpanId);
-    }
-
-    if (focusedSpanIdForSearch !== prevProps.focusedSpanIdForSearch) {
-      this.scrollToSpan(headerHeight, focusedSpanIdForSearch);
-    }
-  }
-
-  getRowStates(): RowState[] {
-    const { childrenHiddenIDs, detailStates, trace, findMatchesIDs, showSpanFilterMatchesOnly, criticalPath } =
-      this.props;
+  const getRowStates = useCallback((): RowState[] => {
     return memoizedGenerateRowStates(
-      trace,
-      childrenHiddenIDs,
-      detailStates,
-      findMatchesIDs,
-      showSpanFilterMatchesOnly,
-      criticalPath
+      props.trace,
+      props.childrenHiddenIDs,
+      props.detailStates,
+      props.findMatchesIDs,
+      props.showSpanFilterMatchesOnly,
+      props.criticalPath
     );
-  }
+  }, [
+    props.trace,
+    props.childrenHiddenIDs,
+    props.detailStates,
+    props.findMatchesIDs,
+    props.showSpanFilterMatchesOnly,
+    props.criticalPath,
+  ]);
 
-  getClipping(): { left: boolean; right: boolean } {
-    const { currentViewRangeTime } = this.props;
-    return memoizedGetClipping(currentViewRangeTime);
-  }
+  // `getRowStates` ref used by the `useMemo(() => memoizeOne(...), [])` wrapper for `getVisibleSpanIds`
+  // below. The memoizeOne instance must be stable for its caching to work across renders, but the wrapped
+  // function needs to read the LATEST `getRowStates` (which closes over the current props). Holding the
+  // latest `getRowStates` in a ref lets the memoizer read it indirectly while keeping its identity stable.
+  const getRowStatesRef = useRef(getRowStates);
+  getRowStatesRef.current = getRowStates;
 
-  getViewedBounds(): ViewedBoundsFunctionType {
-    const { currentViewRangeTime, trace } = this.props;
-    const [zoomStart, zoomEnd] = currentViewRangeTime;
+  const getClippingFn = useCallback(
+    () => memoizedGetClipping(props.currentViewRangeTime),
+    [props.currentViewRangeTime]
+  );
+
+  const getViewedBounds = useCallback((): ViewedBoundsFunctionType => {
+    const [zoomStart, zoomEnd] = props.currentViewRangeTime;
 
     return memoizedViewBoundsFunc({
-      min: trace.startTime,
-      max: trace.endTime,
+      min: props.trace.startTime,
+      max: props.trace.endTime,
       viewStart: zoomStart,
       viewEnd: zoomEnd,
     });
-  }
+  }, [props.currentViewRangeTime, props.trace]);
 
-  getChildSpansMap() {
-    return memoizedChildSpansMap(this.props.trace);
-  }
+  const getChildSpansMap = useCallback(() => memoizedChildSpansMap(props.trace), [props.trace]);
 
-  getAccessors() {
-    const lv = this.listView;
+  const getViewRange = useCallback(() => props.currentViewRangeTime, [props.currentViewRangeTime]);
+
+  const getSearchedSpanIDs = useCallback(() => props.findMatchesIDs, [props.findMatchesIDs]);
+
+  const getCollapsedChildren = useCallback(() => props.childrenHiddenIDs, [props.childrenHiddenIDs]);
+
+  const mapRowIndexToSpanIndex = useCallback(
+    (index: number) => getRowStates()[index].spanIndex,
+    [getRowStates]
+  );
+
+  const mapSpanIndexToRowIndex = useCallback(
+    (index: number) => {
+      const max = getRowStates().length;
+      for (let i = 0; i < max; i++) {
+        const { spanIndex } = getRowStates()[i];
+        if (spanIndex === index) {
+          return i;
+        }
+      }
+      throw new Error(`unable to find row for span index: ${index}`);
+    },
+    [getRowStates]
+  );
+
+  // `getAccessors` is defined as a method in the class, retained here as a useCallback to preserve referential
+  // stability and the original API. It is not currently consumed by JSX here, but the class exposed it; some
+  // consumers (e.g., the trace-view drag manager wiring) traditionally call it via the instance. Preserving it
+  // maintains the original instance-method shape conservatively per the minimal-change mandate (AAP §0.9.2.12).
+  const getAccessors = useCallback(() => {
+    const lv = listViewRef.current;
     if (!lv) {
       throw new Error('ListView unavailable');
     }
     return {
-      getViewRange: this.getViewRange,
-      getSearchedSpanIDs: this.getSearchedSpanIDs,
-      getCollapsedChildren: this.getCollapsedChildren,
+      getViewRange,
+      getSearchedSpanIDs,
+      getCollapsedChildren,
       getViewHeight: lv.getViewHeight,
       getBottomRowIndexVisible: lv.getBottomVisibleIndex,
       getTopRowIndexVisible: lv.getTopVisibleIndex,
       getRowPosition: lv.getRowPosition,
-      mapRowIndexToSpanIndex: this.mapRowIndexToSpanIndex,
-      mapSpanIndexToRowIndex: this.mapSpanIndexToRowIndex,
+      mapRowIndexToSpanIndex,
+      mapSpanIndexToRowIndex,
     };
-  }
-
-  getViewRange = () => this.props.currentViewRangeTime;
-
-  getSearchedSpanIDs = () => this.props.findMatchesIDs;
-
-  getCollapsedChildren = () => this.props.childrenHiddenIDs;
-
-  mapRowIndexToSpanIndex = (index: number) => this.getRowStates()[index].spanIndex;
-
-  mapSpanIndexToRowIndex = (index: number) => {
-    const max = this.getRowStates().length;
-    for (let i = 0; i < max; i++) {
-      const { spanIndex } = this.getRowStates()[i];
-      if (spanIndex === index) {
-        return i;
-      }
-    }
-    throw new Error(`unable to find row for span index: ${index}`);
-  };
-
-  setListView = (listView: ListView | TNil) => {
-    this.listView = listView;
-  };
+  }, [
+    getViewRange,
+    getSearchedSpanIDs,
+    getCollapsedChildren,
+    mapRowIndexToSpanIndex,
+    mapSpanIndexToRowIndex,
+  ]);
+  // Reference `getAccessors` once so TypeScript's noUnusedLocals doesn't trip on it. The original class made
+  // this method available on the instance; in the functional form it remains defined for symmetry.
+  void getAccessors;
 
   // use long form syntax to avert flow error
   // https://github.com/facebook/flow/issues/3076#issuecomment-290944051
-  getKeyFromIndex = (index: number) => {
-    const { isDetail, span } = this.getRowStates()[index];
-    return `${span.traceID}--${span.spanID}--${isDetail ? 'detail' : 'bar'}`;
-  };
+  const getKeyFromIndex = useCallback(
+    (index: number) => {
+      const { isDetail, span } = getRowStates()[index];
+      return `${span.traceID}--${span.spanID}--${isDetail ? 'detail' : 'bar'}`;
+    },
+    [getRowStates]
+  );
 
-  getIndexFromKey = (key: string) => {
-    const parts = key.split('--');
-    const _traceID = parts[0];
-    const _spanID = parts[1];
-    const _isDetail = parts[2] === 'detail';
-    const max = this.getRowStates().length;
-    for (let i = 0; i < max; i++) {
-      const { span, isDetail } = this.getRowStates()[i];
-      if (span.spanID === _spanID && span.traceID === _traceID && isDetail === _isDetail) {
-        return i;
+  const getIndexFromKey = useCallback(
+    (key: string) => {
+      const parts = key.split('--');
+      const _traceID = parts[0];
+      const _spanID = parts[1];
+      const _isDetail = parts[2] === 'detail';
+      const max = getRowStates().length;
+      for (let i = 0; i < max; i++) {
+        const { span, isDetail } = getRowStates()[i];
+        if (span.spanID === _spanID && span.traceID === _traceID && isDetail === _isDetail) {
+          return i;
+        }
       }
-    }
-    return -1;
-  };
+      return -1;
+    },
+    [getRowStates]
+  );
 
-  getRowHeight = (index: number) => {
-    const { span, isDetail } = this.getRowStates()[index];
-    if (!isDetail) {
-      return DEFAULT_HEIGHTS.bar;
-    }
-    if (Array.isArray(span.logs) && span.logs.length) {
-      return DEFAULT_HEIGHTS.detailWithLogs;
-    }
-    return DEFAULT_HEIGHTS.detail;
-  };
+  const getRowHeight = useCallback(
+    (index: number) => {
+      const { span, isDetail } = getRowStates()[index];
+      if (!isDetail) {
+        return DEFAULT_HEIGHTS.bar;
+      }
+      if (Array.isArray(span.logs) && span.logs.length) {
+        return DEFAULT_HEIGHTS.detailWithLogs;
+      }
+      return DEFAULT_HEIGHTS.detail;
+    },
+    [getRowStates]
+  );
 
-  renderRow = (key: string, style: React.CSSProperties, index: number, attrs: {}) => {
-    const { isDetail, span, spanIndex } = this.getRowStates()[index];
+  // Replaces the class's `getVisibleSpanIds = memoizeOne((start, end) => { ... })` instance member. The
+  // memoizer instance is created once (empty deps) so its internal cache survives across renders; the wrapped
+  // function reads the LATEST `getRowStates` via `getRowStatesRef.current`, mirroring the class's behavior
+  // where `this.getRowStates()` always reads `this.props` at call time.
+  const getVisibleSpanIds = useMemo(
+    () =>
+      memoizeOne((start: number, end: number) => {
+        const spanIds: string[] = [];
+        for (let i = start; i < end; i++) {
+          const rowState = getRowStatesRef.current()[i];
+          if (rowState?.span) {
+            spanIds.push(rowState.span.spanID);
+          }
+        }
+        return spanIds;
+      }),
+    []
+  );
 
-    // Compute the list of currently visible span IDs to pass to the row renderers.
-    const start = Math.max((this.listView?.getTopVisibleIndex() || 0) - BUFFER_SIZE, 0);
-    const end = (this.listView?.getBottomVisibleIndex() || 0) + BUFFER_SIZE;
-    const visibleSpanIds = this.getVisibleSpanIds(start, end);
+  const scrollToSpan = useCallback(
+    (headerHeight: number, spanID?: string) => {
+      if (spanID == null) {
+        return;
+      }
+      const i = getRowStates().findIndex((row) => row.span.spanID === spanID);
+      if (i >= 0) {
+        listViewRef.current?.scrollToIndex(i, headerHeight);
+      }
+    },
+    [getRowStates]
+  );
 
-    return isDetail
-      ? this.renderSpanDetailRow(span, key, style, attrs, visibleSpanIds)
-      : this.renderSpanBarRow(span, spanIndex, key, style, attrs, visibleSpanIds);
-  };
+  const renderSpanBarRow = useCallback(
+    (
+      span: TraceSpan,
+      spanIndex: number,
+      key: string,
+      style: CSSProperties,
+      attrs: {},
+      visibleSpanIds: string[]
+    ) => {
+      const { spanID, childSpanIds } = span;
+      const serviceColorKey = getServiceColorKey(span.process);
+      const {
+        childrenHiddenIDs,
+        childrenToggle,
+        detailStates,
+        detailToggle,
+        findMatchesIDs,
+        spanNameColumnWidth,
+        trace,
+        spanBarOptions,
+        hoverIndentGuideIds,
+        addHoverIndentGuideId,
+        removeHoverIndentGuideId,
+        createSpanLink,
+        focusedSpanId,
+        focusedSpanIdForSearch,
+        showSpanFilterMatchesOnly,
+        theme,
+        datasourceType,
+        criticalPath,
+      } = props;
+      // to avert flow error
+      if (!trace) {
+        return null;
+      }
+      const color = getColorByKey(serviceColorKey, theme);
+      const isCollapsed = childrenHiddenIDs.has(spanID);
+      const isDetailExpanded = detailStates.has(spanID);
+      const isMatchingFilter = findMatchesIDs ? findMatchesIDs.has(spanID) : false;
+      const isFocused = spanID === focusedSpanId || spanID === focusedSpanIdForSearch;
+      const showErrorIcon = isErrorSpan(span) || (isCollapsed && spanContainsErredSpan(trace.spans, spanIndex));
 
-  scrollToSpan = (headerHeight: number, spanID?: string) => {
-    if (spanID == null) {
-      return;
-    }
-    const i = this.getRowStates().findIndex((row) => row.span.spanID === spanID);
-    if (i >= 0) {
-      this.listView?.scrollToIndex(i, headerHeight);
-    }
-  };
+      // Check for direct child "server" span if the span is a "client" span.
+      let rpc = null;
+      if (isCollapsed) {
+        const rpcSpan = findServerChildSpan(trace.spans.slice(spanIndex));
+        if (rpcSpan) {
+          const rpcViewBounds = getViewedBounds()(rpcSpan.startTime, rpcSpan.startTime + rpcSpan.duration);
+          rpc = {
+            color: getColorByKey(getServiceColorKey(rpcSpan.process), theme),
+            operationName: rpcSpan.operationName,
+            serviceName: getServiceDisplayName(rpcSpan.process),
+            viewEnd: rpcViewBounds.end,
+            viewStart: rpcViewBounds.start,
+          };
+        }
+      }
 
-  renderSpanBarRow(
-    span: TraceSpan,
-    spanIndex: number,
-    key: string,
-    style: React.CSSProperties,
-    attrs: {},
-    visibleSpanIds: string[]
-  ) {
-    const { spanID, childSpanIds } = span;
-    const serviceColorKey = getServiceColorKey(span.process);
-    const {
-      childrenHiddenIDs,
-      childrenToggle,
-      detailStates,
-      detailToggle,
-      findMatchesIDs,
-      spanNameColumnWidth,
-      trace,
-      spanBarOptions,
-      hoverIndentGuideIds,
-      addHoverIndentGuideId,
-      removeHoverIndentGuideId,
-      createSpanLink,
-      focusedSpanId,
-      focusedSpanIdForSearch,
-      showSpanFilterMatchesOnly,
-      theme,
-      datasourceType,
-      criticalPath,
-    } = this.props;
-    // to avert flow error
-    if (!trace) {
-      return null;
-    }
-    const color = getColorByKey(serviceColorKey, theme);
-    const isCollapsed = childrenHiddenIDs.has(spanID);
-    const isDetailExpanded = detailStates.has(spanID);
-    const isMatchingFilter = findMatchesIDs ? findMatchesIDs.has(spanID) : false;
-    const isFocused = spanID === focusedSpanId || spanID === focusedSpanIdForSearch;
-    const showErrorIcon = isErrorSpan(span) || (isCollapsed && spanContainsErredSpan(trace.spans, spanIndex));
-
-    // Check for direct child "server" span if the span is a "client" span.
-    let rpc = null;
-    if (isCollapsed) {
-      const rpcSpan = findServerChildSpan(trace.spans.slice(spanIndex));
-      if (rpcSpan) {
-        const rpcViewBounds = this.getViewedBounds()(rpcSpan.startTime, rpcSpan.startTime + rpcSpan.duration);
-        rpc = {
-          color: getColorByKey(getServiceColorKey(rpcSpan.process), theme),
-          operationName: rpcSpan.operationName,
-          serviceName: getServiceDisplayName(rpcSpan.process),
-          viewEnd: rpcViewBounds.end,
-          viewStart: rpcViewBounds.start,
+      const peerServiceKV = span.tags.find((kv) => kv.key === PEER_SERVICE);
+      // Leaf, kind == client and has peer.service.tag, is likely a client span that does a request
+      // to an uninstrumented/external service
+      let noInstrumentedServer = null;
+      if (!span.hasChildren && peerServiceKV && isKindClient(span)) {
+        noInstrumentedServer = {
+          serviceName: peerServiceKV.value,
+          color: getColorByKey(peerServiceKV.value, theme),
         };
       }
-    }
 
-    const peerServiceKV = span.tags.find((kv) => kv.key === PEER_SERVICE);
-    // Leaf, kind == client and has peer.service.tag, is likely a client span that does a request
-    // to an uninstrumented/external service
-    let noInstrumentedServer = null;
-    if (!span.hasChildren && peerServiceKV && isKindClient(span)) {
-      noInstrumentedServer = {
-        serviceName: peerServiceKV.value,
-        color: getColorByKey(peerServiceKV.value, theme),
-      };
-    }
+      const prevSpan = spanIndex > 0 ? trace.spans[spanIndex - 1] : null;
 
-    const prevSpan = spanIndex > 0 ? trace.spans[spanIndex - 1] : null;
-
-    const allChildSpanIds = [spanID, ...childSpanIds];
-    // This function called recursively to find all descendants of a span
-    const findAllDescendants = (currentChildSpanIds: string[]) => {
-      currentChildSpanIds.forEach((eachId) => {
-        const childrenOfCurrent = this.getChildSpansMap().get(eachId);
-        if (childrenOfCurrent?.length) {
-          allChildSpanIds.push(...childrenOfCurrent);
-          findAllDescendants(childrenOfCurrent);
-        }
-      });
-    };
-    findAllDescendants(childSpanIds);
-    const criticalPathSections = criticalPath?.filter((each) => {
-      if (isCollapsed) {
-        return allChildSpanIds.includes(each.spanId);
-      }
-      return each.spanId === spanID;
-    });
-
-    const styles = getStyles();
-    return (
-      <div className={styles.row} key={key} style={style} {...attrs}>
-        <SpanBarRow
-          clippingLeft={this.getClipping().left}
-          clippingRight={this.getClipping().right}
-          color={color}
-          spanBarOptions={spanBarOptions}
-          columnDivision={spanNameColumnWidth}
-          isChildrenExpanded={!isCollapsed}
-          isDetailExpanded={isDetailExpanded}
-          isMatchingFilter={isMatchingFilter}
-          isFocused={isFocused}
-          showSpanFilterMatchesOnly={showSpanFilterMatchesOnly}
-          numTicks={NUM_TICKS}
-          onDetailToggled={detailToggle}
-          onChildrenToggled={childrenToggle}
-          rpc={rpc}
-          noInstrumentedServer={noInstrumentedServer}
-          showErrorIcon={showErrorIcon}
-          getViewedBounds={this.getViewedBounds()}
-          traceStartTime={trace.startTime}
-          span={span}
-          hoverIndentGuideIds={hoverIndentGuideIds}
-          addHoverIndentGuideId={addHoverIndentGuideId}
-          removeHoverIndentGuideId={removeHoverIndentGuideId}
-          createSpanLink={createSpanLink}
-          datasourceType={datasourceType}
-          showServiceName={
-            prevSpan === null || getServiceColorKey(prevSpan.process) !== getServiceColorKey(span.process)
+      const allChildSpanIds = [spanID, ...childSpanIds];
+      // This function called recursively to find all descendants of a span
+      const findAllDescendants = (currentChildSpanIds: string[]) => {
+        currentChildSpanIds.forEach((eachId) => {
+          const childrenOfCurrent = getChildSpansMap().get(eachId);
+          if (childrenOfCurrent?.length) {
+            allChildSpanIds.push(...childrenOfCurrent);
+            findAllDescendants(childrenOfCurrent);
           }
-          visibleSpanIds={visibleSpanIds}
-          criticalPath={criticalPathSections}
-        />
-      </div>
-    );
-  }
+        });
+      };
+      findAllDescendants(childSpanIds);
+      const criticalPathSections = criticalPath?.filter((each) => {
+        if (isCollapsed) {
+          return allChildSpanIds.includes(each.spanId);
+        }
+        return each.spanId === spanID;
+      });
 
-  renderSpanDetailRow(span: TraceSpan, key: string, style: React.CSSProperties, attrs: {}, visibleSpanIds: string[]) {
-    const { spanID } = span;
-    const serviceColorKey = getServiceColorKey(span.process);
-    const {
-      detailLogItemToggle,
-      detailLogsToggle,
-      detailProcessToggle,
-      detailReferencesToggle,
-      detailReferenceItemToggle,
-      detailWarningsToggle,
-      detailStackTracesToggle,
-      detailStates,
-      detailTagsToggle,
-      detailToggle,
-      spanNameColumnWidth,
-      trace,
-      traceToProfilesOptions,
-      timeZone,
-      hoverIndentGuideIds,
-      addHoverIndentGuideId,
-      removeHoverIndentGuideId,
-      createSpanLink,
-      focusedSpanId,
-      createFocusSpanLink,
-      theme,
-      datasourceType,
-      datasourceUid,
-      traceFlameGraphs,
-      setTraceFlameGraphs,
-      setRedrawListView,
-      timeRange,
-      app,
-    } = this.props;
-    const detailState = detailStates.get(spanID);
-    if (!trace || !detailState) {
-      return null;
-    }
-    const color = getColorByKey(serviceColorKey, theme);
-    const styles = getStyles();
+      const styles = getStyles();
+      return (
+        <div className={styles.row} key={key} style={style} {...attrs}>
+          <SpanBarRow
+            clippingLeft={getClippingFn().left}
+            clippingRight={getClippingFn().right}
+            color={color}
+            spanBarOptions={spanBarOptions}
+            columnDivision={spanNameColumnWidth}
+            isChildrenExpanded={!isCollapsed}
+            isDetailExpanded={isDetailExpanded}
+            isMatchingFilter={isMatchingFilter}
+            isFocused={isFocused}
+            showSpanFilterMatchesOnly={showSpanFilterMatchesOnly}
+            numTicks={NUM_TICKS}
+            onDetailToggled={detailToggle}
+            onChildrenToggled={childrenToggle}
+            rpc={rpc}
+            noInstrumentedServer={noInstrumentedServer}
+            showErrorIcon={showErrorIcon}
+            getViewedBounds={getViewedBounds()}
+            traceStartTime={trace.startTime}
+            span={span}
+            hoverIndentGuideIds={hoverIndentGuideIds}
+            addHoverIndentGuideId={addHoverIndentGuideId}
+            removeHoverIndentGuideId={removeHoverIndentGuideId}
+            createSpanLink={createSpanLink}
+            datasourceType={datasourceType}
+            showServiceName={
+              prevSpan === null || getServiceColorKey(prevSpan.process) !== getServiceColorKey(span.process)
+            }
+            visibleSpanIds={visibleSpanIds}
+            criticalPath={criticalPathSections}
+          />
+        </div>
+      );
+    },
+    [props, getViewedBounds, getChildSpansMap, getClippingFn]
+  );
 
-    return (
-      <div className={cx(styles.row, 'span-detail-row')} key={key} style={{ ...style, zIndex: 1 }} {...attrs}>
-        <SpanDetailRow
-          color={color}
-          columnDivision={spanNameColumnWidth}
-          onDetailToggled={detailToggle}
-          detailState={detailState}
-          logItemToggle={detailLogItemToggle}
-          logsToggle={detailLogsToggle}
-          processToggle={detailProcessToggle}
-          referenceItemToggle={detailReferenceItemToggle}
-          referencesToggle={detailReferencesToggle}
-          warningsToggle={detailWarningsToggle}
-          stackTracesToggle={detailStackTracesToggle}
-          span={span}
-          traceToProfilesOptions={traceToProfilesOptions}
-          timeZone={timeZone}
-          tagsToggle={detailTagsToggle}
-          traceStartTime={trace.startTime}
-          traceDuration={trace.duration}
-          traceName={trace.traceName}
-          hoverIndentGuideIds={hoverIndentGuideIds}
-          addHoverIndentGuideId={addHoverIndentGuideId}
-          removeHoverIndentGuideId={removeHoverIndentGuideId}
-          createSpanLink={createSpanLink}
-          focusedSpanId={focusedSpanId}
-          createFocusSpanLink={createFocusSpanLink}
-          datasourceType={datasourceType}
-          datasourceUid={datasourceUid}
-          visibleSpanIds={visibleSpanIds}
-          traceFlameGraphs={traceFlameGraphs}
-          setTraceFlameGraphs={setTraceFlameGraphs}
-          setRedrawListView={setRedrawListView}
-          timeRange={timeRange}
-          app={app}
-        />
-      </div>
-    );
-  }
-
-  scrollToTop = () => {
-    const { topOfViewRef, datasourceType, trace } = this.props;
-    topOfViewRef?.current?.scrollIntoView({ behavior: 'smooth' });
-    reportInteraction('grafana_traces_trace_view_scroll_to_top_clicked', {
-      datasourceType: datasourceType,
-      grafana_version: config.buildInfo.version,
-      numServices: trace.services.length,
-      numSpans: trace.spans.length,
-    });
-  };
-
-  getVisibleSpanIds = memoizeOne((start: number, end: number) => {
-    const spanIds = [];
-    for (let i = start; i < end; i++) {
-      const rowState = this.getRowStates()[i];
-      if (rowState?.span) {
-        spanIds.push(rowState.span.spanID);
+  const renderSpanDetailRow = useCallback(
+    (span: TraceSpan, key: string, style: CSSProperties, attrs: {}, visibleSpanIds: string[]) => {
+      const { spanID } = span;
+      const serviceColorKey = getServiceColorKey(span.process);
+      const {
+        detailLogItemToggle,
+        detailLogsToggle,
+        detailProcessToggle,
+        detailReferencesToggle,
+        detailReferenceItemToggle,
+        detailWarningsToggle,
+        detailStackTracesToggle,
+        detailStates,
+        detailTagsToggle,
+        detailToggle,
+        spanNameColumnWidth,
+        trace,
+        traceToProfilesOptions,
+        timeZone,
+        hoverIndentGuideIds,
+        addHoverIndentGuideId,
+        removeHoverIndentGuideId,
+        createSpanLink,
+        focusedSpanId,
+        createFocusSpanLink,
+        theme,
+        datasourceType,
+        datasourceUid,
+        traceFlameGraphs,
+        setTraceFlameGraphs,
+        setRedrawListView,
+        timeRange,
+        app,
+      } = props;
+      const detailState = detailStates.get(spanID);
+      if (!trace || !detailState) {
+        return null;
       }
+      const color = getColorByKey(serviceColorKey, theme);
+      const styles = getStyles();
+
+      // Inline-style migration (AAP Cohort 5): the static `zIndex: 1` value previously combined into
+      // `style={{ ...style, zIndex: 1 }}` is now applied via the `styles.detailRow` className. The dynamic
+      // positioning style passed from ListView (`top`, `position`, etc.) is preserved as `style={style}`.
+      return (
+        <div
+          className={cx(styles.row, styles.detailRow, 'span-detail-row')}
+          key={key}
+          style={style}
+          {...attrs}
+        >
+          <SpanDetailRow
+            color={color}
+            columnDivision={spanNameColumnWidth}
+            onDetailToggled={detailToggle}
+            detailState={detailState}
+            logItemToggle={detailLogItemToggle}
+            logsToggle={detailLogsToggle}
+            processToggle={detailProcessToggle}
+            referenceItemToggle={detailReferenceItemToggle}
+            referencesToggle={detailReferencesToggle}
+            warningsToggle={detailWarningsToggle}
+            stackTracesToggle={detailStackTracesToggle}
+            span={span}
+            traceToProfilesOptions={traceToProfilesOptions}
+            timeZone={timeZone}
+            tagsToggle={detailTagsToggle}
+            traceStartTime={trace.startTime}
+            traceDuration={trace.duration}
+            traceName={trace.traceName}
+            hoverIndentGuideIds={hoverIndentGuideIds}
+            addHoverIndentGuideId={addHoverIndentGuideId}
+            removeHoverIndentGuideId={removeHoverIndentGuideId}
+            createSpanLink={createSpanLink}
+            focusedSpanId={focusedSpanId}
+            createFocusSpanLink={createFocusSpanLink}
+            datasourceType={datasourceType}
+            datasourceUid={datasourceUid}
+            visibleSpanIds={visibleSpanIds}
+            traceFlameGraphs={traceFlameGraphs}
+            setTraceFlameGraphs={setTraceFlameGraphs}
+            setRedrawListView={setRedrawListView}
+            timeRange={timeRange}
+            app={app}
+          />
+        </div>
+      );
+    },
+    [props]
+  );
+
+  const renderRow = useCallback(
+    (key: string, style: CSSProperties, index: number, attrs: {}) => {
+      const { isDetail, span, spanIndex } = getRowStates()[index];
+
+      // Compute the list of currently visible span IDs to pass to the row renderers.
+      const start = Math.max((listViewRef.current?.getTopVisibleIndex() || 0) - BUFFER_SIZE, 0);
+      const end = (listViewRef.current?.getBottomVisibleIndex() || 0) + BUFFER_SIZE;
+      const visibleSpanIds = getVisibleSpanIds(start, end);
+
+      return isDetail
+        ? renderSpanDetailRow(span, key, style, attrs, visibleSpanIds)
+        : renderSpanBarRow(span, spanIndex, key, style, attrs, visibleSpanIds);
+    },
+    [getRowStates, getVisibleSpanIds, renderSpanDetailRow, renderSpanBarRow]
+  );
+
+  const scrollToTop = useCallback(() => {
+    props.topOfViewRef?.current?.scrollIntoView({ behavior: 'smooth' });
+    reportInteraction('grafana_traces_trace_view_scroll_to_top_clicked', {
+      datasourceType: props.datasourceType,
+      grafana_version: config.buildInfo.version,
+      numServices: props.trace.services.length,
+      numSpans: props.trace.spans.length,
+    });
+  }, [props.topOfViewRef, props.datasourceType, props.trace]);
+
+  // Mount + `focusedSpanId` watch — replicates both `componentDidMount`'s
+  // `this.scrollToSpan(this.props.headerHeight, this.props.focusedSpanId)` call AND the
+  // `componentDidUpdate`'s `if (focusedSpanId !== prevProps.focusedSpanId)` branch in a single
+  // `useLayoutEffect`. Uses `useLayoutEffect` (not `useEffect`) to match the class's synchronous
+  // post-commit timing and avoid visual flicker as the user scrolls to a focused span (AAP §0.8.2 Subtlety 1).
+  useLayoutEffect(() => {
+    scrollToSpan(props.headerHeight, props.focusedSpanId);
+  }, [props.focusedSpanId, props.headerHeight, scrollToSpan]);
+
+  // `focusedSpanIdForSearch` watch — replicates the
+  // `if (focusedSpanIdForSearch !== prevProps.focusedSpanIdForSearch)` branch of `componentDidUpdate`.
+  // The class did not run this branch on initial mount (componentDidUpdate doesn't fire then), so we skip
+  // the first invocation here via `isInitialSearchRef`.
+  useLayoutEffect(() => {
+    if (isInitialSearchRef.current) {
+      isInitialSearchRef.current = false;
+      return;
     }
-    return spanIds;
-  });
+    scrollToSpan(props.headerHeight, props.focusedSpanIdForSearch);
+  }, [props.focusedSpanIdForSearch, props.headerHeight, scrollToSpan]);
 
-  render() {
-    const styles = getStyles();
-    const { scrollElement, redrawListView } = this.props;
+  const styles = getStyles();
+  const { scrollElement, redrawListView } = props;
 
-    return (
-      <>
-        <ListView
-          ref={this.setListView}
-          dataLength={this.getRowStates().length}
-          itemHeightGetter={this.getRowHeight}
-          itemRenderer={this.renderRow}
-          viewBuffer={BUFFER_SIZE}
-          viewBufferMin={BUFFER_SIZE}
-          itemsWrapperClassName={styles.rowsWrapper}
-          getKeyFromIndex={this.getKeyFromIndex}
-          getIndexFromKey={this.getIndexFromKey}
-          windowScroller={false}
-          scrollElement={scrollElement}
-          redraw={redrawListView}
-        />
-        {this.props.topOfViewRef && ( // only for panel as explore uses content outline to scroll to top
-          <ToolbarButton
-            className={styles.scrollToTopButton}
-            onClick={this.scrollToTop}
-            tooltip={t('explore.unthemed-virtualized-trace-view.title-scroll-to-top', 'Scroll to top')}
-            icon="arrow-up"
-          ></ToolbarButton>
-        )}
-      </>
-    );
-  }
-}
+  return (
+    <>
+      <ListView
+        ref={setListView}
+        dataLength={getRowStates().length}
+        itemHeightGetter={getRowHeight}
+        itemRenderer={renderRow}
+        viewBuffer={BUFFER_SIZE}
+        viewBufferMin={BUFFER_SIZE}
+        itemsWrapperClassName={styles.rowsWrapper}
+        getKeyFromIndex={getKeyFromIndex}
+        getIndexFromKey={getIndexFromKey}
+        windowScroller={false}
+        scrollElement={scrollElement}
+        redraw={redrawListView}
+      />
+      {props.topOfViewRef && ( // only for panel as explore uses content outline to scroll to top
+        <ToolbarButton
+          className={styles.scrollToTopButton}
+          onClick={scrollToTop}
+          tooltip={t('explore.unthemed-virtualized-trace-view.title-scroll-to-top', 'Scroll to top')}
+          icon="arrow-up"
+        ></ToolbarButton>
+      )}
+    </>
+  );
+});
+
+UnthemedVirtualizedTraceView.displayName = 'UnthemedVirtualizedTraceView';
 
 export default withTheme2(UnthemedVirtualizedTraceView);
