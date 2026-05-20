@@ -1855,11 +1855,6 @@
       "count": 1
     }
   },
-  "public/app/features/logs/components/LogDetailsRow.tsx": {
-    "react-prefer-function-component/react-prefer-function-component": {
-      "count": 1
-    }
-  },
   "public/app/features/logs/components/LogMessageAnsi.tsx": {
     "react-prefer-function-component/react-prefer-function-component": {
       "count": 1
@@ -2202,11 +2197,6 @@
   "public/app/features/variables/pickers/OptionsPicker/OptionsPicker.tsx": {
     "react-prefer-function-component/react-prefer-function-component": {
       "count": 1
-    }
-  },
-  "public/app/features/variables/pickers/OptionsPicker/actions.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
     }
   },
   "public/app/features/variables/pickers/PickerRenderer.tsx": {
