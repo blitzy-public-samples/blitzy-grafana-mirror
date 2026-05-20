@@ -33,7 +33,7 @@ export const VersionHistoryHeader = ({
           Comparing {{ baseVersion }} <Icon name="arrows-h" /> {{ newVersion }}
         </Trans>{' '}
         {isNewLatest && (
-          <cite className="muted">
+          <cite className={styles.muted}>
             <Trans i18nKey="dashboard-scene.version-history-header.latest">(Latest)</Trans>
           </cite>
         )}
@@ -48,5 +48,8 @@ const getStyles = (theme: GrafanaTheme2) => ({
     display: 'flex',
     gap: theme.spacing(2),
     marginBottom: theme.spacing(2),
+  }),
+  muted: css({
+    color: theme.colors.text.secondary,
   }),
 });
