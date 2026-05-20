@@ -1215,7 +1215,7 @@
   },
   "public/app/features/dashboard-scene/sharing/ShareLinkTab.tsx": {
     "no-restricted-syntax": {
-      "count": 4
+      "count": 3
     }
   },
   "public/app/features/dashboard-scene/sharing/ShareSnapshotTab.tsx": {
