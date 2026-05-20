@@ -310,7 +310,7 @@ const UnthemedLogs: React.FunctionComponent<Props> = (props: Props) => {
   useEffect(() => {
     if (getPinnedLogsCount() === PINNED_LOGS_LIMIT) {
       setPinLineButtonTooltipTitle(
-        <span style={{ display: 'flex', textAlign: 'center' }}>
+        <span className={styles.pinLineButtonTooltip}>
           ❗️
           <Trans i18nKey="explore.logs.maximum-pinned-logs">
             Maximum of {{ PINNED_LOGS_LIMIT }} pinned logs reached. Unpin a log to add another.
@@ -320,7 +320,7 @@ const UnthemedLogs: React.FunctionComponent<Props> = (props: Props) => {
     } else {
       setPinLineButtonTooltipTitle(PINNED_LOGS_MESSAGE);
     }
-  }, [outlineItems, getPinnedLogsCount]);
+  }, [outlineItems, getPinnedLogsCount, styles.pinLineButtonTooltip]);
 
   useEffect(() => {
     if (loading && !previousLoading && panelState?.logs?.id) {
@@ -1418,6 +1418,10 @@ const getStyles = (theme: GrafanaTheme2, wrapLogMessage: boolean, tableHeight: n
     }),
     logsVolumePanel: css({
       marginBottom: theme.spacing(1.5),
+    }),
+    pinLineButtonTooltip: css({
+      display: 'flex',
+      textAlign: 'center',
     }),
   };
 };
