@@ -263,7 +263,7 @@ function GeneralSettingsEditViewComponent({ model }: SceneComponentProps<General
   return (
     <Page navModel={navModel} pageNav={pageNav} layout={PageLayoutType.Standard}>
       <NavToolbarActions dashboard={dashboard} />
-      <div style={{ maxWidth: '600px' }}>
+      <Box maxWidth={75}>
         <Box display="flex" direction="column" gap={2} marginBottom={5}>
           <Field
             noMargin
@@ -404,7 +404,7 @@ function GeneralSettingsEditViewComponent({ model }: SceneComponentProps<General
         </CollapsableSection>
 
         <Box marginTop={3}>{meta.canDelete && <DeleteDashboardButton dashboard={dashboard} />}</Box>
-      </div>
+      </Box>
     </Page>
   );
 }
