@@ -56,6 +56,7 @@ export function VariableEditorListRow({
         <tr
           ref={provided.innerRef}
           {...provided.draggableProps}
+          // Design system gap: drag-library style spread required by @hello-pangea/dnd; kept as inline style per AAP §0.4.4 Gaps Inventory.
           style={{
             userSelect: snapshot.isDragging ? 'none' : 'auto',
             background: snapshot.isDragging ? theme.colors.background.secondary : undefined,
