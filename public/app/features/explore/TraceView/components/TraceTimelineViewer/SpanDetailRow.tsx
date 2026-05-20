@@ -171,6 +171,7 @@ const UnthemedSpanDetailRow = React.memo<SpanDetailRowProps>((props) => {
           />
         </div>
         <div className={styles.detailWrapper}>
+          {/* Dynamic per-span border-top color; cannot be statically classed. */}
           <div className={styles.infoWrapper} style={{ borderTopColor: color }}>
             <SpanDetail
               color={color}
