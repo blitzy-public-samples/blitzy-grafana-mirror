@@ -114,6 +114,7 @@ export function transformMappingsToV1(fieldConfig: FieldConfigSource): FieldConf
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- V2->V1 schema bridge: V2 `Threshold.value: number | null` (from `@grafana/schema/apis/dashboard.grafana.app/v2`) is structurally incompatible with V1 `Threshold.value: number` (from `@grafana/data`), so the V2-spread `transformedDefaults.thresholds = { ...fieldConfig.defaults.thresholds, mode: ... }` assignment below cannot type-check against V1 `ThresholdsConfig`. No concrete non-`any` type for `transformedDefaults` accepts the V2 spread while remaining assignable to `FieldConfigSourceV1['defaults']` at the return statement without using `as` casts (banned for this file by `consistent-type-assertions: never`) or modifying out-of-scope lines.
   const transformedDefaults: any = {
     ...fieldConfig.defaults,
   };
