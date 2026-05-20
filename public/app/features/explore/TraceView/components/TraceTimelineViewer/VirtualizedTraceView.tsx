@@ -34,7 +34,7 @@ import { type TraceSpan, type Trace, type TraceSpanReference, type CriticalPathS
 import { getColorByKey } from '../utils/color-generator';
 import { getServiceColorKey, getServiceDisplayName } from '../utils/service-name';
 
-import ListView from './ListView';
+import ListView, { type ListViewHandle } from './ListView';
 import SpanBarRow from './SpanBarRow';
 import { type TraceFlameGraphs } from './SpanDetail';
 import type DetailState from './SpanDetail/DetailState';
@@ -257,7 +257,7 @@ export const UnthemedVirtualizedTraceView = React.memo(function UnthemedVirtuali
   // Replaces `listView: ListView | TNil` instance field. ListView is a React class component exposing
   // imperative methods (`scrollToIndex`, `getTopVisibleIndex`, `getBottomVisibleIndex`, `getRowPosition`,
   // `getViewHeight`) via its `ref` prop.
-  const listViewRef = useRef<ListView | null>(null);
+  const listViewRef = useRef<ListViewHandle | null>(null);
 
   // Skip-initial-render flag for the focusedSpanIdForSearch watch effect. In the class, `componentDidUpdate`
   // does not run on initial mount, so the focusedSpanIdForSearch comparison cannot fire on the first render.
@@ -266,7 +266,7 @@ export const UnthemedVirtualizedTraceView = React.memo(function UnthemedVirtuali
   const isInitialSearchRef = useRef(true);
 
   // Replaces `setListView = (listView: ListView | TNil) => { this.listView = listView; }`.
-  const setListView = useCallback((listView: ListView | TNil) => {
+  const setListView = useCallback((listView: ListViewHandle | TNil) => {
     listViewRef.current = listView ?? null;
   }, []);
 
