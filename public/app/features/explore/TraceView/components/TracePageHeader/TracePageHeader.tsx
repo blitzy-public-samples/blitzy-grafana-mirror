@@ -316,10 +316,16 @@ export const TracePageHeader = memo((props: TracePageHeaderProps) => {
             <div className={styles.metadataItem}>
               <span className={styles.metadataLabel}>{t('explore.trace-page-header.trace-id', 'Trace ID')}</span>
               <span className={styles.metadataValue}>
-                <button className={styles.traceIdButton} onClick={copyTraceId}>
+                <Button
+                  className={styles.traceIdButton}
+                  variant="secondary"
+                  fill="text"
+                  size="sm"
+                  onClick={copyTraceId}
+                >
                   {trace.traceID}
                   <Icon name={copyTraceIdClicked ? 'check' : 'copy'} size="sm" className={styles.copyIcon} />
-                </button>
+                </Button>
               </span>
             </div>
 
