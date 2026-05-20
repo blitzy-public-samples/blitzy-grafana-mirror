@@ -1,10 +1,9 @@
 import { css } from '@emotion/css';
-import { useForm } from 'react-hook-form';
 
 import { type GrafanaTheme2 } from '@grafana/data';
 import { selectors as e2eSelectors } from '@grafana/e2e-selectors';
 import { Trans, t } from '@grafana/i18n';
-import { Button, Checkbox, FieldSet, Spinner, Stack, useStyles2 } from '@grafana/ui';
+import { Button, Checkbox, FieldSet, Form, Spinner, Stack, useStyles2 } from '@grafana/ui';
 import { contextSrv } from 'app/core/services/context_srv';
 import { useCreatePublicDashboardMutation } from 'app/features/dashboard/api/publicDashboardApi';
 import { PublicDashboardShareType } from 'app/features/dashboard/components/ShareModal/SharePublicDashboard/SharePublicDashboardUtils';
@@ -22,12 +21,6 @@ export default function CreatePublicSharing({ hasError }: { hasError: boolean })
 
   const hasWritePermissions = contextSrv.hasPermission(AccessControlAction.DashboardsPublicWrite);
 
-  const {
-    handleSubmit,
-    register,
-    formState: { isValid },
-  } = useForm<{ publicAcknowledgment: boolean }>({ mode: 'onChange' });
-
   const [createPublicDashboard, { isLoading, isError }] = useCreatePublicDashboardMutation();
   const onCreate = () => {
     DashboardInteractions.generatePublicDashboardUrlClicked({ share: PublicDashboardShareType.PUBLIC });
@@ -39,29 +32,31 @@ export default function CreatePublicSharing({ hasError }: { hasError: boolean })
   return (
     <>
       {hasWritePermissions && <PublicDashboardAlert />}
-      <form onSubmit={handleSubmit(onCreate)}>
-        <FieldSet disabled={disableInputs}>
-          <div className={styles.checkbox}>
-            <Checkbox
-              {...register('publicAcknowledgment', { required: true })}
-              label={t(
-                'public-dashboard.public-sharing.public-ack',
-                'I understand that this entire dashboard will be public.*'
-              )}
-              data-testid={selectors.willBePublicCheckbox}
-            />
-          </div>
-          <Stack direction="row" gap={1} alignItems="center">
-            <Button type="submit" disabled={!isValid} data-testid={selectors.PublicShare.createButton}>
-              <Trans i18nKey="public-dashboard.public-sharing.accept-button">Accept</Trans>
-            </Button>
-            <Button variant="secondary" onClick={onDismiss} data-testid={selectors.PublicShare.cancelButton}>
-              <Trans i18nKey="public-dashboard.public-sharing.cancel-button">Cancel</Trans>
-            </Button>
-            {isLoading && <Spinner />}
-          </Stack>
-        </FieldSet>
-      </form>
+      <Form<{ publicAcknowledgment: boolean }> onSubmit={onCreate} validateOn="onChange" maxWidth="none">
+        {({ register, formState: { isValid } }) => (
+          <FieldSet disabled={disableInputs}>
+            <div className={styles.checkbox}>
+              <Checkbox
+                {...register('publicAcknowledgment', { required: true })}
+                label={t(
+                  'public-dashboard.public-sharing.public-ack',
+                  'I understand that this entire dashboard will be public.*'
+                )}
+                data-testid={selectors.willBePublicCheckbox}
+              />
+            </div>
+            <Stack direction="row" gap={1} alignItems="center">
+              <Button type="submit" disabled={!isValid} data-testid={selectors.PublicShare.createButton}>
+                <Trans i18nKey="public-dashboard.public-sharing.accept-button">Accept</Trans>
+              </Button>
+              <Button variant="secondary" onClick={onDismiss} data-testid={selectors.PublicShare.cancelButton}>
+                <Trans i18nKey="public-dashboard.public-sharing.cancel-button">Cancel</Trans>
+              </Button>
+              {isLoading && <Spinner />}
+            </Stack>
+          </FieldSet>
+        )}
+      </Form>
     </>
   );
 }
