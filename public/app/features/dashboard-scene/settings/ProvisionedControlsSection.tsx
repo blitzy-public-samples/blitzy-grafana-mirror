@@ -25,6 +25,15 @@ export function ProvisionedControlsSection({ columns, children }: Props) {
   return (
     <div className={styles.container}>
       <CollapsableSection label={<ProvisionedControlsSectionLabel />} isOpen={isOpen} onToggle={setIsOpen}>
+        {/*
+          Design system gap: this component is a slot-based table wrapper that accepts
+          body rows as React children (JSX <tr><td>...</td></tr>). @grafana/ui's
+          InteractiveTable requires a data: T[] + cell-renderer config and does not
+          support children-as-JSX. Converting would require breaking API changes to
+          callers in subfolders (ProvisionedLinksSection.tsx, ProvisionedVariablesSection.tsx)
+          which is out of scope per AAP §0.9.2.12 (minimal change mandate). Kept as raw
+          per AAP §0.4.4 Gaps Inventory.
+        */}
         <table className={classNames('filter-table', 'filter-table--hover', styles.table)} role="grid">
           <thead>
             <tr>
