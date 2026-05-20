@@ -306,6 +306,14 @@ const getStyles = stylesFactory((theme: GrafanaTheme2, showSpanFilterMatchesOnly
       label: 'labelLeft',
       right: '100%',
     }),
+    spanLink: css({
+      label: 'spanLink',
+      paddingInline: '4px',
+    }),
+    viewCell: css({
+      label: 'viewCell',
+      cursor: 'pointer',
+    }),
   };
 });
 
@@ -491,6 +499,7 @@ const UnthemedSpanBarRow = React.memo<SpanBarRowProps>((props) => {
             {showErrorIcon && (
               <Icon
                 name={'exclamation-circle'}
+                // Dynamic per-span error-icon color; cannot be statically classed.
                 style={{
                   backgroundColor: span.errorIconColor
                     ? autoColor(theme, span.errorIconColor)
@@ -510,13 +519,15 @@ const UnthemedSpanBarRow = React.memo<SpanBarRowProps>((props) => {
             )}
             {rpc && (
               <span>
-                <Icon name={'arrow-right'} /> <i className={styles.rpcColorMarker} style={{ background: rpc.color }} />
+                <Icon name={'arrow-right'} /> {/* Dynamic per-rpc-span color; cannot be statically classed. */}
+                <i className={styles.rpcColorMarker} style={{ background: rpc.color }} />
                 {rpc.serviceName}
               </span>
             )}
             {noInstrumentedServer && (
               <span>
                 <Icon name={'arrow-right'} />{' '}
+                {/* Dynamic per-uninstrumented-server color; cannot be statically classed. */}
                 <i className={styles.rpcColorMarker} style={{ background: noInstrumentedServer.color }} />
                 {noInstrumentedServer.serviceName}
               </span>
@@ -538,9 +549,10 @@ const UnthemedSpanBarRow = React.memo<SpanBarRowProps>((props) => {
                     href={links[0].href}
                     // Needs to have target otherwise preventDefault would not work due to angularRouter.
                     target={'_blank'}
+                    className={styles.spanLink}
+                    // Dynamic per-span border color; cannot be statically classed.
                     style={{
                       borderBottom: `2px solid ${color}CF`,
-                      paddingInline: '4px',
                     }}
                     rel="noopener noreferrer"
                     onClick={
@@ -566,13 +578,12 @@ const UnthemedSpanBarRow = React.memo<SpanBarRowProps>((props) => {
         </div>
       </TimelineRow.Cell>
       <TimelineRow.Cell
-        className={cx(styles.view, viewClassName, {
+        className={cx(styles.view, viewClassName, styles.viewCell, {
           [styles.viewExpanded]: isDetailExpanded,
           [styles.viewExpandedAndMatchingFilter]: isMatchingFilter && isDetailExpanded,
           [styles.rowError]: showErrorIcon,
         })}
         data-testid="span-view"
-        style={{ cursor: 'pointer' }}
         width={1 - columnDivision}
         onClick={handleDetailToggle}
       >
