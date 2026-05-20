@@ -39,6 +39,7 @@ export const CreateEmailSharing = ({ hasError }: { hasError: boolean }) => {
   return (
     <>
       {hasWritePermissions && <EmailSharingPricingAlert />}
+      {/* Design system gap: react-hook-form useForm() integration — raw <form> required for handleSubmit() composition */}
       <form onSubmit={handleSubmit(onCreate)}>
         <FieldSet disabled={disableInputs}>
           <div className={styles.checkbox}>
