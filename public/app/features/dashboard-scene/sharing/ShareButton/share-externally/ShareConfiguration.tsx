@@ -5,7 +5,7 @@ import { type GrafanaTheme2 } from '@grafana/data';
 import { selectors as e2eSelectors } from '@grafana/e2e-selectors';
 import { Trans, t } from '@grafana/i18n';
 import { sceneGraph } from '@grafana/scenes';
-import { FieldSet, Icon, Label, Spinner, Stack, Switch, Text, TimeRangeLabel, Tooltip, useStyles2 } from '@grafana/ui';
+import { Box, FieldSet, Icon, Label, Spinner, Stack, Switch, Text, TimeRangeLabel, Tooltip, useStyles2 } from '@grafana/ui';
 import { contextSrv } from 'app/core/services/context_srv';
 import { publicDashboardApi, useUpdatePublicDashboardMutation } from 'app/features/dashboard/api/publicDashboardApi';
 import { type ConfigPublicDashboardForm } from 'app/features/dashboard/components/ShareModal/SharePublicDashboard/ConfigPublicDashboard/ConfigPublicDashboard';
@@ -63,6 +63,7 @@ export default function ShareConfiguration() {
         <Trans i18nKey="public-dashboard.configuration.settings-label">Settings</Trans>
       </Text>
       <Stack justifyContent="space-between">
+        {/* Design system gap: react-hook-form useForm() integration — raw <form> required for handleSubmit() composition */}
         <form onSubmit={handleSubmit(onUpdate)}>
           <FieldSet disabled={disableForm}>
             <Stack direction="column" gap={2}>
@@ -111,15 +112,16 @@ export default function ShareConfiguration() {
                   control={control}
                   name="isAnnotationsEnabled"
                 />
-                <Label
-                  style={{ flex: 1 }}
-                  description={t(
-                    'public-dashboard.configuration.display-annotations-description',
-                    'Present annotations on this dashboard'
-                  )}
-                >
-                  <Trans i18nKey="public-dashboard.configuration.display-annotations-label">Display annotations</Trans>
-                </Label>
+                <Box flex={1}>
+                  <Label
+                    description={t(
+                      'public-dashboard.configuration.display-annotations-description',
+                      'Present annotations on this dashboard'
+                    )}
+                  >
+                    <Trans i18nKey="public-dashboard.configuration.display-annotations-label">Display annotations</Trans>
+                  </Label>
+                </Box>
               </Stack>
               <Stack gap={1} alignItems="flex-start">
                 <div className={styles.timeRange}>
