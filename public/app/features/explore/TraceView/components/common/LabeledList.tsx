@@ -94,6 +94,8 @@ export default function LabeledList(props: LabeledListProps) {
           // If label is service, create small line on left with color
           <li className={styles.LabeledListItem} key={`${key}`}>
             {label === 'Service:' && (
+              // Dynamic per-render value: `backgroundColor` is supplied by the caller-provided `color` prop
+              // and varies per item. Kept as inline `style={{}}` per refactor protocol for dynamic styles.
               <div className={styles.LabeledListServiceLine} style={{ backgroundColor: color }} />
             )}
             {icon && <Icon name={icon} className={styles.LabeledListIcon} size="sm" />}
