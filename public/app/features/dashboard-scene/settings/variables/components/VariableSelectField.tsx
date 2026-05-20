@@ -23,6 +23,7 @@ export function VariableSelectField({
   onChange,
   testId,
   width,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Generic <T> propagation infers `string` at QueryVariableStaticOptions.tsx via literal widening of SORT_OPTIONS (TS2345 against onStaticOptionsOrderChange's literal union); <unknown> alternative breaks contravariance at 4 other call sites under strict function-parameter typing; <any> preserves backward-compatible inference behavior for all 6 call sites
 }: PropsWithChildren<VariableSelectFieldProps<any>>) {
   const styles = useStyles2(getStyles);
   const uniqueId = useId();
