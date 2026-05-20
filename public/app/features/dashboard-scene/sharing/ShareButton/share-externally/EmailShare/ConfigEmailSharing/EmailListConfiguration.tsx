@@ -3,7 +3,19 @@ import { css } from '@emotion/css';
 import { type GrafanaTheme2 } from '@grafana/data';
 import { selectors as e2eSelectors } from '@grafana/e2e-selectors';
 import { t } from '@grafana/i18n';
-import { Dropdown, Field, Icon, IconButton, Menu, Spinner, Stack, Text, useStyles2 } from '@grafana/ui';
+import {
+  type Column,
+  Dropdown,
+  Field,
+  Icon,
+  IconButton,
+  InteractiveTable,
+  Menu,
+  Spinner,
+  Stack,
+  Text,
+  useStyles2,
+} from '@grafana/ui';
 import {
   useReshareAccessToRecipientMutation,
   useDeleteRecipientMutation,
@@ -14,6 +26,8 @@ import { type DashboardScene } from 'app/features/dashboard-scene/scene/Dashboar
 import { DashboardInteractions } from 'app/features/dashboard-scene/utils/interactions';
 
 const selectors = e2eSelectors.pages.ShareDashboardModal.PublicDashboard.EmailSharingConfiguration;
+
+type Recipient = NonNullable<PublicDashboard['recipients']>[number];
 
 const RecipientMenu = ({ onDelete, onReshare }: { onDelete: () => void; onReshare: () => void }) => {
   return (
@@ -54,41 +68,50 @@ const EmailList = ({
     reshareAccess({ recipientUid, uid: publicDashboard.uid });
   };
 
+  const columns: Array<Column<Recipient>> = [
+    {
+      id: 'recipient',
+      cell: ({ row }) => (
+        <Stack direction="row" gap={1} alignItems="center">
+          <div className={styles.icon}>
+            <Icon name="user" />
+          </div>
+          <Text color="secondary">{row.original.recipient}</Text>
+        </Stack>
+      ),
+    },
+    {
+      id: 'loading',
+      disableGrow: true,
+      cell: () => (isLoading ? <Spinner /> : null),
+    },
+    {
+      id: 'actions',
+      disableGrow: true,
+      cell: ({ row }) => (
+        <Dropdown
+          overlay={
+            <RecipientMenu
+              onDelete={() => onDeleteEmail(row.original.uid, row.original.recipient)}
+              onReshare={() => onReshare(row.original.uid)}
+            />
+          }
+        >
+          <IconButton
+            name="ellipsis-v"
+            aria-label={t('dashboard-scene.email-list.aria-label-emailmenu', 'Toggle email menu')}
+            variant="secondary"
+            size="lg"
+          />
+        </Dropdown>
+      ),
+    },
+  ];
+
   return (
-    <table data-testid={selectors.EmailSharingList} className={styles.table}>
-      <tbody>
-        {recipients!.map((recipient, idx) => (
-          <tr key={recipient.uid} className={styles.listItem}>
-            <td className={styles.user}>
-              <Stack direction="row" gap={1} alignItems="center">
-                <div className={styles.icon}>
-                  <Icon name="user" />
-                </div>
-                <Text>{recipient.recipient}</Text>
-              </Stack>
-            </td>
-            <td>{isLoading && <Spinner />}</td>
-            <td>
-              <Dropdown
-                overlay={
-                  <RecipientMenu
-                    onDelete={() => onDeleteEmail(recipient.uid, recipient.recipient)}
-                    onReshare={() => onReshare(recipient.uid)}
-                  />
-                }
-              >
-                <IconButton
-                  name="ellipsis-v"
-                  aria-label={t('dashboard-scene.email-list.aria-label-emailmenu', 'Toggle email menu')}
-                  variant="secondary"
-                  size="lg"
-                />
-              </Dropdown>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <div data-testid={selectors.EmailSharingList}>
+      <InteractiveTable columns={columns} data={recipients ?? []} getRowId={(row) => row.uid} />
+    </div>
   );
 };
 
@@ -129,19 +152,6 @@ const getStyles = (theme: GrafanaTheme2) => ({
   listContainer: css({
     maxHeight: '140px',
     overflowY: 'auto',
-  }),
-  table: css({
-    width: '100%',
-  }),
-  listItem: css({
-    display: 'flex',
-    alignItems: 'center',
-    gap: theme.spacing(0.5),
-    padding: theme.spacing(0.75, 1),
-    color: theme.colors.text.secondary,
-  }),
-  user: css({
-    flex: 1,
   }),
   icon: css({
     border: `${theme.spacing(0.25)} solid ${theme.colors.text.secondary}`,
