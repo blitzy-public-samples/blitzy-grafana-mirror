@@ -2166,11 +2166,6 @@
       "count": 1
     }
   },
-  "public/app/features/variables/adhoc/picker/AdHocFilterKey.tsx": {
-    "no-restricted-syntax": {
-      "count": 3
-    }
-  },
   "public/app/features/variables/adhoc/picker/AdHocFilterRenderer.tsx": {
     "no-restricted-syntax": {
       "count": 1

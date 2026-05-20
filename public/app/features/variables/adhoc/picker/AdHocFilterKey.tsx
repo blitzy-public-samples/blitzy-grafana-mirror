@@ -1,8 +1,9 @@
+import { css } from '@emotion/css';
 import { type ReactElement } from 'react';
 
-import { type AdHocVariableFilter, type DataSourceRef, type SelectableValue } from '@grafana/data';
+import { type AdHocVariableFilter, type DataSourceRef, type GrafanaTheme2, type SelectableValue } from '@grafana/data';
 import { t } from '@grafana/i18n';
-import { Icon, SegmentAsync } from '@grafana/ui';
+import { Icon, SegmentAsync, Stack, useStyles2 } from '@grafana/ui';
 
 import { getDatasourceSrv } from '../../../plugins/datasource_srv';
 
@@ -18,10 +19,11 @@ const MIN_WIDTH = 90;
 export const AdHocFilterKey = ({ datasource, onChange, disabled, filterKey, allFilters }: Props) => {
   const loadKeys = () => fetchFilterKeys(datasource, filterKey, allFilters);
   const loadKeysWithRemove = () => fetchFilterKeysWithRemove(datasource, filterKey, allFilters);
+  const styles = useStyles2(getStyles);
 
   const plusSegment: ReactElement = (
     <span
-      className="gf-form-label query-part"
+      className={styles.queryPart}
       aria-label={t('variables.ad-hoc-filter-key.plus-segment.aria-label-add-filter', 'Add Filter')}
     >
       <Icon name="plus" />
@@ -30,31 +32,31 @@ export const AdHocFilterKey = ({ datasource, onChange, disabled, filterKey, allF
 
   if (filterKey === null) {
     return (
-      <div className="gf-form" data-testid="AdHocFilterKey-add-key-wrapper">
+      <Stack direction="row" gap={0.5} alignItems="center" data-testid="AdHocFilterKey-add-key-wrapper">
         <SegmentAsync
           disabled={disabled}
-          className="query-segment-key"
+          className={styles.querySegmentKey}
           Component={plusSegment}
           value={filterKey}
           onChange={onChange}
           loadOptions={loadKeys}
           inputMinWidth={MIN_WIDTH}
         />
-      </div>
+      </Stack>
     );
   }
 
   return (
-    <div className="gf-form" data-testid="AdHocFilterKey-key-wrapper">
+    <Stack direction="row" gap={0.5} alignItems="center" data-testid="AdHocFilterKey-key-wrapper">
       <SegmentAsync
         disabled={disabled}
-        className="query-segment-key"
+        className={styles.querySegmentKey}
         value={filterKey}
         onChange={onChange}
         loadOptions={loadKeysWithRemove}
         inputMinWidth={MIN_WIDTH}
       />
-    </div>
+    </Stack>
   );
 };
 
@@ -86,3 +88,18 @@ const fetchFilterKeysWithRemove = async (
   const keys = await fetchFilterKeys(datasource, currentKey, allFilters);
   return [REMOVE_VALUE, ...keys];
 };
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  queryPart: css({
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: theme.spacing(0.5, 1),
+    backgroundColor: theme.colors.background.secondary,
+    borderRadius: theme.shape.radius.default,
+    color: theme.colors.text.secondary,
+  }),
+  querySegmentKey: css({
+    fontFamily: theme.typography.fontFamilyMonospace,
+    color: theme.colors.primary.text,
+  }),
+});
