@@ -62,6 +62,7 @@ export function TabsLayoutManagerRenderer({ model }: SceneComponentProps<TabsLay
 
   if (isDropTarget && placeholder) {
     placeholderComponent = (
+      // Design system gap: dynamic placeholder dimensions for drag-drop — runtime measurements cannot use static useStyles2 emotion class
       <div key="placeholder" style={{ width: placeholder.width, height: placeholder.height }}></div>
     );
     children.splice(placeholder.index, 0, placeholderComponent);
