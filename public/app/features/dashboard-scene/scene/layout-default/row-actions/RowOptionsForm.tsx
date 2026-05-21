@@ -31,6 +31,7 @@ export const RowOptionsForm = ({ repeat, title, sceneContext, isUsingDashboardDS
     onUpdate(formData.title, newRepeat);
   };
 
+  // Design system gap: raw <form> retained — file uses react-hook-form's useForm() hook directly with handleSubmit callback per AAP §0.4.2 minimal-change rule for files not using <Form> render-prop API
   return (
     <form onSubmit={handleSubmit(submit)}>
       <Field label={t('dashboard.default-layout.row-options.form.title', 'Title')}>
