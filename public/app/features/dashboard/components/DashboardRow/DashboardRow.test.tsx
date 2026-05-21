@@ -1,14 +1,13 @@
 import { screen, render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import { createTheme } from '@grafana/data';
 import { selectors } from '@grafana/e2e-selectors';
 import { DashboardInteractions } from 'app/features/dashboard-scene/utils/interactions';
 import { SHARED_DASHBOARD_QUERY } from 'app/plugins/datasource/dashboard/constants';
 
 import { PanelModel } from '../../state/PanelModel';
 
-import { DashboardRow, UnthemedDashboardRow } from './DashboardRow';
+import { DashboardRow, getDashboardRowWarning } from './DashboardRow';
 
 // mock DashboardInteractions
 jest.mock('app/features/dashboard-scene/utils/interactions', () => ({
@@ -27,7 +26,7 @@ describe('DashboardRow', () => {
       meta: {
         canEdit: true,
       },
-      events: { subscribe: jest.fn() },
+      events: { subscribe: jest.fn(() => ({ unsubscribe: jest.fn() })) },
       getRowPanels: () => [],
     };
 
@@ -88,8 +87,7 @@ describe('DashboardRow', () => {
       },
     });
     const rowPanel = new PanelModel({ collapsed: true, panels: [panel] });
-    const dashboardRow = new UnthemedDashboardRow({ panel: rowPanel, dashboard: dashboardMock, theme: createTheme() });
-    expect(dashboardRow.getWarning()).toBeDefined();
+    expect(getDashboardRowWarning(rowPanel, dashboardMock)).toBeDefined();
   });
 
   it('Should not return warning message when row panel does not have a panel with dashboard ds set', async () => {
@@ -100,8 +98,7 @@ describe('DashboardRow', () => {
       },
     });
     const rowPanel = new PanelModel({ collapsed: true, panels: [panel] });
-    const dashboardRow = new UnthemedDashboardRow({ panel: rowPanel, dashboard: dashboardMock, theme: createTheme() });
-    expect(dashboardRow.getWarning()).not.toBeDefined();
+    expect(getDashboardRowWarning(rowPanel, dashboardMock)).not.toBeDefined();
   });
 
   it('should call DashboardInteractions.trackDeleteDashboardElement when clicking on delete row button', async () => {
