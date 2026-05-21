@@ -1543,17 +1543,7 @@
       "count": 1
     }
   },
-  "public/app/features/dashboard/state/TimeModel.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    }
-  },
   "public/app/features/dashboard/state/actions.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
-  "public/app/features/dashboard/state/getPanelPluginToMigrateTo.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1
     }
