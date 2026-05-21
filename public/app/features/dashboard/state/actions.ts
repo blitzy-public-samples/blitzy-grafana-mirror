@@ -16,7 +16,7 @@ import { getTimeSrv } from '../services/TimeSrv';
 
 import { cleanUpDashboard } from './reducers';
 
-export function importDashboard(data: any, dashboardTitle: string): ThunkResult<void> {
+export function importDashboard(data: unknown, dashboardTitle: string): ThunkResult<void> {
   return async (dispatch) => {
     await getBackendSrv().post('/api/dashboards/import', data);
     dispatch(notifyApp(createSuccessNotification('Dashboard Imported', dashboardTitle)));

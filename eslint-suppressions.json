@@ -1543,11 +1543,6 @@
       "count": 1
     }
   },
-  "public/app/features/dashboard/state/actions.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "public/app/features/dashboard/state/initDashboard.test.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1
