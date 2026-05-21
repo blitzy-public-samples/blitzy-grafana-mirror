@@ -19,6 +19,7 @@ import {
   Select,
   ClipboardButton,
   Stack,
+  Text,
   TextLink,
 } from '@grafana/ui';
 import { contextSrv } from 'app/core/services/context_srv';
@@ -79,19 +80,19 @@ export function HelpWizard({ panel, plugin, onClose }: Props) {
               <Trans i18nKey="dashboard.help-wizard.troubleshooting-docs">Troubleshooting docs</Trans>
             </TextLink>
           </Stack>
-          <span className="muted">
+          <Text color="secondary">
             <Trans i18nKey="help-wizard.troubleshooting-help">
               To request troubleshooting help, send a snapshot of this panel to Grafana Labs Technical Support. The
               snapshot contains query response data and panel settings.
             </Trans>
-          </span>
+          </Text>
           {hasSupportBundleAccess && (
-            <span className="muted">
+            <Text color="secondary">
               <Trans i18nKey="help-wizard.support-bundle">
                 You can also retrieve a support bundle containing information concerning your Grafana instance and
                 configured datasources in the <TextLink href="/support-bundles">support bundles section</TextLink>.
               </Trans>
-            </span>
+            </Text>
           )}
         </Stack>
       }
@@ -203,7 +204,7 @@ export function HelpWizard({ panel, plugin, onClose }: Props) {
 
           <AutoSizer disableWidth>
             {({ height }) => (
-              <div style={{ height, overflow: 'auto' }}>{scene && <scene.Component model={scene} />}</div>
+              <div className={css({ height, overflow: 'auto' })}>{scene && <scene.Component model={scene} />}</div>
             )}
           </AutoSizer>
         </>
