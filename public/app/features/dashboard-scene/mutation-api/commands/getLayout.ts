@@ -77,10 +77,34 @@ function trimElements(elements: Record<string, Element>): Record<string, Trimmed
 }
 
 /**
+ * Local structural shape for the recursive serialized layout tree walked by injectPaths.
+ * The tree is a discriminated union by `kind`; we only inspect/mutate `RowsLayout` and
+ * `TabsLayout` branches. Each row/tab gets a `path` string injected at runtime (this is
+ * NOT part of the upstream @grafana/schema definition — it is added here before the
+ * layout is returned to the API consumer). The `items?` field is declared purely for
+ * structural compatibility with `GridLayout` and `AutoGridLayout` spec shapes (which
+ * have `items` instead of `rows`/`tabs`); the walker does not read it.
+ */
+interface SerializedLayoutNode {
+  kind: string;
+  spec?: {
+    rows?: SerializedRowOrTab[];
+    tabs?: SerializedRowOrTab[];
+    items?: unknown;
+  };
+}
+
+interface SerializedRowOrTab {
+  path?: string;
+  spec?: {
+    layout?: SerializedLayoutNode;
+  };
+}
+
+/**
  * Walk the serialized layout tree and inject `path` strings on RowsLayoutRow and TabsLayoutTab nodes.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- walking an untyped serialized tree
-function injectPaths(layout: any, prefix = ''): void {
+function injectPaths(layout: SerializedLayoutNode | undefined, prefix = ''): void {
   if (!layout || !layout.kind) {
     return;
   }
