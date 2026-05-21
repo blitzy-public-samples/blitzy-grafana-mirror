@@ -4,7 +4,7 @@ import { type FormEventHandler, type KeyboardEventHandler, type ReactNode } from
 import { DocsId, type GrafanaTheme2, LocalStorageValueProvider, type TransformerRegistryItem } from '@grafana/data';
 import { selectors } from '@grafana/e2e-selectors';
 import { Trans, t } from '@grafana/i18n';
-import { Alert, Card, Container, Input, Stack, useStyles2 } from '@grafana/ui';
+import { Alert, Card, Container, Input, Stack, TextLink, useStyles2 } from '@grafana/ui';
 import { getDocsLink } from 'app/core/utils/docsLinks';
 import { PluginStateInfo } from 'app/features/plugins/components/PluginStateInfo';
 
@@ -57,14 +57,9 @@ export function TransformationPicker(props: TransformationPickerProps) {
                       doing.{' '}
                     </Trans>
                   </p>
-                  <a
-                    href={getDocsLink(DocsId.Transformations)}
-                    className="external-link"
-                    target="_blank"
-                    rel="noreferrer"
-                  >
+                  <TextLink href={getDocsLink(DocsId.Transformations)} external>
                     <Trans i18nKey="dashboard.transformation-picker.read-more">Read more</Trans>
-                  </a>
+                  </TextLink>
                 </Alert>
               );
             }}
