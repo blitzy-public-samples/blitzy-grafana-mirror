@@ -92,13 +92,9 @@ export function orderArrayProperties(obj1: JSONArray, obj2: JSONArray) {
 // O(n^2), which is more or less unavoidable
 // Can be made a better match by using levenshtein distance and Hungarian matching
 export function fillBySimilarity(
-  // TODO: Investigate not using any
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  obj1: any[],
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  obj2: any[],
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  orderedObj2: any[],
+  obj1: JSONArray,
+  obj2: JSONArray,
+  orderedObj2: JSONValue[],
   unseen1: Set<number>,
   unseen2: Set<number>
 ): void {
@@ -109,8 +105,8 @@ export function fillBySimilarity(
     // Index name matches calling function
     let item2 = obj2[j];
 
-    // If not object, or if array, just push item2 to orderedObj2 and remove j from unseen2
-    if (typeof item2 !== 'object' || Array.isArray(item2)) {
+    // If not a non-null, non-array object, just push item2 to orderedObj2 and remove j from unseen2
+    if (typeof item2 !== 'object' || item2 === null || Array.isArray(item2)) {
       orderedObj2.push(item2);
       unseen2.delete(j);
       return;
@@ -118,7 +114,7 @@ export function fillBySimilarity(
 
     unseen1.forEach((i: number) => {
       let item1 = obj1[i];
-      if (typeof item1 !== 'object' || Array.isArray(item1)) {
+      if (typeof item1 !== 'object' || item1 === null || Array.isArray(item1)) {
         unseen1.delete(i);
         return;
       }
