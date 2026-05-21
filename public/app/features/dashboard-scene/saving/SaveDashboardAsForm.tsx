@@ -152,6 +152,7 @@ export function SaveDashboardAsForm({ dashboard, changeInfo }: Props) {
   }
 
   return (
+    // Design system gap: react-hook-form useForm() integration — raw <form> required for handleSubmit() composition with callbacks/refs scoped outside render-prop. The internal layout already uses @grafana/ui form primitives (Field, Input, TextArea, Switch, Stack, Box, Alert, Button).
     <form onSubmit={handleSubmit(() => onSave(false))}>
       <Stack direction="column" gap={2}>
         <Field
