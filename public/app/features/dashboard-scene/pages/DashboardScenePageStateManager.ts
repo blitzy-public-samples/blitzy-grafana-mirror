@@ -10,6 +10,7 @@ import {
 } from '@grafana/schema/apis/dashboard.grafana.app/v2';
 import {
   type GetRepositoryFilesWithPathApiResponse,
+  type Unstructured,
   provisioningAPIv0alpha1,
 } from 'app/api/clients/provisioning/v0alpha1';
 import { StateManagerBase } from 'app/core/services/StateManagerBase';
@@ -299,11 +300,12 @@ abstract class DashboardScenePageStateManagerBase<T>
         return Promise.reject('unexpected resource type: ' + dryRun.apiVersion);
       }
 
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
       return this.processDashboardFromProvisioning(repo, path, dryRun, {
         file: v.path ?? '',
         ref: refParam,
         repo: repo,
-      });
+      }) as T;
     };
 
     try {
@@ -320,8 +322,7 @@ abstract class DashboardScenePageStateManagerBase<T>
   private processDashboardFromProvisioning(
     repo: string,
     path: string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    dryRun: any,
+    dryRun: Unstructured,
     provisioningPreview: ProvisioningPreview
   ) {
     if (dryRun.apiVersion.split('/')[1].startsWith('v2')) {
