@@ -26,7 +26,7 @@ interface SupportSnapshotState {
   panel: VizPanel;
   panelTitle: string;
 
-  // eslint-disable-next-line
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Out-of-scope colocated test (SupportSnapshotService.test.ts) accesses state.snapshot.panels[0].targets[0] via deep property paths without null guards; strict typing breaks tsc per AAP §0.9.2.11.
   snapshot?: any;
   snapshotUpdate: number;
   scene?: SceneObject;
