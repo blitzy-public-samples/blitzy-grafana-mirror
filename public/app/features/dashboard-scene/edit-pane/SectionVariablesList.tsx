@@ -24,11 +24,11 @@ export function SectionVariablesCategoryTitle({ sectionOwner, isExpanded }: Sect
 
   return (
     <Stack direction="row" alignItems="center" gap={1} flex={1}>
-      <span style={{ flexGrow: 1 }}>
+      <Box element="span" grow={1}>
         {isExpanded || variableCount === 0
           ? t('dashboard.edit-pane.section-variables.title', 'Variables')
           : `${t('dashboard.edit-pane.section-variables.title', 'Variables')} (${variableCount})`}
-      </span>
+      </Box>
       <Button
         icon="plus"
         variant="secondary"
