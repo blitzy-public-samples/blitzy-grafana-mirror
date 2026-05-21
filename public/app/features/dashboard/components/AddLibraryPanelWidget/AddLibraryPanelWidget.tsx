@@ -5,7 +5,7 @@ import tinycolor from 'tinycolor2';
 import { type GrafanaTheme2 } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
 import { type LibraryPanel } from '@grafana/schema';
-import { IconButton, useStyles2 } from '@grafana/ui';
+import { Box, IconButton, useStyles2 } from '@grafana/ui';
 
 import {
   LibraryPanelsSearch,
@@ -47,7 +47,7 @@ export const AddLibraryPanelWidget = ({ panel, dashboard }: Props) => {
           <span>
             <Trans i18nKey="library-panel.add-widget.title">Add panel from panel library</Trans>
           </span>
-          <div className="flex-grow-1" />
+          <Box flex={1} />
           <IconButton
             aria-label={t(
               'dashboard.add-library-panel-widget.aria-label-close-add-panel-widget',
