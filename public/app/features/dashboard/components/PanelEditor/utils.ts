@@ -67,7 +67,7 @@ export const updateDefaultFieldConfigValue = (
   };
 };
 
-export function setOptionImmutably<T extends object>(options: T, path: string | string[], value: any): T {
+export function setOptionImmutably<T extends object>(options: T, path: string | string[], value: unknown): T {
   const splat = !Array.isArray(path) ? path.split('.') : path;
 
   const key = splat.shift()!;
@@ -75,16 +75,15 @@ export function setOptionImmutably<T extends object>(options: T, path: string | 
     const idx = key.lastIndexOf('[');
     const index = +key.substring(idx + 1, key.length - 1);
     const propKey = key.substring(0, idx);
-    let current = (options as Record<string, any>)[propKey];
-    const arr = Array.isArray(current) ? [...current] : [];
+    const propValue = (options as Record<string, unknown>)[propKey];
+    const arr = Array.isArray(propValue) ? [...propValue] : [];
+    let nextValue: unknown = value;
     if (splat.length) {
-      current = arr[index];
-      if (current == null || typeof current !== 'object') {
-        current = {};
-      }
-      value = setOptionImmutably(current, splat, value);
+      const nestedRaw = arr[index];
+      const nested: object = nestedRaw != null && typeof nestedRaw === 'object' ? nestedRaw : {};
+      nextValue = setOptionImmutably(nested, splat, value);
     }
-    arr[index] = value;
+    arr[index] = nextValue;
     return { ...options, [propKey]: arr };
   }
 
@@ -92,11 +91,8 @@ export function setOptionImmutably<T extends object>(options: T, path: string | 
     return { ...options, [key]: value };
   }
 
-  let current = (options as Record<string, any>)[key];
-
-  if (current == null || typeof current !== 'object') {
-    current = {};
-  }
+  const rawCurrent = (options as Record<string, unknown>)[key];
+  const current: object = rawCurrent != null && typeof rawCurrent === 'object' ? rawCurrent : {};
 
   return { ...options, [key]: setOptionImmutably(current, splat, value) };
 }
