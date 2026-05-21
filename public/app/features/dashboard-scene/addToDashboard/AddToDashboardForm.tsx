@@ -109,6 +109,7 @@ export function AddToDashboardForm<TOptions extends AbsolutePathOptions | undefi
   }, []);
 
   return (
+    // Design system gap: react-hook-form useForm() integration requires raw <form> element
     <form>
       {/* For custom form options */}
       {children}
