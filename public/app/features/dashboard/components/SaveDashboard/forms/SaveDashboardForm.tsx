@@ -61,7 +61,7 @@ export const SaveDashboardForm = ({
           setSaving(false);
         }
       }}
-      style={{ maxWidth: 600 }}
+      className={styles.form}
     >
       <Stack gap={2} direction="column" alignItems="flex-start">
         {hasTimeChanged && (
@@ -155,6 +155,9 @@ export const SaveDashboardForm = ({
 
 function getStyles(theme: GrafanaTheme2) {
   return {
+    form: css({
+      maxWidth: 600,
+    }),
     message: css({
       display: 'flex',
       alignItems: 'end',
