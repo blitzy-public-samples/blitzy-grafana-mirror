@@ -1349,11 +1349,6 @@
       "count": 3
     }
   },
-  "public/app/features/dashboard/components/SaveDashboard/useDashboardSave.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "public/app/features/dashboard/components/ShareModal/ShareEmbed.tsx": {
     "no-restricted-syntax": {
       "count": 2
