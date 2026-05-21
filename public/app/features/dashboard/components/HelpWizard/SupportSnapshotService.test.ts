@@ -29,7 +29,7 @@ describe('SupportSnapshotService', () => {
   it('Can can build support snapshot dashboard', async () => {
     const service = new SupportSnapshotService(panel);
     await service.buildDebugDashboard();
-    expect(service.state.snapshot.panels[0].targets[0]).toMatchInlineSnapshot(`
+    expect(service.state.snapshot?.panels[0]?.targets?.[0]).toMatchInlineSnapshot(`
       {
         "datasource": {
           "type": "grafana",
