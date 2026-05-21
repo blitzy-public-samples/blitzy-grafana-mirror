@@ -24,6 +24,7 @@ export function TransformationHelpDisplay() {
 
   return (
     <Drawer title={name} subtitle="Transformation help" onClose={transformToggles.toggleHelp}>
+      {/* Design system gap: markdown-html is a complex multi-selector global style block defined in packages/grafana-ui/src/themes/GlobalStyles/markdownStyles.ts that styles markdown HTML rendered via dangerouslySetInnerHTML (img, ul/ol, table, th, td, a, p selectors with theme-aware spacing/colors). Migration would require duplicating the full selector tree per call site; kept per refactor protocol per AAP §0.4.4. */}
       <div className="markdown-html" dangerouslySetInnerHTML={{ __html: helpHtml }} />
     </Drawer>
   );
