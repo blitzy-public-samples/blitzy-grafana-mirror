@@ -1304,9 +1304,6 @@
     "@grafana/no-aria-label-selectors": {
       "count": 1
     },
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    },
     "no-restricted-syntax": {
       "count": 1
     }
