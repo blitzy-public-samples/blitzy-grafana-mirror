@@ -18,6 +18,47 @@ import { type PanelModel } from 'app/features/dashboard/state/PanelModel';
 import { type Randomize, randomizeData } from 'app/features/dashboard-scene/inspect/HelpWizard/randomizer';
 import { GrafanaQueryType } from 'app/plugins/datasource/grafana/types';
 
+interface DebugDashboardTarget {
+  refId: string;
+  withTransforms?: boolean;
+  datasource?: { type: string; uid: string };
+  panelId?: number;
+  topic?: DataTopic;
+  queryType?: string;
+  snapshot?: DataFrameJSON[];
+}
+
+interface DebugDashboardPanel {
+  id: number;
+  title?: string;
+  type?: string;
+  // Datasource shape accepts both the strict template form ({ type: string; uid: string })
+  // and the wider runtime form (DataSourceRef | null) produced by spreading PanelModel
+  // on line 138. The inner fields are optional to align with DataSourceRef's structure.
+  datasource?: { type?: string; uid?: string } | null;
+  gridPos: { h: number; w: number; x: number; y: number };
+  options?: {
+    content?: string;
+    mode?: string;
+    code?: { language: string; showLineNumbers: boolean; showMiniMap: boolean };
+    showTypeIcons?: boolean;
+  };
+  targets?: DebugDashboardTarget[];
+  // The line-138 spread of `saveModel` (a PanelModel instance) brings in many class
+  // fields (events, restoreModel, getOptions, …) that are not part of the typed shape
+  // but flow through JSON.stringify intact. The index signature permits these extras
+  // without obscuring the named property types above.
+  [key: string]: unknown;
+}
+
+export interface DebugDashboard {
+  panels: DebugDashboardPanel[];
+  schemaVersion: number;
+  title?: string;
+  tags?: string[];
+  time?: { from: string; to: string };
+}
+
 export function getPanelDataFrames(data?: PanelData): DataFrameJSON[] {
   const frames: DataFrameJSON[] = [];
   if (data?.series) {
@@ -58,7 +99,7 @@ export function getGithubMarkdown(panel: PanelModel, snapshot: string): string {
   return md;
 }
 
-export async function getDebugDashboard(panel: PanelModel, rand: Randomize, timeRange: TimeRange) {
+export async function getDebugDashboard(panel: PanelModel, rand: Randomize, timeRange: TimeRange): Promise<DebugDashboard> {
   const saveModel = panel.getSaveModel();
   const dashboard = cloneDeep(embeddedDataTemplate);
   const info = {
@@ -126,7 +167,7 @@ export async function getDebugDashboard(panel: PanelModel, rand: Randomize, time
     before.id = 100;
     before.title = 'Data (before transformations)';
     before.gridPos.w = 24; // full width
-    before.targets[0].withTransforms = false;
+    before.targets![0].withTransforms = false;
     dashboard.panels.push(before);
   }
 
@@ -163,8 +204,8 @@ export async function getDebugDashboard(panel: PanelModel, rand: Randomize, time
     });
   }
 
-  dashboard.panels[1].options.content = html;
-  dashboard.panels[2].options.content = JSON.stringify(saveModel, null, 2);
+  dashboard.panels[1].options!.content = html;
+  dashboard.panels[2].options!.content = JSON.stringify(saveModel, null, 2);
 
   dashboard.title = `Debug: ${saveModel.title} // ${dateTimeFormat(new Date())}`;
   dashboard.tags = ['debug', `debug-${info.panelType}`];
@@ -176,8 +217,7 @@ export async function getDebugDashboard(panel: PanelModel, rand: Randomize, time
   return dashboard;
 }
 
-// eslint-disable-next-line
-function getTransformsRow(saveModel: any): string {
+function getTransformsRow(saveModel: { transformations?: DataTransformerConfig[] }): string {
   if (!saveModel.transformations) {
     return '';
   }
@@ -219,8 +259,7 @@ function getAnnotationsRow(data: PanelData): string {
 </tr>`;
 }
 
-// eslint-disable-next-line
-const embeddedDataTemplate: any = {
+const embeddedDataTemplate: DebugDashboard = {
   // should be dashboard model when that is accurate enough
   panels: [
     {

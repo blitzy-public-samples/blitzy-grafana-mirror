@@ -6,6 +6,7 @@ import { type SceneObject } from '@grafana/scenes';
 import { StateManagerBase } from 'app/core/services/StateManagerBase';
 import { type Randomize } from 'app/features/dashboard-scene/inspect/HelpWizard/randomizer';
 import { createDashboardSceneFromDashboardModel } from 'app/features/dashboard-scene/serialization/transformSaveModelToScene';
+import { type DashboardDataDTO } from 'app/types/dashboard';
 
 import { getTimeSrv } from '../../services/TimeSrv';
 import { DashboardModel } from '../../state/DashboardModel';
@@ -84,8 +85,14 @@ export class SupportSnapshotService extends StateManagerBase<SupportSnapshotStat
     let scene: SceneObject | undefined = undefined;
 
     try {
-      const oldModel = new DashboardModel(snapshot, { isEmbedded: true });
-      const dash = createDashboardSceneFromDashboardModel(oldModel, snapshot);
+      // The narrowed DebugDashboard shape returned by getDebugDashboard does not declare
+      // the `uid` and `title` fields that DashboardDataDTO requires. Both are inert for the
+      // embedded debug dashboard: DashboardModel resolves an empty uid to `null` and the
+      // title is overridden upstream. Spreading here satisfies the typed contract without
+      // mutating the snapshot (which is JSON-serialized above for snapshotText).
+      const dashboardData: DashboardDataDTO = { ...snapshot, uid: '', title: snapshot.title ?? '' };
+      const oldModel = new DashboardModel(dashboardData, { isEmbedded: true });
+      const dash = createDashboardSceneFromDashboardModel(oldModel, dashboardData);
       scene = dash.state.body; // skip the wrappers
     } catch (ex) {
       console.log('Error creating scene:', ex);
