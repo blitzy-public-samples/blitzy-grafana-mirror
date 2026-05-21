@@ -28,8 +28,14 @@ import { updateRowCommand } from './updateRow';
 import { updateTabCommand } from './updateTab';
 import { updateVariableCommand } from './updateVariable';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- each command is typed internally; the array is heterogeneous
-export const ALL_COMMANDS: Array<MutationCommand<any>> = [
+// Heterogeneous command payload union; each concrete command's payload type is
+// validated at dispatch time via its Zod schema (see validatePayload below).
+// MutationCommand<T> is contravariant in T (handler parameter position) and
+// invariant in T (payloadSchema: z.ZodType<T>), so an Array<MutationCommand<X>>
+// cannot be implicitly upcast to Array<MutationCommand<unknown>>. The cast on
+// the closing bracket exposes a single uniform iteration type to consumers.
+// eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- safe: MutationCommand<T> invariance forces this cast; handler payloads are Zod-validated before dispatch (see DashboardMutationClient.execute)
+export const ALL_COMMANDS: ReadonlyArray<MutationCommand<unknown>> = [
   addVariableCommand,
   removeVariableCommand,
   updateVariableCommand,
@@ -51,7 +57,7 @@ export const ALL_COMMANDS: Array<MutationCommand<any>> = [
   removePanelCommand,
   listPanelsCommand,
   getDashboardInfoCommand,
-];
+] as ReadonlyArray<MutationCommand<unknown>>;
 
 /** All valid command names. */
 export const MUTATION_TYPES = ALL_COMMANDS.map((cmd) => cmd.name);
