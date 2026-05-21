@@ -20,7 +20,7 @@ import { getQueryRunnerFor, isLibraryPanel } from '../../utils/utils';
 
 import { type Randomize, randomizeData } from './randomizer';
 
-interface EmbeddedDashboardPanel {
+export interface EmbeddedDashboardPanel {
   id: number;
   title?: string;
   type?: string;
@@ -33,7 +33,7 @@ interface EmbeddedDashboardPanel {
   transformations?: Panel['transformations'];
 }
 
-interface EmbeddedDashboard {
+export interface EmbeddedDashboard {
   panels: EmbeddedDashboardPanel[];
   schemaVersion: number;
   title?: string;

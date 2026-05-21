@@ -8,7 +8,7 @@ import { StateManagerBase } from 'app/core/services/StateManagerBase';
 import { transformSaveModelToScene } from '../../serialization/transformSaveModelToScene';
 
 import { type Randomize } from './randomizer';
-import { getDebugDashboard, getGithubMarkdown } from './utils';
+import { type EmbeddedDashboard, getDebugDashboard, getGithubMarkdown } from './utils';
 
 interface SupportSnapshotState {
   currentTab: SnapshotTab;
@@ -26,8 +26,7 @@ interface SupportSnapshotState {
   panel: VizPanel;
   panelTitle: string;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Out-of-scope colocated test (SupportSnapshotService.test.ts) accesses state.snapshot.panels[0].targets[0] via deep property paths without null guards; strict typing breaks tsc per AAP §0.9.2.11.
-  snapshot?: any;
+  snapshot?: EmbeddedDashboard;
   snapshotUpdate: number;
   scene?: SceneObject;
 }

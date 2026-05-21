@@ -9,6 +9,11 @@ import { getModalStyles } from 'app/features/library-panels/styles';
 import { type LibraryPanelBehavior } from '../scene/LibraryPanelBehavior';
 
 interface DashboardRow {
+  // Stable, unique row identifier derived from the original index. The previous raw
+  // <table> used an index-based key (`dashrow-${i}`); we preserve that contract because
+  // dashboards in different folders can share display names, so `name` alone is not
+  // guaranteed unique. See review finding for SaveLibraryVizPanelModal.tsx L98.
+  id: string;
   name: string;
 }
 
@@ -48,7 +53,10 @@ export const SaveLibraryVizPanelModal = ({ libraryPanel, isUnsavedPrompt, onDism
 
   const styles = useStyles2(getModalStyles);
 
-  const tableData = useMemo<DashboardRow[]>(() => filteredDashboards.map((name) => ({ name })), [filteredDashboards]);
+  const tableData = useMemo<DashboardRow[]>(
+    () => filteredDashboards.map((name, i) => ({ id: `dashrow-${i}`, name })),
+    [filteredDashboards]
+  );
 
   const columns = useMemo<Array<Column<DashboardRow>>>(
     () => [
@@ -95,7 +103,11 @@ export const SaveLibraryVizPanelModal = ({ libraryPanel, isUnsavedPrompt, onDism
             </Trans>
           </p>
         ) : (
-          <InteractiveTable columns={columns} data={tableData} getRowId={(row) => row.name} pageSize={10} />
+          /* Omit `pageSize` (defaults to 0 -> pagination disabled) to preserve the
+           * original raw-<table> behavior of rendering every affected dashboard in the
+           * list. Use the synthesized stable `id` (see DashboardRow) as the row key
+           * because dashboard names alone are not guaranteed unique across folders. */
+          <InteractiveTable columns={columns} data={tableData} getRowId={(row) => row.id} />
         )}
         <Modal.ButtonRow>
           <Button variant="secondary" onClick={onDismiss} fill="outline">

@@ -154,6 +154,83 @@ export function getSceneCreationOptions(
   return undefined;
 }
 
+/**
+ * Pure helper that converts a provisioning dryRun resource into the matching
+ * dashboard response shape for either V1 (DashboardDTO) or V2
+ * (DashboardWithAccessInfo<DashboardV2Spec>). The branch is decided by the dryRun's
+ * apiVersion segment. Returning the explicit union (rather than the abstract `T`
+ * of the state manager) lets each concrete subclass narrow the result without a
+ * structural cast — the call site invokes `narrowProvisioningResult` to bridge to
+ * its own `T` and throws `DashboardVersionError` on cross-version dryRun so the
+ * Unified manager's withVersionHandling can switch to the correct subclass.
+ */
+function processDashboardFromProvisioning(
+  repo: string,
+  path: string,
+  dryRun: Unstructured,
+  provisioningPreview: ProvisioningPreview
+): DashboardDTO | DashboardWithAccessInfo<DashboardV2Spec> {
+  if (dryRun.apiVersion.split('/')[1].startsWith('v2')) {
+    // dryRun is Unstructured ({ [key: string]: any }), so its individual fields
+    // are typed `any`. Building the response via explicit field reads (rather
+    // than spreading the index signature) lets TypeScript verify the resulting
+    // shape matches DashboardWithAccessInfo<DashboardV2Spec> without a cast.
+    // `isSnapshot` is intentionally not set here because it is not part of
+    // DashboardWithAccessInfo['access']; V2 snapshot detection is driven by
+    // `metadata.annotations[AnnoKeyDashboardIsSnapshot]` in
+    // transformSaveModelSchemaV2ToScene, so omitting it is behavior-preserving.
+    return {
+      apiVersion: dryRun.apiVersion,
+      kind: 'DashboardWithAccessInfo',
+      metadata: dryRun.metadata,
+      spec: dryRun.spec,
+      access: {
+        canStar: false,
+        canShare: false,
+
+        // Should come from the repo settings
+        canDelete: true,
+        canSave: true,
+        canEdit: true,
+      },
+    };
+  }
+
+  let anno = dryRun.metadata.annotations;
+  if (!anno) {
+    dryRun.metadata.annotations = {};
+  }
+  anno[AnnoKeyManagerKind] = 'repo';
+  anno[AnnoKeyManagerIdentity] = repo;
+  anno[AnnoKeySourcePath] = provisioningPreview.ref ? path + '#' + provisioningPreview.ref : path;
+
+  // Include version information to align with the current dashboard schema
+  const specWithVersion = {
+    ...dryRun.spec,
+    version: dryRun.metadata.generation || 0,
+  };
+
+  return {
+    meta: {
+      canStar: false,
+      isSnapshot: false,
+      canShare: false,
+
+      // Should come from the repo settings
+      canDelete: true,
+      canSave: true,
+      canEdit: true,
+
+      // Includes additional k8s metadata
+      k8s: dryRun.metadata,
+
+      // lookup info
+      provisioning: provisioningPreview,
+    },
+    dashboard: specWithVersion,
+  };
+}
+
 abstract class DashboardScenePageStateManagerBase<T>
   extends StateManagerBase<DashboardScenePageState>
   implements DashboardScenePageStateManagerLike<T>
@@ -272,7 +349,7 @@ abstract class DashboardScenePageStateManagerBase<T>
     const params = new URLSearchParams(window.location.search);
     const ref = params.get('ref') ?? undefined; // commit hash or branch
 
-    const loadWithRef = async (refParam: string | undefined) => {
+    const loadWithRef = async (refParam: string | undefined): Promise<T> => {
       const result = await dispatch(
         provisioningAPIv0alpha1.endpoints.getRepositoryFilesWithPath.initiate({
           name: repo,
@@ -300,12 +377,19 @@ abstract class DashboardScenePageStateManagerBase<T>
         return Promise.reject('unexpected resource type: ' + dryRun.apiVersion);
       }
 
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-      return this.processDashboardFromProvisioning(repo, path, dryRun, {
-        file: v.path ?? '',
-        ref: refParam,
-        repo: repo,
-      }) as T;
+      // processDashboardFromProvisioning returns the explicit
+      // (DashboardDTO | DashboardWithAccessInfo<DashboardV2Spec>) union; each concrete
+      // subclass narrows it to its own T via narrowProvisioningResult, which throws a
+      // DashboardVersionError on V1/V2 mismatch (consistent with the AssistantPreview,
+      // Public and Snapshot routes) so the Unified manager's withVersionHandling can
+      // switch to the correct concrete manager without a structural type cast.
+      return this.narrowProvisioningResult(
+        processDashboardFromProvisioning(repo, path, dryRun, {
+          file: v.path ?? '',
+          ref: refParam,
+          repo: repo,
+        })
+      );
     };
 
     try {
@@ -319,63 +403,17 @@ abstract class DashboardScenePageStateManagerBase<T>
     }
   }
 
-  private processDashboardFromProvisioning(
-    repo: string,
-    path: string,
-    dryRun: Unstructured,
-    provisioningPreview: ProvisioningPreview
-  ) {
-    if (dryRun.apiVersion.split('/')[1].startsWith('v2')) {
-      return {
-        ...dryRun,
-        kind: 'DashboardWithAccessInfo',
-        access: {
-          canStar: false,
-          isSnapshot: false,
-          canShare: false,
-
-          // Should come from the repo settings
-          canDelete: true,
-          canSave: true,
-          canEdit: true,
-        },
-      };
-    }
-
-    let anno = dryRun.metadata.annotations;
-    if (!anno) {
-      dryRun.metadata.annotations = {};
-    }
-    anno[AnnoKeyManagerKind] = 'repo';
-    anno[AnnoKeyManagerIdentity] = repo;
-    anno[AnnoKeySourcePath] = provisioningPreview.ref ? path + '#' + provisioningPreview.ref : path;
-
-    // Include version information to align with the current dashboard schema
-    const specWithVersion = {
-      ...dryRun.spec,
-      version: dryRun.metadata.generation || 0,
-    };
-
-    return {
-      meta: {
-        canStar: false,
-        isSnapshot: false,
-        canShare: false,
-
-        // Should come from the repo settings
-        canDelete: true,
-        canSave: true,
-        canEdit: true,
-
-        // Includes additional k8s metadata
-        k8s: dryRun.metadata,
-
-        // lookup info
-        provisioning: provisioningPreview,
-      },
-      dashboard: specWithVersion,
-    };
-  }
+  /**
+   * Narrow the union shape returned by processDashboardFromProvisioning to the
+   * concrete `T` that this state manager subclass is responsible for. The V1 and
+   * V2 implementations throw `DashboardVersionError` when the provisioned dryRun
+   * doesn't match their schema so that the Unified manager's `withVersionHandling`
+   * helper can switch to the correct subclass. The Unified subclass itself accepts
+   * either shape because its `T` is the same union.
+   */
+  protected abstract narrowProvisioningResult(
+    result: DashboardDTO | DashboardWithAccessInfo<DashboardV2Spec>
+  ): T;
 
   public async loadDashboard(options: LoadDashboardOptions) {
     try {
@@ -533,6 +571,25 @@ abstract class DashboardScenePageStateManagerBase<T>
 }
 
 export class DashboardScenePageStateManager extends DashboardScenePageStateManagerBase<DashboardDTO> {
+  /**
+   * V1 manager only handles V1 provisioned dashboards; a V2 dryRun bubbles up a
+   * DashboardVersionError so the Unified manager's withVersionHandling can switch
+   * to the V2 manager (mirroring the existing AssistantPreview/Public/Snapshot
+   * cross-version handling). The type guard `isDashboardV2Resource` narrows
+   * `result` to `DashboardDTO` in the fall-through branch.
+   */
+  protected narrowProvisioningResult(
+    result: DashboardDTO | DashboardWithAccessInfo<DashboardV2Spec>
+  ): DashboardDTO {
+    if (isDashboardV2Resource(result)) {
+      throw new DashboardVersionError(
+        'v2beta1',
+        'Provisioned dashboard is in V2 schema; switching to V2 dashboard manager'
+      );
+    }
+    return result;
+  }
+
   transformResponseToScene(rsp: DashboardDTO | null, options: LoadDashboardOptions): DashboardScene | null {
     const fromCache = this.getSceneFromCache(options.uid);
 
@@ -921,6 +978,25 @@ export class DashboardScenePageStateManagerV2 extends DashboardScenePageStateMan
 > {
   private dashboardLoader = new DashboardLoaderSrvV2();
 
+  /**
+   * V2 manager only handles V2 provisioned dashboards; a V1 dryRun bubbles up a
+   * DashboardVersionError so the Unified manager's withVersionHandling can switch
+   * back to the V1 manager (mirroring the existing AssistantPreview/Public
+   * cross-version handling). The type guard `isDashboardV2Resource` narrows
+   * `result` to `DashboardWithAccessInfo<DashboardV2Spec>` in the success branch.
+   */
+  protected narrowProvisioningResult(
+    result: DashboardDTO | DashboardWithAccessInfo<DashboardV2Spec>
+  ): DashboardWithAccessInfo<DashboardV2Spec> {
+    if (!isDashboardV2Resource(result)) {
+      throw new DashboardVersionError(
+        'v0alpha1',
+        'Provisioned dashboard is in V1 schema; switching to V1 dashboard manager'
+      );
+    }
+    return result;
+  }
+
   public async loadSnapshotScene(slug: string): Promise<DashboardScene> {
     const rsp = await this.dashboardLoader.loadSnapshot(slug);
     const v2Response = ensureV2Response(rsp);
@@ -1146,6 +1222,19 @@ export class UnifiedDashboardScenePageStateManager extends DashboardScenePageSta
     this.v2Manager = new DashboardScenePageStateManagerV2(initialState);
 
     this.activeManager = shouldForceV2API() ? this.v2Manager : this.v1Manager;
+  }
+
+  /**
+   * Unified manager's T is the same union returned by processDashboardFromProvisioning,
+   * so no narrowing is required and no DashboardVersionError is thrown here. In
+   * practice the Unified manager's `fetchDashboard` dispatches to V1 or V2 via
+   * `withVersionHandling`, and downstream `transformResponseToScene` uses
+   * `isDashboardV2Resource` to pick the correct sub-manager.
+   */
+  protected narrowProvisioningResult(
+    result: DashboardDTO | DashboardWithAccessInfo<DashboardV2Spec>
+  ): DashboardDTO | DashboardWithAccessInfo<DashboardV2Spec> {
+    return result;
   }
 
   private syncUnifiedStateToManager(manager: DashboardScenePageStateManager | DashboardScenePageStateManagerV2) {

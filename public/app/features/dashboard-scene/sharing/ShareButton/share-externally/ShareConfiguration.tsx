@@ -63,7 +63,22 @@ export default function ShareConfiguration() {
         <Trans i18nKey="public-dashboard.configuration.settings-label">Settings</Trans>
       </Text>
       <Stack justifyContent="space-between">
-        {/* Design system gap: react-hook-form useForm() integration — raw <form> required for handleSubmit() composition */}
+        {/*
+         * Design system gap: this file cannot migrate to @grafana/ui <Form>. It uses an
+         * auto-submit-on-change pattern: each Switch's `onChange` directly calls
+         *   await handleSubmit((data) => onUpdate({ ...data, [name]: value }))();
+         * That is, the local `onChange(name, value)` function (a) calls `setValue(name, value)`
+         * then (b) invokes `handleSubmit(...)()` imperatively to immediately persist the
+         * single-toggle change via the publicDashboard mutation — without waiting for a
+         * form-submit DOM event. The <Form> component's `onSubmit` prop only fires the
+         * supplied handler when the underlying <form> element emits a submit event
+         * (`<form onSubmit={handleSubmit(props.onSubmit)}>` in Form.tsx), so it cannot be
+         * invoked imperatively from a field-level onChange. <Form> also does not surface
+         * the inner `handleSubmit` to the render-prop API, so re-creating the
+         * `handleSubmit((data) => onUpdate({ ...data, [name]: value }))()` chain inline
+         * would require either a forwarded ref/imperative handle or restructuring the
+         * update flow to bypass react-hook-form entirely.
+         */}
         <form onSubmit={handleSubmit(onUpdate)}>
           <FieldSet disabled={disableForm}>
             <Stack direction="column" gap={2}>

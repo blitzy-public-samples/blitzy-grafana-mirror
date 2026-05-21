@@ -64,9 +64,13 @@ export function DashboardLinkList({
       {/* Design system gap: InteractiveTable does not support row-level keyboard activation
        * (tabIndex={0} + onKeyDown for Space/Enter to invoke onEdit), focus management on
        * <tr> elements, or the ARIA grid pattern used here (role="grid"/role="gridcell").
-       * Kept as raw <table> per AAP §0.4.4 Gaps Inventory.
+       * Kept as raw <table> per AAP §0.4.4 Gaps Inventory. The legacy
+       * 'filter-table' / 'filter-table--hover' Sass classes have been replaced with a
+       * local theme-aware Emotion style block (see getStyles.table) which reproduces
+       * the same zebra striping, hover, padding and lineHeight using theme tokens per
+       * AAP §0.4.3.
        */}
-      <table role="grid" className="filter-table filter-table--hover">
+      <table role="grid" className={styles.table}>
         <thead>
           <tr>
             <th>
@@ -157,5 +161,36 @@ const getStyles = (theme: GrafanaTheme2) => ({
   }),
   actionCell: css({
     width: '1%',
+  }),
+  // Theme-aware replacement of the legacy 'filter-table' / 'filter-table--hover' Sass
+  // classes (see packages/grafana-ui/src/themes/GlobalStyles/filterTable.ts). Reproduces
+  // the same width, border-collapse, zebra striping, hover treatment, padding,
+  // lineHeight and whiteSpace using GrafanaTheme2 tokens per AAP §0.4.3.
+  table: css({
+    width: '100%',
+    borderCollapse: 'separate',
+    '& *': {
+      boxSizing: 'border-box',
+    },
+    'tbody tr:nth-of-type(odd)': {
+      background: theme.colors.emphasize(theme.colors.background.primary, 0.02),
+    },
+    'tbody tr:hover': {
+      background: theme.colors.emphasize(theme.colors.background.primary, 0.05),
+    },
+    th: {
+      width: 'auto',
+      padding: theme.spacing(0.5, 1),
+      textAlign: 'left',
+      lineHeight: '30px',
+      height: '30px',
+      whiteSpace: 'nowrap',
+    },
+    td: {
+      padding: theme.spacing(0.5, 1),
+      lineHeight: '30px',
+      height: '30px',
+      whiteSpace: 'nowrap',
+    },
   }),
 });
