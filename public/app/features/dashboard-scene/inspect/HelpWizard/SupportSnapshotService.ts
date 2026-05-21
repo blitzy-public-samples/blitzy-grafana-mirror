@@ -81,7 +81,15 @@ export class SupportSnapshotService extends StateManagerBase<SupportSnapshotStat
     let scene: SceneObject | undefined = undefined;
     if (snapshot) {
       try {
-        const dash = transformSaveModelToScene({ dashboard: snapshot, meta: { isEmbedded: true } });
+        // The narrowed EmbeddedDashboard shape returned by getDebugDashboard does not declare
+        // the `uid` and `title` fields that DashboardDataDTO requires. Both are inert for the
+        // embedded debug dashboard: DashboardModel resolves an empty uid to `null` and the
+        // title is overridden upstream. Spreading here satisfies the typed contract without
+        // mutating the snapshot (which is JSON-serialized above for snapshotText).
+        const dash = transformSaveModelToScene({
+          dashboard: { ...snapshot, uid: '', title: snapshot.title ?? '' },
+          meta: { isEmbedded: true },
+        });
         scene = dash.state.body; // skip the wrappers
       } catch (ex) {
         console.log('Error creating scene:', ex);
