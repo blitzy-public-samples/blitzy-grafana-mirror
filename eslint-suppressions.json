@@ -1230,11 +1230,6 @@
       "count": 1
     }
   },
-  "public/app/features/dashboard/api/ResponseTransformers.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "public/app/features/dashboard/components/AnnotationSettings/AnnotationSettingsEdit.tsx": {
     "no-restricted-syntax": {
       "count": 7

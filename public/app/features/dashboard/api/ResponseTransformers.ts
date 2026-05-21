@@ -582,7 +582,7 @@ function extractAngularOptions(panel: Panel): Record<string, unknown> {
 }
 
 export function buildPanelKind(p: Panel): PanelKind {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/consistent-type-assertions
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/consistent-type-assertions -- Panel.targets is typed as Array<Record<string, unknown>> in the generated schema (packages/grafana-schema/src/raw/dashboard/x/types.gen.ts), but at runtime always contains DataQuery objects (with refId, hide, datasource fields). The generated schema is OUT OF SCOPE per AAP §0.3.2; alternative casts (as DataQuery[], as unknown as DataQuery[]) are blocked by the @typescript-eslint/consistent-type-assertions: never rule.
   const queries = getPanelQueries((p.targets as any) || [], p.datasource ?? { type: '', uid: '' });
 
   const transformations = getPanelTransformations(p.transformations || []);
@@ -1267,6 +1267,7 @@ export function transformMappingsToV1(fieldConfig: FieldConfigSource): FieldConf
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- bridges nominally different but structurally-identical FieldConfig types from v1 (@grafana/schema, with MappingType / ThresholdsMode / FieldColorModeId enum values) and v2 (@grafana/schema/apis/dashboard.grafana.app/v2, with the same string values typed as string literal unions). Spreading v2 fieldConfig.defaults into a FieldConfigSourceV1['defaults']-typed variable fails type-checking because the enum and string-literal types are nominally distinct. Generated schema files are OUT OF SCOPE per AAP §0.3.2, and type assertions (as FieldConfigSourceV1['defaults'], as unknown as ...) are blocked by the @typescript-eslint/consistent-type-assertions: never rule.
   const transformedDefaults: any = {
     ...fieldConfig.defaults,
   };
