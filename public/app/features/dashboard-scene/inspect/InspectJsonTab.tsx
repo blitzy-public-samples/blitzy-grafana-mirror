@@ -1,7 +1,8 @@
+import { css } from '@emotion/css';
 import { isEqual } from 'lodash';
 import AutoSizer from 'react-virtualized-auto-sizer';
 
-import { type SelectableValue } from '@grafana/data';
+import { type GrafanaTheme2, type SelectableValue } from '@grafana/data';
 import { selectors } from '@grafana/e2e-selectors';
 import { Trans, t } from '@grafana/i18n';
 import {
@@ -316,12 +317,17 @@ export class InspectJsonTab extends SceneObjectBase<InspectJsonTabState> {
 function InspectJsonTabComponent({ model }: SceneComponentProps<InspectJsonTab>) {
   const { source: show, jsonText, error } = model.useState();
   const styles = useStyles2(getPanelInspectorStyles2);
+  const localStyles = useStyles2(getStyles);
   const options = model.getOptions();
 
   return (
     <div className={styles.wrap}>
       <div className={styles.toolbar} data-testid={selectors.components.PanelInspector.Json.content}>
-        <Field label={t('dashboard.inspect-json.select-source', 'Select source')} className="flex-grow-1" noMargin>
+        <Field
+          label={t('dashboard.inspect-json.select-source', 'Select source')}
+          className={localStyles.field}
+          noMargin
+        >
           <Select
             inputId="select-source-dropdown"
             options={options}
@@ -487,3 +493,9 @@ function hasQueriesChanged(a: SceneQueryRunner | undefined, b: SceneQueryRunner 
 
   return !isEqual(a.state.queries, b.state.queries);
 }
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  field: css({
+    flexGrow: 1,
+  }),
+});
