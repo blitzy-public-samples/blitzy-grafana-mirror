@@ -1,12 +1,11 @@
-import { PureComponent } from 'react';
-import * as React from 'react';
+import { useCallback, useEffect, useMemo, useState, memo, type ChangeEvent } from 'react';
 
 import { isEmptyObject, type SelectableValue, VariableRefresh } from '@grafana/data';
 import { selectors as e2eSelectors } from '@grafana/e2e-selectors';
 import { Trans, t } from '@grafana/i18n';
 import { getBackendSrv } from '@grafana/runtime';
 import { type Dashboard } from '@grafana/schema';
-import { Button, ClipboardButton, Field, Input, LinkButton, Modal, Select, Spinner, Stack } from '@grafana/ui';
+import { Box, Button, ClipboardButton, Field, Input, LinkButton, Modal, Select, Spinner, Stack } from '@grafana/ui';
 import { getTimeSrv } from 'app/features/dashboard/services/TimeSrv';
 import { type DashboardModel } from 'app/features/dashboard/state/DashboardModel';
 import { type PanelModel } from 'app/features/dashboard/state/PanelModel';
@@ -19,29 +18,14 @@ import { getTrackingSource } from './utils';
 
 interface Props extends ShareModalTabProps {}
 
-interface State {
-  isLoading: boolean;
-  step: number;
-  snapshotName: string;
-  selectedExpireOption: SelectableValue<number>;
-  snapshotExpires?: number;
-  snapshotUrl: string;
-  deleteUrl: string;
-  timeoutSeconds: number;
-  externalEnabled: boolean;
-  sharingButtonText: string;
-}
-
 const selectors = e2eSelectors.pages.ShareDashboardModal.SnapshotScene;
 
-export class ShareSnapshot extends PureComponent<Props, State> {
-  private dashboard: DashboardModel;
-  private expireOptions: Array<SelectableValue<number>>;
-
-  constructor(props: Props) {
-    super(props);
-    this.dashboard = props.dashboard;
-    this.expireOptions = [
+export const ShareSnapshot = memo(({ dashboard, panel, onDismiss }: Props) => {
+  // expireOptions is computed once at mount via useMemo with empty deps so that the
+  // localized `t(...)` labels are captured at component-mount time (matching the
+  // PureComponent constructor-once behavior of the original class).
+  const expireOptions = useMemo<Array<SelectableValue<number>>>(
+    () => [
       {
         label: t('share-modal.snapshot.expire-hour', `1 Hour`),
         value: 60 * 60,
@@ -58,91 +42,37 @@ export class ShareSnapshot extends PureComponent<Props, State> {
         label: t('share-modal.snapshot.expire-never', `Never`),
         value: 0,
       },
-    ];
-    this.state = {
-      isLoading: false,
-      step: 1,
-      selectedExpireOption: this.expireOptions[2],
-      snapshotExpires: this.expireOptions[2].value,
-      snapshotName: props.dashboard.title,
-      timeoutSeconds: 4,
-      snapshotUrl: '',
-      deleteUrl: '',
-      externalEnabled: false,
-      sharingButtonText: '',
-    };
-  }
+    ],
+    []
+  );
 
-  componentDidMount() {
-    this.getSnaphotShareOptions();
-  }
+  // Ten individual useState calls — one per field of the original State interface.
+  // The fields are mutated independently, so individual useState calls are cleaner
+  // than a single useReducer for this case.
+  const [isLoading, setIsLoading] = useState(false);
+  const [step, setStep] = useState(1);
+  const [snapshotName, setSnapshotName] = useState(dashboard.title);
+  const [selectedExpireOption, setSelectedExpireOption] = useState<SelectableValue<number>>(expireOptions[2]);
+  const [snapshotExpires, setSnapshotExpires] = useState<number | undefined>(expireOptions[2].value);
+  const [snapshotUrl, setSnapshotUrl] = useState('');
+  const [deleteUrl, setDeleteUrl] = useState('');
+  const [timeoutSeconds, setTimeoutSeconds] = useState(4);
+  const [externalEnabled, setExternalEnabled] = useState(false);
+  const [sharingButtonText, setSharingButtonText] = useState('');
 
-  async getSnaphotShareOptions() {
-    const shareOptions = await getDashboardSnapshotSrv().getSharingOptions();
-    this.setState({
-      sharingButtonText: shareOptions.externalSnapshotName,
-      externalEnabled: shareOptions.externalEnabled,
-    });
-  }
-
-  createSnapshot = (external?: boolean) => () => {
-    const { timeoutSeconds } = this.state;
-    // The strict `Dashboard['snapshot']` shape declares many required fields
-    // (created/expires/external/etc.), but the legacy in-memory snapshot marker only needs a
-    // truthy object — `dashboard.isSnapshot()` returns Boolean(snapshot). The runtime value
-    // here is intentionally minimal; cast so the legacy assignment continues to compile.
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- legacy in-memory snapshot marker; only truthiness is consumed
-    this.dashboard.snapshot = { timestamp: new Date() } as unknown as Dashboard['snapshot'];
-
-    this.setState({ isLoading: true });
-    this.dashboard.startRefresh();
-
-    setTimeout(() => {
-      this.saveSnapshot(this.dashboard, external);
-    }, timeoutSeconds * 1000);
-  };
-
-  saveSnapshot = async (dashboard: DashboardModel, external?: boolean) => {
-    const { snapshotExpires, timeoutSeconds } = this.state;
-    const dash = this.dashboard.getSaveModelCloneOld();
-
-    this.scrubDashboard(dash);
-
-    const cmdData = {
-      dashboard: dash,
-      name: dash.title,
-      expires: snapshotExpires,
-      external: external,
-    };
-
-    try {
-      const results = await getDashboardSnapshotSrv().create(cmdData);
-      this.setState({
-        deleteUrl: results.deleteUrl,
-        snapshotUrl: results.url,
-        step: 2,
+  // Mount-only effect replacing the class's componentDidMount → getSnaphotShareOptions.
+  // Behavior matches the class verbatim: fire the request once, then setState when it resolves.
+  // The original class did not include cancellation logic on unmount; preserve that minimal-change semantic.
+  useEffect(() => {
+    getDashboardSnapshotSrv()
+      .getSharingOptions()
+      .then((shareOptions) => {
+        setSharingButtonText(shareOptions.externalSnapshotName);
+        setExternalEnabled(shareOptions.externalEnabled);
       });
-    } finally {
-      if (external) {
-        DashboardInteractions.publishSnapshotClicked({
-          expires: snapshotExpires,
-          timeout: timeoutSeconds,
-          shareResource: getTrackingSource(this.props.panel),
-        });
-      } else {
-        DashboardInteractions.publishSnapshotLocalClicked({
-          expires: snapshotExpires,
-          timeout: timeoutSeconds,
-          shareResource: getTrackingSource(this.props.panel),
-        });
-      }
-      this.setState({ isLoading: false });
-    }
-  };
+  }, []);
 
-  scrubDashboard = (dash: DashboardModel) => {
-    const { panel } = this.props;
-    const { snapshotName } = this.state;
+  const scrubDashboard = (dash: DashboardModel) => {
     // change title
     dash.title = snapshotName;
 
@@ -153,10 +83,11 @@ export class ShareSnapshot extends PureComponent<Props, State> {
     dash.links = [];
 
     // remove panel queries & links
-    dash.panels.forEach((panel) => {
-      panel.targets = [];
-      panel.links = [];
-      panel.datasource = null;
+    // Inner parameter renamed to `p` to avoid shadowing the outer destructured `panel` prop.
+    dash.panels.forEach((p) => {
+      p.targets = [];
+      p.links = [];
+      p.datasource = null;
     });
 
     // remove annotation queries
@@ -198,45 +129,92 @@ export class ShareSnapshot extends PureComponent<Props, State> {
     }
 
     // cleanup snapshotData
-    delete this.dashboard.snapshot;
-    this.dashboard.forEachPanel((panel: PanelModel) => {
-      delete panel.snapshotData;
+    delete dashboard.snapshot;
+    // Inner parameter renamed to `p` to avoid shadowing the outer destructured `panel` prop.
+    dashboard.forEachPanel((p: PanelModel) => {
+      delete p.snapshotData;
     });
-    this.dashboard.annotations.list.forEach((annotation) => {
+    dashboard.annotations.list.forEach((annotation) => {
       delete annotation.snapshotData;
     });
   };
 
-  deleteSnapshot = async () => {
-    const { deleteUrl } = this.state;
+  // Note: The original class's saveSnapshot accepted a `dashboard: DashboardModel` parameter that
+  // shadowed `this.dashboard` but was never actually read (the body always used `this.dashboard`).
+  // In the functional version that unused parameter is omitted; behavior is preserved verbatim.
+  const saveSnapshot = async (external?: boolean) => {
+    const dash = dashboard.getSaveModelCloneOld();
+
+    scrubDashboard(dash);
+
+    const cmdData = {
+      dashboard: dash,
+      name: dash.title,
+      expires: snapshotExpires,
+      external: external,
+    };
+
+    try {
+      const results = await getDashboardSnapshotSrv().create(cmdData);
+      setDeleteUrl(results.deleteUrl);
+      setSnapshotUrl(results.url);
+      setStep(2);
+    } finally {
+      if (external) {
+        DashboardInteractions.publishSnapshotClicked({
+          expires: snapshotExpires,
+          timeout: timeoutSeconds,
+          shareResource: getTrackingSource(panel),
+        });
+      } else {
+        DashboardInteractions.publishSnapshotLocalClicked({
+          expires: snapshotExpires,
+          timeout: timeoutSeconds,
+          shareResource: getTrackingSource(panel),
+        });
+      }
+      setIsLoading(false);
+    }
+  };
+
+  const createSnapshot = (external?: boolean) => () => {
+    // The strict `Dashboard['snapshot']` shape declares many required fields
+    // (created/expires/external/etc.), but the legacy in-memory snapshot marker only needs a
+    // truthy object — `dashboard.isSnapshot()` returns Boolean(snapshot). The runtime value
+    // here is intentionally minimal; cast so the legacy assignment continues to compile.
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- legacy in-memory snapshot marker; only truthiness is consumed
+    dashboard.snapshot = { timestamp: new Date() } as unknown as Dashboard['snapshot'];
+
+    setIsLoading(true);
+    dashboard.startRefresh();
+
+    setTimeout(() => {
+      saveSnapshot(external);
+    }, timeoutSeconds * 1000);
+  };
+
+  const deleteSnapshot = async () => {
     await getBackendSrv().get(deleteUrl);
-    this.setState({ step: 3 });
+    setStep(3);
   };
 
-  getSnapshotUrl = () => {
-    return this.state.snapshotUrl;
+  // useCallback used to provide a stable reference for ClipboardButton's `getText` prop.
+  const getSnapshotUrl = useCallback(() => snapshotUrl, [snapshotUrl]);
+
+  const onSnapshotNameChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setSnapshotName(event.target.value);
   };
 
-  onSnapshotNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    this.setState({ snapshotName: event.target.value });
+  const onTimeoutChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setTimeoutSeconds(Number(event.target.value));
   };
 
-  onTimeoutChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    this.setState({ timeoutSeconds: Number(event.target.value) });
+  const onExpireChange = (option: SelectableValue<number>) => {
+    setSelectedExpireOption(option);
+    setSnapshotExpires(option.value);
   };
 
-  onExpireChange = (option: SelectableValue<number>) => {
-    this.setState({
-      selectedExpireOption: option,
-      snapshotExpires: option.value,
-    });
-  };
-
-  renderStep1() {
-    const { onDismiss } = this.props;
-    const { snapshotName, selectedExpireOption, timeoutSeconds, isLoading, sharingButtonText, externalEnabled } =
-      this.state;
-
+  const renderStep1 = () => {
     const snapshotNameTranslation = t('share-modal.snapshot.name', `Snapshot name`);
     const expireTranslation = t('share-modal.snapshot.expire', `Expire`);
     const timeoutTranslation = t('share-modal.snapshot.timeout', `Timeout (seconds)`);
@@ -263,19 +241,19 @@ export class ShareSnapshot extends PureComponent<Props, State> {
           </p>
         </div>
         <Field label={snapshotNameTranslation}>
-          <Input id="snapshot-name-input" width={30} value={snapshotName} onChange={this.onSnapshotNameChange} />
+          <Input id="snapshot-name-input" width={30} value={snapshotName} onChange={onSnapshotNameChange} />
         </Field>
         <Field label={expireTranslation}>
           <Select
             inputId="expire-select-input"
             width={30}
-            options={this.expireOptions}
+            options={expireOptions}
             value={selectedExpireOption}
-            onChange={this.onExpireChange}
+            onChange={onExpireChange}
           />
         </Field>
         <Field label={timeoutTranslation} description={timeoutDescriptionTranslation}>
-          <Input id="timeout-input" type="number" width={21} value={timeoutSeconds} onChange={this.onTimeoutChange} />
+          <Input id="timeout-input" type="number" width={21} value={timeoutSeconds} onChange={onTimeoutChange} />
         </Field>
 
         <Modal.ButtonRow>
@@ -283,14 +261,14 @@ export class ShareSnapshot extends PureComponent<Props, State> {
             <Trans i18nKey="share-modal.snapshot.cancel-button">Cancel</Trans>
           </Button>
           {externalEnabled && (
-            <Button variant="secondary" disabled={isLoading} onClick={this.createSnapshot(true)}>
+            <Button variant="secondary" disabled={isLoading} onClick={createSnapshot(true)}>
               {sharingButtonText}
             </Button>
           )}
           <Button
             variant="primary"
             disabled={isLoading}
-            onClick={this.createSnapshot()}
+            onClick={createSnapshot()}
             data-testid={selectors.PublishSnapshot}
           >
             <Trans i18nKey="share-modal.snapshot.local-button">Publish Snapshot</Trans>
@@ -298,63 +276,62 @@ export class ShareSnapshot extends PureComponent<Props, State> {
         </Modal.ButtonRow>
       </>
     );
-  }
+  };
 
-  renderStep2() {
-    const { snapshotUrl } = this.state;
+  const renderStep2 = () => (
+    <Stack direction="column" gap={0}>
+      <Field label={t('share-modal.snapshot.url-label', 'Snapshot URL')}>
+        <Input
+          id="snapshot-url-input"
+          value={snapshotUrl}
+          data-testid={selectors.CopyUrlInput}
+          readOnly
+          addonAfter={
+            <ClipboardButton
+              icon="copy"
+              variant="primary"
+              getText={getSnapshotUrl}
+              data-testid={selectors.CopyUrlButton}
+            >
+              <Trans i18nKey="share-modal.snapshot.copy-link-button">Copy</Trans>
+            </ClipboardButton>
+          }
+        />
+      </Field>
 
-    return (
-      <Stack direction="column" gap={0}>
-        <Field label={t('share-modal.snapshot.url-label', 'Snapshot URL')}>
-          <Input
-            id="snapshot-url-input"
-            value={snapshotUrl}
-            data-testid={selectors.CopyUrlInput}
-            readOnly
-            addonAfter={
-              <ClipboardButton
-                icon="copy"
-                variant="primary"
-                getText={this.getSnapshotUrl}
-                data-testid={selectors.CopyUrlButton}
-              >
-                <Trans i18nKey="share-modal.snapshot.copy-link-button">Copy</Trans>
-              </ClipboardButton>
-            }
-          />
-        </Field>
-
-        <div style={{ alignSelf: 'flex-end', padding: '5px' }}>
+      {/* Replaces inline style {{ alignSelf: 'flex-end', padding: '5px' }} with design-system primitives.
+          The parent <Stack direction="column"> has default align-items: stretch, so the inner
+          <Stack justifyContent="flex-end"> spans full width and pushes its children to the right
+          (equivalent to alignSelf:flex-end). Box padding={0.5} = theme.spacing(0.5) = 4px ≈ 5px,
+          within AAP §0.5.4 design-system-defaults tolerance. */}
+      <Stack justifyContent="flex-end">
+        <Box padding={0.5}>
           <Trans i18nKey="share-modal.snapshot.mistake-message">Did you make a mistake? </Trans>&nbsp;
-          <LinkButton fill="text" target="_blank" onClick={this.deleteSnapshot}>
+          <LinkButton fill="text" target="_blank" onClick={deleteSnapshot}>
             <Trans i18nKey="share-modal.snapshot.delete-button">Delete snapshot.</Trans>
           </LinkButton>
-        </div>
+        </Box>
       </Stack>
-    );
-  }
+    </Stack>
+  );
 
-  renderStep3() {
-    return (
-      <p>
-        <Trans i18nKey="share-modal.snapshot.deleted-message">
-          The snapshot has been deleted. If you have already accessed it once, then it might take up to an hour before
-          before it is removed from browser caches or CDN caches.
-        </Trans>
-      </p>
-    );
-  }
+  const renderStep3 = () => (
+    <p>
+      <Trans i18nKey="share-modal.snapshot.deleted-message">
+        The snapshot has been deleted. If you have already accessed it once, then it might take up to an hour before
+        before it is removed from browser caches or CDN caches.
+      </Trans>
+    </p>
+  );
 
-  render() {
-    const { isLoading, step } = this.state;
+  return (
+    <>
+      {step === 1 && renderStep1()}
+      {step === 2 && renderStep2()}
+      {step === 3 && renderStep3()}
+      {isLoading && <Spinner inline={true} />}
+    </>
+  );
+});
 
-    return (
-      <>
-        {step === 1 && this.renderStep1()}
-        {step === 2 && this.renderStep2()}
-        {step === 3 && this.renderStep3()}
-        {isLoading && <Spinner inline={true} />}
-      </>
-    );
-  }
-}
+ShareSnapshot.displayName = 'ShareSnapshot';
