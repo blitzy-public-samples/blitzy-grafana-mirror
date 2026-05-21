@@ -94,7 +94,13 @@ export function getVisualizationOptions(props: OptionPaneRenderProps): OptionsPa
   };
 
   // Load the options into categories
-  fillOptionsPaneItems(plugin.meta.id, plugin.getPanelOptionsSupplier(), access, getOptionsPaneCategory, context);
+  fillOptionsPaneItems<unknown>(
+    plugin.meta.id,
+    plugin.getPanelOptionsSupplier(),
+    access,
+    getOptionsPaneCategory,
+    context
+  );
 
   /**
    * Field options
@@ -249,7 +255,13 @@ export function getVisualizationOptions2(props: OptionPaneRenderProps2): Options
   });
 
   // Load the options into categories
-  fillOptionsPaneItems(plugin.meta.id, plugin.getPanelOptionsSupplier(), access, getOptionsPaneCategory, context);
+  fillOptionsPaneItems<unknown>(
+    plugin.meta.id,
+    plugin.getPanelOptionsSupplier(),
+    access,
+    getOptionsPaneCategory,
+    context
+  );
 
   // Field options
   const currentFieldConfig = panel.state.fieldConfig;
@@ -306,19 +318,19 @@ export function getVisualizationOptions2(props: OptionPaneRenderProps2): Options
  *
  * @internal
  */
-export function fillOptionsPaneItems(
+export function fillOptionsPaneItems<TOptions = unknown>(
   idPrefix: string,
-  supplier: PanelOptionsSupplier<any>,
+  supplier: PanelOptionsSupplier<TOptions>,
   access: NestedValueAccess,
   getOptionsPaneCategory: categoryGetter,
-  context: StandardEditorContext<any>,
+  context: StandardEditorContext<TOptions>,
   parentCategory?: OptionsPaneCategoryDescriptor
 ) {
-  const builder = new PanelOptionsEditorBuilder();
+  const builder = new PanelOptionsEditorBuilder<TOptions>();
   supplier(builder, context);
 
   for (const pluginOption of builder.getItems()) {
-    if (pluginOption.showIf && !pluginOption.showIf(context.options, context.data, context.annotations)) {
+    if (pluginOption.showIf && !pluginOption.showIf(context.options!, context.data, context.annotations)) {
       continue;
     }
 
@@ -338,7 +350,7 @@ export function fillOptionsPaneItems(
         ? subAccess.getContext(context)
         : { ...context, options: access.getValue(pluginOption.path) };
 
-      fillOptionsPaneItems(
+      fillOptionsPaneItems<unknown>(
         htmlId,
         pluginOption.getBuilder(),
         subAccess,

@@ -152,7 +152,7 @@ function getOptionsPaneCategoryDescriptor<T extends object>(
   props: EditorProps<T>,
   supplier: PanelOptionsSupplier<T>
 ): OptionsPaneCategoryDescriptor {
-  const context: StandardEditorContext<unknown, unknown> = {
+  const context: StandardEditorContext<T, unknown> = {
     data: props.data ?? [],
     options: props.options,
   };
@@ -179,7 +179,7 @@ function getOptionsPaneCategoryDescriptor<T extends object>(
   };
 
   // Use the panel options loader
-  fillOptionsPaneItems('canvas-inline', supplier, access, getOptionsPaneCategory, context);
+  fillOptionsPaneItems<T>('canvas-inline', supplier, access, getOptionsPaneCategory, context);
   return root;
 }
 

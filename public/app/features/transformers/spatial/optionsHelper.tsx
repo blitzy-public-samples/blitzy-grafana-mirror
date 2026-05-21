@@ -11,7 +11,7 @@ export function getTransformerOptionPane<T = unknown>(
   props: TransformerUIProps<T>,
   supplier: PanelOptionsSupplier<T>
 ): OptionsPaneCategoryDescriptor {
-  const context: StandardEditorContext<unknown, unknown> = {
+  const context: StandardEditorContext<T, unknown> = {
     data: props.input,
     options: props.options,
   };
@@ -41,7 +41,7 @@ export function getTransformerOptionPane<T = unknown>(
   };
 
   // Use the panel options loader
-  fillOptionsPaneItems('spatial-transformer', supplier, access, getOptionsPaneCategory, context);
+  fillOptionsPaneItems<T>('spatial-transformer', supplier, access, getOptionsPaneCategory, context);
   return root;
 }
 
