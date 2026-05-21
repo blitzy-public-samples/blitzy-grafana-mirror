@@ -5,7 +5,18 @@ import { useWindowSize } from 'react-use';
 import { type GrafanaTheme2, type SelectableValue } from '@grafana/data';
 import { selectors as e2eSelectors } from '@grafana/e2e-selectors';
 import { Trans, t } from '@grafana/i18n';
-import { FieldSet, Button, ButtonGroup, Field, Input, RadioButtonGroup, Spinner, useStyles2 } from '@grafana/ui';
+import {
+  Button,
+  ButtonGroup,
+  type Column,
+  Field,
+  FieldSet,
+  Input,
+  InteractiveTable,
+  RadioButtonGroup,
+  Spinner,
+  useStyles2,
+} from '@grafana/ui';
 import { contextSrv } from 'app/core/services/context_srv';
 import {
   useAddRecipientMutation,
@@ -27,6 +38,8 @@ interface EmailSharingConfigurationForm {
 }
 
 const selectors = e2eSelectors.pages.ShareDashboardModal.PublicDashboard.EmailSharingConfiguration;
+
+type Recipient = NonNullable<PublicDashboard['recipients']>[number];
 
 const EmailList = ({
   recipients,
@@ -53,44 +66,52 @@ const EmailList = ({
     reshareAccess({ recipientUid, uid: publicDashboardUid });
   };
 
+  const columns: Array<Column<Recipient>> = [
+    {
+      id: 'recipient',
+      cell: ({ row }) => row.original.recipient,
+    },
+    {
+      id: 'actions',
+      disableGrow: true,
+      cell: ({ row }) => {
+        const idx = recipients!.findIndex((r) => r.uid === row.original.uid);
+        return (
+          <ButtonGroup className={styles.tableButtonsContainer}>
+            <Button
+              type="button"
+              variant="destructive"
+              fill="text"
+              title={t('public-dashboard.email-sharing.revoke-button-title', 'Revoke')}
+              size="sm"
+              disabled={isLoading}
+              onClick={() => onDeleteEmail(row.original.uid, row.original.recipient)}
+              data-testid={`${selectors.DeleteEmail}-${idx}`}
+            >
+              <Trans i18nKey="public-dashboard.email-sharing.revoke-button">Revoke</Trans>
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              fill="text"
+              title={t('public-dashboard.email-sharing.resend-button-title', 'Resend')}
+              size="sm"
+              disabled={isLoading}
+              onClick={() => onReshare(row.original.uid)}
+              data-testid={`${selectors.ReshareLink}-${idx}`}
+            >
+              <Trans i18nKey="public-dashboard.email-sharing.resend-button">Resend</Trans>
+            </Button>
+          </ButtonGroup>
+        );
+      },
+    },
+  ];
+
   return (
-    <table className={styles.table} data-testid={selectors.EmailSharingList}>
-      <tbody>
-        {recipients!.map((recipient, idx) => (
-          <tr key={recipient.uid}>
-            <td>{recipient.recipient}</td>
-            <td>
-              <ButtonGroup className={styles.tableButtonsContainer}>
-                <Button
-                  type="button"
-                  variant="destructive"
-                  fill="text"
-                  title={t('public-dashboard.email-sharing.revoke-button-title', 'Revoke')}
-                  size="sm"
-                  disabled={isLoading}
-                  onClick={() => onDeleteEmail(recipient.uid, recipient.recipient)}
-                  data-testid={`${selectors.DeleteEmail}-${idx}`}
-                >
-                  <Trans i18nKey="public-dashboard.email-sharing.revoke-button">Revoke</Trans>
-                </Button>
-                <Button
-                  type="button"
-                  variant="primary"
-                  fill="text"
-                  title={t('public-dashboard.email-sharing.resend-button-title', 'Resend')}
-                  size="sm"
-                  disabled={isLoading}
-                  onClick={() => onReshare(recipient.uid)}
-                  data-testid={`${selectors.ReshareLink}-${idx}`}
-                >
-                  <Trans i18nKey="public-dashboard.email-sharing.resend-button">Resend</Trans>
-                </Button>
-              </ButtonGroup>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <div data-testid={selectors.EmailSharingList} className={styles.table}>
+      <InteractiveTable columns={columns} data={recipients ?? []} getRowId={(row) => row.uid} />
+    </div>
   );
 };
 
@@ -143,6 +164,7 @@ export const EmailSharingConfiguration = ({ dashboard }: { dashboard: DashboardM
   };
 
   return (
+    // Design system gap: react-hook-form useForm() integration — raw <form> required for handleSubmit() composition
     <form onSubmit={handleSubmit(onSubmit)}>
       <FieldSet disabled={!hasWritePermissions} data-testid={selectors.Container} className={styles.container}>
         <Field
@@ -253,25 +275,8 @@ const getStyles = (theme: GrafanaTheme2) => ({
   }),
   table: css({
     label: 'table',
-    display: 'flex',
     maxHeight: '220px',
     overflowY: 'scroll',
-    '& tbody': {
-      display: 'flex',
-      flexDirection: 'column',
-      flexGrow: 1,
-    },
-    '& tr': {
-      minHeight: '40px',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      padding: theme.spacing(0.5, 1),
-
-      ':nth-child(odd)': {
-        background: theme.colors.background.secondary,
-      },
-    },
   }),
   tableButtonsContainer: css({
     display: 'flex',
