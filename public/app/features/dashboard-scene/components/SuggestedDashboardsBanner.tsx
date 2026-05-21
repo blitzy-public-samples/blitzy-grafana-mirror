@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useLocation } from 'react-router-dom-v5-compat';
 
 import { Trans, t } from '@grafana/i18n';
-import { Alert, TextLink } from '@grafana/ui';
+import { Alert, Box, TextLink } from '@grafana/ui';
 import {
   CONTENT_KINDS,
   EVENT_LOCATIONS,
@@ -52,24 +52,25 @@ export function SuggestedDashboardsBanner({ route, dashboard }: Props) {
       sourceEntryPoint={SOURCE_ENTRY_POINTS.DASHBOARD_PAGE_SUGGESTED_DASHBOARDS_BANNER}
     >
       {({ openModal }) => (
-        <Alert
-          severity="info"
-          title={t('dashboard-scene.suggested-dashboard-banner.title', 'You are viewing {{title}}', { title })}
-          style={{ flex: 0 }}
-          onRemove={() => setDismissed(true)}
-        >
-          <Trans i18nKey="dashboard-scene.suggested-dashboard-banner.body">
-            Not what you&apos;re looking for? View{' '}
-            <TextLink href={window.location.href} onClick={() => onSuggestedDashboardsClick(openModal)}>
-              other suggested dashboards
-            </TextLink>{' '}
-            or{' '}
-            <TextLink href="/dashboard/new" onClick={onCreateFromScratchClick}>
-              create one from scratch
-            </TextLink>
-            .
-          </Trans>
-        </Alert>
+        <Box flex={0}>
+          <Alert
+            severity="info"
+            title={t('dashboard-scene.suggested-dashboard-banner.title', 'You are viewing {{title}}', { title })}
+            onRemove={() => setDismissed(true)}
+          >
+            <Trans i18nKey="dashboard-scene.suggested-dashboard-banner.body">
+              Not what you&apos;re looking for? View{' '}
+              <TextLink href={window.location.href} onClick={() => onSuggestedDashboardsClick(openModal)}>
+                other suggested dashboards
+              </TextLink>{' '}
+              or{' '}
+              <TextLink href="/dashboard/new" onClick={onCreateFromScratchClick}>
+                create one from scratch
+              </TextLink>
+              .
+            </Trans>
+          </Alert>
+        </Box>
       )}
     </SuggestedDashboardsLoader>
   );
