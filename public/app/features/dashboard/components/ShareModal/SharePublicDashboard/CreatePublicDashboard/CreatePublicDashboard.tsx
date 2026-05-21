@@ -78,6 +78,7 @@ export const CreatePublicDashboardBase = ({
         <UnsupportedDataSourcesAlert unsupportedDataSources={unsupportedDatasources.join(', ')} />
       )}
 
+      {/* Design system gap: react-hook-form useForm() integration — raw <form> required for handleSubmit() composition */}
       <form onSubmit={handleSubmit(onCreate)}>
         <div className={styles.checkboxes}>
           <AcknowledgeCheckboxes disabled={disableInputs} register={register} />
