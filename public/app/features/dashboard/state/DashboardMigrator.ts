@@ -2,7 +2,6 @@ import { each, find, findIndex, flattenDeep, isArray, isString, map, max, some }
 
 import {
   type AnnotationQuery,
-  type ConstantVariableModel,
   type DataLink,
   DataLinkBuiltInVars,
   type DataQuery,
@@ -19,7 +18,6 @@ import {
   SpecialValueMatch,
   standardEditorsRegistry,
   standardFieldConfigEditorRegistry,
-  type TextBoxVariableModel,
   type ThresholdsConfig,
   urlUtil,
   type ValueMap,
@@ -28,7 +26,7 @@ import {
 } from '@grafana/data';
 import { labelsToFieldsTransformer, mergeTransformer } from '@grafana/data/internal';
 import { getDataSourceSrv, setDataSourceSrv } from '@grafana/runtime';
-import { type DataTransformerConfig } from '@grafana/schema';
+import { type DataTransformerConfig, type VariableModel, type VariableType } from '@grafana/schema';
 import { AxisPlacement, type GraphFieldConfig } from '@grafana/ui';
 import { migrateTableDisplayModeToCellOptions } from '@grafana/ui/internal';
 import { getAllOptionEditors, getAllStandardFieldConfigs } from 'app/core/components/OptionsUI/registry';
@@ -47,7 +45,6 @@ import {
   type RefIdTransformerOptions,
   type TimeSeriesTableTransformerOptions,
 } from 'app/features/transformers/timeSeriesTable/timeSeriesTableTransformer';
-import { isConstant, isMulti } from 'app/features/variables/guard';
 import { alignCurrentWithMulti } from 'app/features/variables/shared/multiOptions';
 import { type CloudWatchMetricsQuery } from 'app/plugins/datasource/cloudwatch/dataquery.gen';
 import { type LegacyAnnotationQuery } from 'app/plugins/datasource/cloudwatch/types';
@@ -148,7 +145,19 @@ export class DashboardMigrator {
 
       // update template variables
       for (i = 0; i < this.dashboard.templating.list.length; i++) {
-        const variable = this.dashboard.templating.list[i];
+        // V0-V5 dashboards used a 'filter' type literal and an 'allFormat' field on
+        // template variables that were both removed from the VariableModel schema
+        // before V6. Widen the iteration target via a local cast so the migrator can
+        // detect/replace these legacy values; runtime semantics are unchanged.
+        // `Omit<VariableModel, 'type'>` is required (rather than a plain intersection)
+        // so the `type` field can be widened to include the V0 'filter' literal — a
+        // direct intersection would narrow `type` to its original `VariableType` value
+        // because intersection of property types is an intersection, not a union.
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- legitimate schema-migration boundary: legacy V0-V5 field access
+        const variable = this.dashboard.templating.list[i] as Omit<VariableModel, 'type'> & {
+          type: VariableType | 'filter';
+          allFormat?: string;
+        };
         if (variable.datasource === void 0) {
           variable.datasource = null;
         }
@@ -406,14 +415,31 @@ export class DashboardMigrator {
 
     if (oldVersion < 23 && finalTargetVersion >= 23) {
       for (const variable of this.dashboard.templating.list) {
-        if (!isMulti(variable)) {
+        // The `isMulti` type guard from `@grafana/data` narrows to that package's
+        // `VariableWithMultiSupport`, but the loop variable is typed against
+        // `@grafana/schema`'s `VariableModel`. The two packages declare nominally
+        // distinct `VariableHide` enums, so the intersection collapses to `never`
+        // and downstream property accesses fail to typecheck. Replicate the
+        // runtime semantics of `isMulti` (presence of the `multi` key) inline so
+        // narrowing is performed against the schema-typed shape — this preserves
+        // behavior without depending on the cross-package type guard.
+        if (!('multi' in variable) || variable.multi == null) {
           continue;
         }
         const { multi, current } = variable;
-        if (isEmptyObject(current)) {
+        if (current == null || isEmptyObject(current)) {
           continue;
         }
-        variable.current = alignCurrentWithMulti(current, multi);
+        // `alignCurrentWithMulti` is typed against `@grafana/data`'s `VariableOption`,
+        // which requires `selected: boolean`; `@grafana/schema`'s `VariableOption`
+        // (the type of `variable.current` here) has `selected?: boolean`. The cast
+        // is benign because `alignCurrentWithMulti` only reads `value` and `text` —
+        // the `selected` field is never consumed by the migration. We deliberately
+        // avoid injecting a default `selected` value because that would change
+        // observable behavior: callers (and tests) deep-equal the resulting
+        // `current` object and expect the field set to match the input.
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- schema `VariableOption.selected?: boolean` vs data `VariableOption.selected: boolean`; structurally compatible and `selected` is unused
+        variable.current = alignCurrentWithMulti(current as Parameters<typeof alignCurrentWithMulti>[0], multi);
       }
     }
 
@@ -463,31 +489,66 @@ export class DashboardMigrator {
       // remove old repeated panel left-overs
       this.removeRepeatedPanels();
 
-      this.dashboard.templating.list = this.dashboard.templating.list.map((variable) => {
-        if (!isConstant(variable)) {
+      // The legacy `isConstant` type guard narrows to `@grafana/data`'s
+      // `ConstantVariableModel`, but the loop variable is typed against
+      // `@grafana/schema`'s `VariableModel`. The two packages declare nominally
+      // distinct `VariableHide` enums, so the intersection collapses to `never`
+      // and the spread on the narrowed variable fails to typecheck. Replicate
+      // the runtime semantics of `isConstant` (a discriminator check on the
+      // `type` field) inline so narrowing happens within the schema-typed
+      // shape; the migration result is then assigned back to the typed
+      // templating list via a single justified cast at the boundary.
+      const migrated = this.dashboard.templating.list.map((variable) => {
+        if (variable.type !== 'constant') {
           return variable;
         }
 
-        const newVariable: ConstantVariableModel | TextBoxVariableModel = {
+        // Spread the schema-typed VariableModel into a new object and populate the
+        // fields the V27 migration requires (`current`, `options`, optionally a
+        // 'textbox' type literal). Type inference is used here rather than an
+        // explicit `ConstantVariableModel | TextBoxVariableModel` annotation
+        // because those `@grafana/data` types extend `BaseVariableModel` (with
+        // required `id`, `state`, etc.) which the schema-typed `variable` does
+        // not satisfy in a strictly typed sense, while remaining structurally
+        // compatible at runtime. Constant-variable `query` is historically a
+        // string at runtime even though the schema permits a wider union; the
+        // narrowing below preserves prior runtime behavior.
+        const queryString = typeof variable.query === 'string' ? variable.query : '';
+        const newCurrent = { selected: true, text: queryString, value: queryString };
+        const withOptions = {
           ...variable,
+          current: newCurrent,
+          options: [newCurrent],
         };
 
-        newVariable.current = { selected: true, text: newVariable.query ?? '', value: newVariable.query ?? '' };
-        newVariable.options = [newVariable.current];
-
-        if (newVariable.hide === VariableHide.dontHide || newVariable.hide === VariableHide.hideLabel) {
+        if (variable.hide === VariableHide.dontHide || variable.hide === VariableHide.hideLabel) {
           return {
-            ...newVariable,
-            type: 'textbox',
+            ...withOptions,
+            type: 'textbox' as const,
           };
         }
 
-        return newVariable;
+        return withOptions;
       });
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- migration boundary: V27 emits objects shaped as ConstantVariableModel/TextBoxVariableModel that are structurally compatible with @grafana/schema's VariableModel at runtime
+      this.dashboard.templating.list = migrated as VariableModel[];
     }
 
     if (oldVersion < 28 && finalTargetVersion >= 28) {
-      for (const variable of this.dashboard.templating.list) {
+      for (const v of this.dashboard.templating.list) {
+        // The `tags`, `tagsQuery`, `tagValuesQuery`, and `useTags` fields were
+        // removed from the VariableModel schema in V28. The migrator
+        // legitimately needs to detect and delete these legacy properties when
+        // upgrading dashboards from V27 or earlier. Widen via a local cast so
+        // the property accesses below typecheck; runtime semantics are
+        // unchanged.
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- legitimate schema-migration boundary: legacy pre-V28 field access
+        const variable = v as VariableModel & {
+          tags?: unknown;
+          tagsQuery?: unknown;
+          tagValuesQuery?: unknown;
+          useTags?: unknown;
+        };
         if (variable.tags) {
           delete variable.tags;
         }

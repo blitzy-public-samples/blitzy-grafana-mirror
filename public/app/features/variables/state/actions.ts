@@ -39,7 +39,7 @@ import { variableAdapters } from '../adapters';
 import { ALL_VARIABLE_TEXT, ALL_VARIABLE_VALUE, VARIABLE_PREFIX } from '../constants';
 import { cleanEditorState } from '../editor/reducer';
 import { ensureStringValues } from '../ensureStringValues';
-import { hasCurrent, hasLegacyVariableSupport, hasOptions, hasStandardVariableSupport, isMulti } from '../guard';
+import { hasLegacyVariableSupport, hasOptions, hasStandardVariableSupport, isMulti } from '../guard';
 import { getAllAffectedPanelIdsForVariableChange, getPanelVars } from '../inspect/utils';
 import { cleanPickerState } from '../pickers/OptionsPicker/reducer';
 import { alignCurrentWithMulti } from '../shared/multiOptions';
@@ -87,7 +87,11 @@ export const initDashboardTemplating = (key: string, dashboard: DashboardModel):
     let orderIndex = 0;
     const list = dashboard.templating.list;
     for (let index = 0; index < list.length; index++) {
-      const model = fixSelectedInconsistency(list[index]);
+      // `templating.list` is now typed as @grafana/schema's `VariableModel[]` (persisted JSON
+      // shape). `fixSelectedInconsistency` consumes @grafana/data's `TypedVariableModel`
+      // (the runtime union). Schema variables flow into runtime variables at this boundary.
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- schema-to-runtime variable model bridge
+      const model = fixSelectedInconsistency(list[index] as TypedVariableModel);
       model.rootStateKey = key;
       if (!variableAdapters.getIfExists(model.type)) {
         continue;
@@ -146,7 +150,9 @@ export const addSystemTemplateVariables = (key: string, dashboard: DashboardMode
       current: {
         value: {
           name: dashboard.title,
-          uid: dashboard.uid,
+          // `DashboardModel.uid` is now `string | null`; the system-template variable
+          // expects a string. Coerce null to empty-string at the boundary.
+          uid: dashboard.uid ?? '',
           toString: () => dashboard.title,
         },
       },
@@ -833,12 +839,20 @@ export const templateVarsChangedInUrl =
         // for some reason (panel|data link without variable) the variable url value (var-xyz) has been removed from the url
         // so we need to revert the value to the value stored in dashboard json
         const variableInModel = dashboard?.templating.list.find((v) => v.name === variable.name);
-        if (variableInModel && hasCurrent(variableInModel)) {
-          value = variableInModel.current.value; // revert value to the value stored in dashboard json
+        // `hasCurrent` is typed against @grafana/data's `VariableModel`. After type-tightening
+        // `templating.list` to @grafana/schema's `VariableModel[]`, the nominal mismatch
+        // causes the narrowing to collapse to `never`. Use a structural `'current' in v`
+        // narrowing instead — equivalent at runtime, type-safe at compile time.
+        if (variableInModel && 'current' in variableInModel && variableInModel.current) {
+          // `VariableOption.value` is `string | string[]` (assignable to UrlQueryValue).
+          value = variableInModel.current.value;
         }
 
         if (variableInModel && variableInModel.type === 'constant') {
-          value = variableInModel.query; // revert value to the value stored in dashboard json, constants don't store current values in dashboard json
+          // For constant variables `query` is historically a string at runtime even though
+          // the schema permits a wider union (string | Record<string, unknown>). Narrow at
+          // the assignment boundary so the result is assignable to UrlQueryValue.
+          value = typeof variableInModel.query === 'string' ? variableInModel.query : undefined;
         }
       }
 

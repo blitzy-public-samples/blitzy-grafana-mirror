@@ -10,6 +10,7 @@ import { dataLayersToAnnotations } from 'app/features/dashboard-scene/serializat
 import { transformSaveModelToScene } from 'app/features/dashboard-scene/serialization/transformSaveModelToScene';
 import { dashboardSceneGraph } from 'app/features/dashboard-scene/utils/dashboardSceneGraph';
 import { GrafanaQueryType } from 'app/plugins/datasource/grafana/types';
+import { type DashboardDataDTO } from 'app/types/dashboard';
 
 import { graphPanelChangedHandler } from './migrations';
 
@@ -151,7 +152,7 @@ describe('Graph Migrations', () => {
 
       dashboard.panels.push(new PanelModelState(panel));
 
-      const scene = transformSaveModelToScene({ dashboard, meta: {} });
+      const scene = transformSaveModelToScene({ dashboard: dashboard as unknown as DashboardDataDTO, meta: {} });
       window.__grafanaSceneContext = scene;
 
       panel.options = graphPanelChangedHandler(panel, 'graph', old, prevFieldConfig);

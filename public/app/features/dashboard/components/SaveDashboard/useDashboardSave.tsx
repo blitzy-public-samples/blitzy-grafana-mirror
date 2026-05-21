@@ -83,7 +83,8 @@ export const useDashboardSave = (isCopy = false) => {
         if (dashboard.meta.isStarred) {
           dispatch(
             updateDashboardName({
-              id: dashboard.uid,
+              // `DashboardModel.uid` is `string | null`; coerce to empty-string for the action payload.
+              id: dashboard.uid ?? '',
               title: dashboard.title,
               url: newUrl,
             })

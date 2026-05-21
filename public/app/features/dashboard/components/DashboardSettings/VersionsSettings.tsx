@@ -60,7 +60,8 @@ export class VersionsSettings extends PureComponent<Props, State> {
 
     getDashboardAPI()
       .then(async (api) => {
-        const result = await api.listDashboardHistory(this.props.dashboard.uid, options);
+        // `DashboardModel.uid` is `string | null`; coerce to empty-string for the API call.
+        const result = await api.listDashboardHistory(this.props.dashboard.uid ?? '', options);
         const versions = this.transformToRevisionModels(result.items);
         this.setState({
           isLoading: false,

@@ -1,4 +1,5 @@
 import { type TypedVariableModel } from '@grafana/data';
+import { type VariableModel } from '@grafana/schema';
 import { type DashboardState } from 'app/types/dashboard';
 import { type StoreState } from 'app/types/store';
 
@@ -99,7 +100,7 @@ async function getTestContext(
     getModel: () => {
       dashboardModel.templateVariableValueUpdated = templateVariableValueUpdatedMock;
       dashboardModel.startRefresh = startRefreshMock;
-      dashboardModel.templating = { list: [variable] };
+      dashboardModel.templating = { list: [variable as unknown as VariableModel] };
       dashboardModel.panels = [panelModelA, panelModelB];
       return dashboardModel;
     },

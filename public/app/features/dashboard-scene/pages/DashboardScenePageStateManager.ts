@@ -465,7 +465,9 @@ abstract class DashboardScenePageStateManagerBase<T>
         emitDashboardViewEvent({
           id: dashboard.state.id,
           meta: dashboard.state.meta,
-          uid: dashboard.state.uid,
+          // `dashboard.state.uid` is `string | undefined`; `DashboardModel.uid` is `string | null`.
+          // Normalize undefined to null for the analytics payload (both indicate "no uid yet").
+          uid: dashboard.state.uid ?? null,
           title: dashboard.state.title,
         });
       }

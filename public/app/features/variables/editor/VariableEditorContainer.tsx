@@ -36,9 +36,11 @@ export function VariableEditorContainer({ dashboard, editIndex, sectionNav }: Se
 
   // Replaces `mapStateToProps` — re-evaluated whenever the relevant slice of the
   // store changes. Reads are scoped to the dashboard's keyed templating state.
-  const variables = useSelector((state) => getEditorVariables(dashboard.uid, state));
+  // `DashboardModel.uid` is now `string | null`; coerce null to empty-string for the keyed selectors.
+  const dashboardUid = dashboard.uid ?? '';
+  const variables = useSelector((state) => getEditorVariables(dashboardUid, state));
   const { usagesNetwork, usages } = useSelector((state) => {
-    const templatingState = getVariablesState(dashboard.uid, state);
+    const templatingState = getVariablesState(dashboardUid, state);
     return {
       // `idInEditor` was selected by the original `mapStateToProps` but never read
       // in `render()`; we omit it from the destructured selector output without

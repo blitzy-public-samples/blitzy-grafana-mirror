@@ -8,6 +8,7 @@ import {
   CollapsableSection,
   Field,
   Input,
+  isWeekStart,
   RadioButtonGroup,
   TagsInput,
   Label,
@@ -108,7 +109,8 @@ export function GeneralSettingsUnconnected({
   };
 
   const onWeekStartChange = (weekStart?: WeekStart) => {
-    dashboard.weekStart = weekStart;
+    // `DashboardModel.weekStart` is `string` (defaults to ''); coerce undefined to empty-string.
+    dashboard.weekStart = weekStart ?? '';
     setRenderCounter(renderCounter + 1);
     updateWeekStart(weekStart);
   };
@@ -198,7 +200,8 @@ export function GeneralSettingsUnconnected({
           timePickerHidden={dashboard.timepicker.hidden}
           nowDelay={dashboard.timepicker.nowDelay}
           timezone={dashboard.timezone}
-          weekStart={dashboard.weekStart}
+          // `DashboardModel.weekStart` is `string`; narrow to the WeekStart union for the typed prop.
+          weekStart={isWeekStart(dashboard.weekStart) ? dashboard.weekStart : undefined}
           liveNow={dashboard.liveNow}
         />
 

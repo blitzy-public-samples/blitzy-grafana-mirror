@@ -53,7 +53,8 @@ export function DashboardSettings({ dashboard, editview, pageNav, sectionNav }: 
   const canSave = dashboard.meta.canSave;
   const location = useLocation();
   const editIndex = getEditIndex(location);
-  const subSectionNav = getSectionNav(pageNav, sectionNav, pages, currentPage, location, dashboard.uid);
+  // `DashboardModel.uid` is `string | null`; coerce to empty-string for navigation routing.
+  const subSectionNav = getSectionNav(pageNav, sectionNav, pages, currentPage, location, dashboard.uid ?? '');
   const size = 'sm';
 
   const actions = [

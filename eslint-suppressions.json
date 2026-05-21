@@ -1531,9 +1531,6 @@
   "public/app/features/dashboard/state/DashboardModel.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1
-    },
-    "@typescript-eslint/no-explicit-any": {
-      "count": 24
     }
   },
   "public/app/features/dashboard/state/PanelModel.test.ts": {

@@ -1,3 +1,4 @@
+import { type TypedVariableModel } from '@grafana/data';
 import { type DashboardModel } from 'app/features/dashboard/state/DashboardModel';
 import { PanelModel } from 'app/features/dashboard/state/PanelModel';
 
@@ -233,7 +234,7 @@ describe('getAllAffectedPanelIdsForVariableChange ', () => {
         templating: { list: variables },
       } = dashWithTemplateDependenciesAndPanels;
       const panelVarPairs = getPanelVars(panelsAsJson);
-      const varGraph = createGraph(variables);
+      const varGraph = createGraph(variables as unknown as TypedVariableModel[]);
 
       const result = [...getAllAffectedPanelIdsForVariableChange(['ds_instance'], varGraph, panelVarPairs)];
       expect(result).toEqual([5, 2, 4, 3]);
@@ -247,7 +248,7 @@ describe('getAllAffectedPanelIdsForVariableChange ', () => {
         templating: { list: variables },
       } = dashWithTemplateDependenciesAndPanels;
       const panelVarPairs = getPanelVars(panelsAsJson);
-      const varGraph = createGraph(variables);
+      const varGraph = createGraph(variables as unknown as TypedVariableModel[]);
       const result = [...getAllAffectedPanelIdsForVariableChange(['depends_on_all'], varGraph, panelVarPairs)];
       expect(result).toEqual([2]);
     });
@@ -260,7 +261,7 @@ describe('getAllAffectedPanelIdsForVariableChange ', () => {
         templating: { list: variables },
       } = dashWithAllVariables;
       const panelVarPairs = getPanelVars(panelsAsJson);
-      const varGraph = createGraph(variables);
+      const varGraph = createGraph(variables as unknown as TypedVariableModel[]);
       const result = [...getAllAffectedPanelIdsForVariableChange(['unknown'], varGraph, panelVarPairs)];
       expect(result).toEqual([2, 3]);
     });

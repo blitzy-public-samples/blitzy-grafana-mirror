@@ -78,7 +78,8 @@ const mapStateToProps = (state: StoreState, ownProps: OwnProps) => {
     initDone: state.panelEditor.initDone,
     uiState: state.panelEditor.ui,
     tableViewEnabled: state.panelEditor.tableViewEnabled,
-    variables: getVariablesByKey(ownProps.dashboard.uid, state),
+    // `DashboardModel.uid` is `string | null`; coerce to empty-string for the keyed selector.
+    variables: getVariablesByKey(ownProps.dashboard.uid ?? '', state),
   };
 };
 

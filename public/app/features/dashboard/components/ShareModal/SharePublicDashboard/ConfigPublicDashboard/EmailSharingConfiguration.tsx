@@ -98,7 +98,10 @@ export const EmailSharingConfiguration = ({ dashboard }: { dashboard: DashboardM
   const { width } = useWindowSize();
   const styles = useStyles2(getStyles);
 
-  const dashboardUid = dashboard instanceof DashboardScene ? dashboard.state.uid : dashboard.uid;
+  // `DashboardModel.uid` is now `string | null` (DashboardScene state.uid is `string | undefined`);
+  // coerce to empty-string so downstream queries receive a concrete `string`.
+  const dashboardUid =
+    dashboard instanceof DashboardScene ? (dashboard.state.uid ?? '') : (dashboard.uid ?? '');
   const { data: publicDashboard } = useGetPublicDashboardQuery(dashboardUid);
   const [updateShareType] = useUpdatePublicDashboardAccessMutation();
   const [addEmail, { isLoading: isAddEmailLoading }] = useAddRecipientMutation();

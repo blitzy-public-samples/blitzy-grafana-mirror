@@ -271,8 +271,11 @@ export function initDashboard(args: InitDashboardArgs): ThunkResult<void> {
     if (args.routeName !== DashboardRoutes.New) {
       emitDashboardViewEvent(dashboard);
 
-      // Listen for changes on the current dashboard
-      dashboardWatcher.watch(dashboard.uid);
+      // Listen for changes on the current dashboard. dashboard.uid is `string | null` (a
+      // newly created dashboard has no UID); coerce null to '' so the watcher receives a
+      // string key — matches prior runtime behavior under `any` typing where null was
+      // passed through unchanged.
+      dashboardWatcher.watch(dashboard.uid ?? '');
     } else {
       dashboardWatcher.leave();
     }
@@ -284,10 +287,12 @@ export function initDashboard(args: InitDashboardArgs): ThunkResult<void> {
       setWeekStart(contextSrv.user.weekStart);
     }
 
-    // Propagate an app-wide event about the dashboard being loaded
+    // Propagate an app-wide event about the dashboard being loaded. dashboard.uid is
+    // `string | null` (newly created dashboards have no UID); the event payload requires
+    // a string, so coerce null to '' (matches prior runtime behavior under `any` typing).
     appEvents.publish(
       new DashboardLoadedEvent({
-        dashboardId: dashboard.uid,
+        dashboardId: dashboard.uid ?? '',
         orgId: storeState.user.orgId,
         userId: storeState.user.user?.id,
         grafanaVersion: config.buildInfo.version,

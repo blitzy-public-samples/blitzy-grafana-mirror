@@ -77,7 +77,8 @@ class SubMenuUnConnected extends PureComponent<Props> {
 }
 
 const mapStateToProps: MapStateToProps<ConnectedProps, OwnProps, StoreState> = (state, ownProps) => {
-  const { uid } = ownProps.dashboard;
+  // `DashboardModel.uid` is `string | null`; coerce null to empty-string for keyed selectors.
+  const uid = ownProps.dashboard.uid ?? '';
   const templatingState = getVariablesState(uid, state);
   return {
     variables: getSubMenuVariables(uid, templatingState.variables),

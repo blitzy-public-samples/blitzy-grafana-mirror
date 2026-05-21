@@ -12,7 +12,9 @@ import { buildIframeHtml, getTrackingSource } from './utils';
 interface Props extends Omit<ShareModalTabProps, 'panel' | 'dashboard'> {
   panelId: string;
   timeFrom?: string;
-  dashboard: { uid: string; time: RawTimeRange };
+  // `uid` accepts `string | null` to align with `DashboardModel.uid`, which can be null
+  // for unsaved dashboards. The component coerces null to '' before building the iframe URL.
+  dashboard: { uid: string | null; time: RawTimeRange };
   range?: TimeRange;
   buildIframe?: typeof buildIframeHtml;
   onCancelClick?: () => void;
@@ -31,7 +33,15 @@ export function ShareEmbed({
   const [iframeHtml, setIframeHtml] = useState('');
 
   useEffect(() => {
-    const newIframeHtml = buildIframe(useCurrentTimeRange, dashboard.uid, selectedTheme, panelId, timeFrom, range);
+    // Coerce null uid (unsaved dashboards) to '' so the embed URL is still well-formed.
+    const newIframeHtml = buildIframe(
+      useCurrentTimeRange,
+      dashboard.uid ?? '',
+      selectedTheme,
+      panelId,
+      timeFrom,
+      range
+    );
     setIframeHtml(newIframeHtml);
   }, [selectedTheme, useCurrentTimeRange, dashboard, panelId, timeFrom, range, buildIframe]);
 

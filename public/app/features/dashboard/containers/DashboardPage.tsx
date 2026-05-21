@@ -211,7 +211,8 @@ export class UnthemedDashboardPage extends PureComponent<Props, State> {
       const templateVarChanges = findTemplateVarChanges(this.props.queryParams, prevProps.queryParams);
 
       if (templateVarChanges) {
-        templateVarsChangedInUrl(dashboard.uid, templateVarChanges);
+        // `DashboardModel.uid` is `string | null`; coerce to empty-string for the keyed action.
+        templateVarsChangedInUrl(dashboard.uid ?? '', templateVarChanges);
       }
     }
 
@@ -398,7 +399,8 @@ export class UnthemedDashboardPage extends PureComponent<Props, State> {
                 folderTitle={dashboard.meta.folderTitle}
                 isFullscreen={!!viewPanel}
                 kioskMode={kioskMode}
-                hideTimePicker={dashboard.timepicker.hidden}
+                // `timepicker.hidden` is optional in TimePickerConfig; coerce undefined to false.
+                hideTimePicker={dashboard.timepicker.hidden ?? false}
               />
             </header>
           )}

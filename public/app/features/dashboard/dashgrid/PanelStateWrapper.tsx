@@ -364,7 +364,8 @@ export class PanelStateWrapper extends PureComponent<Props, State> {
 
       panel.refreshWhenInView = false;
       panel.runAllPanelQueries({
-        dashboardUID: dashboard.uid,
+        // `DashboardModel.uid` is `string | null`; coerce to empty-string for the query runner.
+        dashboardUID: dashboard.uid ?? '',
         dashboardTimezone: dashboard.getTimezone(),
         dashboardTitle: dashboard.title,
         timeData,

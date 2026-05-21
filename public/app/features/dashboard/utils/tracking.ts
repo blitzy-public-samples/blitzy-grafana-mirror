@@ -20,15 +20,24 @@ export function trackDashboardLoaded(dashboard: DashboardModel, duration?: numbe
   const panels = getPanelPluginCounts(dashboard.panels.map((p) => p.type));
 
   DashboardInteractions.dashboardInitialized({
-    uid: dashboard.uid,
+    // `DashboardModel.uid` is `string | null`; coerce to undefined (matches optional schema field).
+    uid: dashboard.uid ?? undefined,
     title: dashboard.title,
-    theme: dashboard.style,
+    // `DashboardModel.style` is `unknown` (legacy field, never assigned by the constructor).
+    // The tracking schema declares `theme: undefined`. Pass `undefined` literally to satisfy
+    // the type while preserving the original runtime semantics (style is never assigned).
+    theme: undefined,
     schemaVersion: dashboard.schemaVersion,
     version_before_migration: versionBeforeMigration,
     panels_count: dashboard.panels.length,
     ...panels,
     ...variables,
-    settings_nowdelay: dashboard.timepicker.nowDelay,
+    // `TimePickerConfig.nowDelay` is `string | undefined` but the tracking schema declares
+    // `settings_nowdelay?: number`. Historically this field was passed through unchanged
+    // (`any` typed) — preserve the original runtime value with a structural cast rather than
+    // converting to number, which would change the analytics payload shape consumed downstream.
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- preserve historical analytics payload shape (schema declares number, runtime emits string)
+    settings_nowdelay: dashboard.timepicker.nowDelay as unknown as number | undefined,
     settings_livenow: !!dashboard.liveNow,
     duration,
     isScene: false,

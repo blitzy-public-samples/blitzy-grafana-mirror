@@ -76,7 +76,9 @@ export const DashNav = memo<Props>((props) => {
 
   const originalUrl = props.dashboard.snapshot?.originalUrl ?? '';
   const gotoSnapshotOrigin = () => {
-    window.location.href = textUtil.sanitizeUrl(props.dashboard.snapshot.originalUrl);
+    // `DashboardModel.snapshot` is `Dashboard['snapshot']` which is optional.
+    // Use optional chaining and coalesce to '' for the sanitizer.
+    window.location.href = textUtil.sanitizeUrl(props.dashboard.snapshot?.originalUrl ?? '');
   };
 
   const notifyApp = useAppNotification();

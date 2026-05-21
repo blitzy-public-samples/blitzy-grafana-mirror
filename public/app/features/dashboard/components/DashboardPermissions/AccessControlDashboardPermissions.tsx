@@ -11,7 +11,8 @@ export const AccessControlDashboardPermissions = ({ dashboard, sectionNav }: Set
 
   return (
     <Page navModel={sectionNav} pageNav={pageNav}>
-      <Permissions resource={'dashboards'} resourceId={dashboard.uid} canSetPermissions={canSetPermissions} />
+      {/* `DashboardModel.uid` is `string | null`; coerce to empty-string for the permissions API. */}
+      <Permissions resource={'dashboards'} resourceId={dashboard.uid ?? ''} canSetPermissions={canSetPermissions} />
     </Page>
   );
 };

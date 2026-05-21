@@ -101,7 +101,7 @@ describe('processVariable', () => {
       .build();
 
     const list = [custom, queryDependsOnCustom, queryNoDepends];
-    const dashboard = { templating: { list } } as DashboardModel;
+    const dashboard = { templating: { list } } as unknown as DashboardModel;
     setVariableQueryRunner(new VariableQueryRunner());
 
     return {

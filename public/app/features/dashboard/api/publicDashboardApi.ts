@@ -98,7 +98,12 @@ export const publicDashboardApi = createApi({
         }
       },
       invalidatesTags: (result, error, { dashboard }) => [
-        { type: 'PublicDashboard', id: dashboard instanceof DashboardScene ? dashboard.state.uid : dashboard.uid },
+        {
+          type: 'PublicDashboard',
+          // `DashboardModel.uid` is `string | null` (DashboardScene state.uid is `string | undefined`);
+          // coerce to empty-string so the RTK Query cache-tag id is a valid string.
+          id: dashboard instanceof DashboardScene ? (dashboard.state.uid ?? '') : (dashboard.uid ?? ''),
+        },
       ],
     }),
     updatePublicDashboard: builder.mutation<

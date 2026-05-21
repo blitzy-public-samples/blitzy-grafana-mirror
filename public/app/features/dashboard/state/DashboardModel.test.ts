@@ -1,7 +1,7 @@
 import { keys as _keys } from 'lodash';
 
 import { dateTime, type TimeRange, VariableHide } from '@grafana/data';
-import { type Dashboard, defaultVariableModel, type RowPanel } from '@grafana/schema';
+import { type Dashboard, defaultVariableModel, type RowPanel, type VariableModel } from '@grafana/schema';
 
 import { getDashboardModel } from '../../../../test/helpers/getDashboardModel';
 import { variableAdapters } from '../../variables/adapters';
@@ -26,6 +26,23 @@ variableAdapters.setInit(() => [
   createAdHocVariableAdapter(),
   createCustomVariableAdapter(),
 ]);
+
+// Test-only helper: widens a value to include adhoc-variable-specific fields
+// (`filters`) that exist on `@grafana/data`'s `AdHocVariableModel` but not on
+// the schema-package `VariableModel` that backs `DashboardModel.templating.list`.
+// The runtime values are unchanged — the cast only widens TypeScript's view —
+// and only adhoc-typed variables are exercised in the test cases below, where
+// `filters` is structurally present.
+function asAdHocVariable<T>(
+  v: T
+): T & {
+  filters: Array<{ key: string; operator: string; value: string; condition?: string }>;
+} {
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- widening for adhoc-variable filter access; the test fixture initializes `filters` and the migrations leave it intact
+  return v as T & {
+    filters: Array<{ key: string; operator: string; value: string; condition?: string }>;
+  };
+}
 
 describe('DashboardModel', () => {
   describe('when creating new dashboard model defaults only', () => {
@@ -752,7 +769,14 @@ describe('DashboardModel', () => {
       expect(model.panels.find((x) => x.type !== 'row')?.scopedVars?.dc?.value).toBe('dc1');
       expect(model.panels.find((x) => x.type !== 'row')?.scopedVars?.app?.value).toBe('se1');
 
-      model.snapshot = { timestamp: new Date() };
+      // The test only requires `model.snapshot` to be truthy so that
+      // `getSaveModelCloneOld()` treats the model as a snapshot. The historic
+      // `{ timestamp: new Date() }` shape was permitted by the prior `snapshot: any`
+      // typing but is not valid under the tightened `Dashboard['snapshot']`
+      // structure. Cast at the assignment to preserve the original test intent
+      // without altering runtime behavior.
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- test-only: snapshot shape is incidental; only truthiness is tested
+      model.snapshot = { timestamp: new Date() } as unknown as Dashboard['snapshot'];
       const saveModel = model.getSaveModelCloneOld();
       expect(saveModel.panels.filter((x) => x.type === 'row')).toHaveLength(2);
       expect(saveModel.panels.filter((x) => x.type !== 'row')).toHaveLength(4);
@@ -809,26 +833,29 @@ describe('DashboardModel', () => {
     });
 
     it('hasVariablesChanged should be true when changing value of template variable', () => {
-      model.templating.list[0].current.text = 'server_002';
+      // `current` is now optional on the tightened VariableModel; the test fixture
+      // guarantees it is present for the query variable under test, so the
+      // non-null assertion is safe and matches the prior runtime behavior.
+      model.templating.list[0].current!.text = 'server_002';
       expect(model.hasVariablesChanged()).toBeTruthy();
     });
 
     it('getSaveModelClone should return original variable when saveVariables=false', () => {
-      model.templating.list[0].current.text = 'server_002';
+      model.templating.list[0].current!.text = 'server_002';
 
       const options = { saveVariables: false };
       const saveModel = model.getSaveModelCloneOld(options);
 
-      expect(saveModel.templating.list[0].current.text).toBe('server_001');
+      expect(saveModel.templating.list[0].current!.text).toBe('server_001');
     });
 
     it('getSaveModelClone should return updated variable when saveVariables=true', () => {
-      model.templating.list[0].current.text = 'server_002';
+      model.templating.list[0].current!.text = 'server_002';
 
       const options = { saveVariables: true };
       const saveModel = model.getSaveModelCloneOld(options);
 
-      expect(saveModel.templating.list[0].current.text).toBe('server_002');
+      expect(saveModel.templating.list[0].current!.text).toBe('server_002');
     });
   });
 
@@ -859,6 +886,12 @@ describe('DashboardModel', () => {
     });
 
     it('hasVariablesChanged should be false when adding a template variable', () => {
+      // `filters` is an adhoc-variable-specific field (from @grafana/data's
+      // `AdHocVariableModel`) that is not declared on `@grafana/schema`'s
+      // `VariableModel`. The runtime value is structurally valid; we cast the
+      // object literal at the push call so it is accepted by the typed
+      // `templating.list: VariableModel[]` target without altering behavior.
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- adhoc-variable shape; `filters` is the discriminated-union field for `type: 'adhoc'`
       model.templating.list.push({
         name: 'Filter',
         type: 'adhoc',
@@ -869,7 +902,7 @@ describe('DashboardModel', () => {
             value: 'server 1',
           },
         ],
-      });
+      } as VariableModel);
       expect(model.hasVariablesChanged()).toBeFalsy();
     });
 
@@ -879,13 +912,13 @@ describe('DashboardModel', () => {
     });
 
     it('hasVariablesChanged should be true when changing value of filter', () => {
-      model.templating.list[0].filters[0].value = 'server 1';
+      asAdHocVariable(model.templating.list[0]).filters[0].value = 'server 1';
       expect(model.hasVariablesChanged()).toBeTruthy();
     });
 
     it('hasVariablesChanged should be true when adding an additional condition', () => {
-      model.templating.list[0].filters[0].condition = 'AND';
-      model.templating.list[0].filters[1] = {
+      asAdHocVariable(model.templating.list[0]).filters[0].condition = 'AND';
+      asAdHocVariable(model.templating.list[0]).filters[1] = {
         key: '@metric',
         operator: '=',
         value: 'logins.count',
@@ -894,21 +927,21 @@ describe('DashboardModel', () => {
     });
 
     it('getSaveModelClone should return original variable when saveVariables=false', () => {
-      model.templating.list[0].filters[0].value = 'server 1';
+      asAdHocVariable(model.templating.list[0]).filters[0].value = 'server 1';
 
       const options = { saveVariables: false };
       const saveModel = model.getSaveModelCloneOld(options);
 
-      expect(saveModel.templating.list[0].filters[0].value).toBe('server 20');
+      expect(asAdHocVariable(saveModel.templating.list[0]).filters[0].value).toBe('server 20');
     });
 
     it('getSaveModelClone should return updated variable when saveVariables=true', () => {
-      model.templating.list[0].filters[0].value = 'server 1';
+      asAdHocVariable(model.templating.list[0]).filters[0].value = 'server 1';
 
       const options = { saveVariables: true };
       const saveModel = model.getSaveModelCloneOld(options);
 
-      expect(saveModel.templating.list[0].filters[0].value).toBe('server 1');
+      expect(asAdHocVariable(saveModel.templating.list[0]).filters[0].value).toBe('server 1');
     });
   });
 
@@ -933,7 +966,7 @@ describe('DashboardModel', () => {
       expect(saveModel.templating.list).toHaveLength(1);
       expect(saveModel.templating.list[0].type).toBe('groupby');
       expect(saveModel.templating.list[0].name).toBe('groupby');
-      expect(saveModel.templating.list[0].current.text).toBe('host');
+      expect(saveModel.templating.list[0].current!.text).toBe('host');
     });
   });
 

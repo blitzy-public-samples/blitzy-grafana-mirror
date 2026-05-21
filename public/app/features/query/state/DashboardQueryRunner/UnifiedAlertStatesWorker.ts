@@ -63,12 +63,15 @@ export class UnifiedAlertStatesWorker implements DashboardQueryRunnerWorker {
     }
 
     const { dashboard } = options;
+    // `DashboardModel.uid` is now typed as `string | null`. The alerting and indexing APIs
+    // below all consume a `string`-typed UID; coerce null to empty-string at this boundary.
+    const dashboardUid = dashboard.uid ?? '';
     const fetchData: () => Promise<RuleNamespace[]> = async () => {
       const promRules = await dispatch(
         alertRuleApi.endpoints.prometheusRuleNamespaces.initiate(
           {
             ruleSourceName: GRAFANA_RULES_SOURCE_NAME,
-            dashboardUid: dashboard.uid,
+            dashboardUid,
           },
           { forceRefetch: true }
         )
@@ -87,12 +90,12 @@ export class UnifiedAlertStatesWorker implements DashboardQueryRunnerWorker {
 
     return res.pipe(
       map((groups: PromRuleGroupDTO[]) => {
-        this.hasAlertRules[dashboard.uid] = false;
+        this.hasAlertRules[dashboardUid] = false;
         const panelIdToAlertState: Record<number, AlertStateInfo> = {};
         groups.forEach((group) =>
           group.rules.forEach((rule) => {
             if (prometheusRuleType.alertingRule(rule) && rule.annotations && rule.annotations[Annotation.panelID]) {
-              this.hasAlertRules[dashboard.uid] = true;
+              this.hasAlertRules[dashboardUid] = true;
               const panelId = Number(rule.annotations[Annotation.panelID]);
               const state = promAlertStateToAlertState(rule.state);
 
@@ -103,7 +106,7 @@ export class UnifiedAlertStatesWorker implements DashboardQueryRunnerWorker {
                   state,
                   id: Object.keys(panelIdToAlertState).length,
                   panelId,
-                  dashboardUID: dashboard.uid,
+                  dashboardUID: dashboardUid,
                 };
               } else if (state === AlertState.Alerting && panelIdToAlertState[panelId].state !== AlertState.Alerting) {
                 panelIdToAlertState[panelId].state = AlertState.Alerting;
