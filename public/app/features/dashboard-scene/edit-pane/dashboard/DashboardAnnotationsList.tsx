@@ -168,6 +168,7 @@ function AnnotationName({ annotation }: { annotation: DashboardAnnotationsDataLa
 
   return (
     <>
+      {/* Design system gap: dynamic per-annotation color resolved at runtime via theme.visualization.getColorByName(); cannot be precomputed in getStyles. */}
       <span
         className={styles.color}
         style={{
