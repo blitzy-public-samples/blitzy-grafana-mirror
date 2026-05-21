@@ -1,12 +1,16 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useAsync, useDebounce } from 'react-use';
 
 import { Trans, t } from '@grafana/i18n';
-import { Button, Icon, Input, Modal, useStyles2 } from '@grafana/ui';
+import { Button, type Column, Icon, Input, InteractiveTable, Modal, useStyles2 } from '@grafana/ui';
 import { getConnectedDashboards } from 'app/features/library-panels/state/api';
 import { getModalStyles } from 'app/features/library-panels/styles';
 
 import { type LibraryPanelBehavior } from '../scene/LibraryPanelBehavior';
+
+interface DashboardRow {
+  name: string;
+}
 
 interface Props {
   libraryPanel: LibraryPanelBehavior;
@@ -43,6 +47,19 @@ export const SaveLibraryVizPanelModal = ({ libraryPanel, isUnsavedPrompt, onDism
   );
 
   const styles = useStyles2(getModalStyles);
+
+  const tableData = useMemo<DashboardRow[]>(() => filteredDashboards.map((name) => ({ name })), [filteredDashboards]);
+
+  const columns = useMemo<Array<Column<DashboardRow>>>(
+    () => [
+      {
+        id: 'name',
+        header: t('dashboard-scene.save-library-viz-panel-modal.dashboard-name', 'Dashboard name'),
+      },
+    ],
+    []
+  );
+
   const discardAndClose = useCallback(() => {
     onDiscard();
   }, [onDiscard]);
@@ -78,22 +95,7 @@ export const SaveLibraryVizPanelModal = ({ libraryPanel, isUnsavedPrompt, onDism
             </Trans>
           </p>
         ) : (
-          <table className={styles.myTable}>
-            <thead>
-              <tr>
-                <th>
-                  <Trans i18nKey="dashboard-scene.save-library-viz-panel-modal.dashboard-name">Dashboard name</Trans>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredDashboards.map((dashName, i) => (
-                <tr key={`dashrow-${i}`}>
-                  <td>{dashName}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <InteractiveTable columns={columns} data={tableData} getRowId={(row) => row.name} pageSize={10} />
         )}
         <Modal.ButtonRow>
           <Button variant="secondary" onClick={onDismiss} fill="outline">
