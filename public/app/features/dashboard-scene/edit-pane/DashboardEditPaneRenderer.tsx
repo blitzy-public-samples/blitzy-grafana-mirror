@@ -1,10 +1,12 @@
+import { css } from '@emotion/css';
 import { useMemo, useState } from 'react';
 
+import { type GrafanaTheme2 } from '@grafana/data';
 import { selectors } from '@grafana/e2e-selectors';
 import { t } from '@grafana/i18n';
 import { config } from '@grafana/runtime';
 import { sceneGraph, type SceneObject, type SceneObjectState, sceneUtils, useSceneObjectState } from '@grafana/scenes';
-import { Sidebar } from '@grafana/ui';
+import { Sidebar, useStyles2 } from '@grafana/ui';
 import { getDashboardSrv } from 'app/features/dashboard/services/DashboardSrv';
 
 import { type DashboardScene } from '../scene/DashboardScene';
@@ -37,6 +39,7 @@ export function DashboardEditPaneRenderer({ editPane, dashboard }: Props) {
   const isEmbedded = meta.isEmbedded;
   const selectedObject = selection?.getFirstObject();
   const isNewElement = selection?.isNewElement() ?? false;
+  const styles = useStyles2(getStyles);
   // the layout element that was selected when opening the 'add' pane
   // used when adding new panel from the sidebar
   const [lastSelectedElement, setLastSelectedElement] = useState<DashboardScene | SceneObject<SceneObjectState>>(
@@ -125,24 +128,25 @@ export function DashboardEditPaneRenderer({ editPane, dashboard }: Props) {
               active={selectedObject === dashboard ? true : false}
             />
             {config.featureToggles.feedbackButton && (
-              <Sidebar.Button
-                style={{ color: '#ff671d' }}
-                icon="comment-alt-message"
-                onClick={() =>
-                  window.open(
-                    'https://docs.google.com/forms/d/e/1FAIpQLSfDZJM_VlZgRHDx8UPtLWbd9bIBPRxoA28qynTHEYniyPXO6Q/viewform',
-                    '_blank'
-                  )
-                }
-                title={t(
-                  'dashboard-scene.dashboard-edit-pane-renderer.title-feedback-dashboard-editing-experience',
-                  'Give feedback on the new dashboard editing experience'
-                )}
-                tooltip={t(
-                  'dashboard-scene.dashboard-edit-pane-renderer.title-feedback-dashboard-editing-experience',
-                  'Give feedback on the new dashboard editing experience'
-                )}
-              />
+              <span className={styles.feedbackButton}>
+                <Sidebar.Button
+                  icon="comment-alt-message"
+                  onClick={() =>
+                    window.open(
+                      'https://docs.google.com/forms/d/e/1FAIpQLSfDZJM_VlZgRHDx8UPtLWbd9bIBPRxoA28qynTHEYniyPXO6Q/viewform',
+                      '_blank'
+                    )
+                  }
+                  title={t(
+                    'dashboard-scene.dashboard-edit-pane-renderer.title-feedback-dashboard-editing-experience',
+                    'Give feedback on the new dashboard editing experience'
+                  )}
+                  tooltip={t(
+                    'dashboard-scene.dashboard-edit-pane-renderer.title-feedback-dashboard-editing-experience',
+                    'Give feedback on the new dashboard editing experience'
+                  )}
+                />
+              </span>
             )}
             <Sidebar.Button
               tooltip={t('dashboard.sidebar.edit-schema.tooltip', 'Edit as code')}
@@ -243,3 +247,12 @@ function RedoButton({ dashboard }: ToolbarActionProps) {
     />
   );
 }
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  feedbackButton: css({
+    display: 'contents',
+    '& button': {
+      color: theme.colors.primary.main,
+    },
+  }),
+});
