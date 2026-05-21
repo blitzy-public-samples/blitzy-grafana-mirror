@@ -25,6 +25,7 @@ export function PanelSearchLayout({ dashboard, panelSearch = '', panelsPerRow }:
   return (
     <div
       className={classNames(styles.grid, { [styles.perRow]: panelsPerRow !== undefined })}
+      // Design system gap: dynamic CSS custom property required for panels-per-row layout
       style={{ [panelsPerRowCSSVar]: panelsPerRow } as Record<string, number>}
     >
       <SoloPanelContextProvider value={soloPanelContext} singleMatch={false} dashboard={dashboard}>
