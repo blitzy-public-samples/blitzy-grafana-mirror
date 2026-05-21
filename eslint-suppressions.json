@@ -1475,11 +1475,6 @@
       "count": 1
     }
   },
-  "public/app/features/dashboard/dashgrid/DashboardGrid.tsx": {
-    "react-prefer-function-component/react-prefer-function-component": {
-      "count": 1
-    }
-  },
   "public/app/features/dashboard/dashgrid/DashboardPanel.tsx": {
     "react-prefer-function-component/react-prefer-function-component": {
       "count": 1
