@@ -2,11 +2,13 @@ import { saveAs } from 'file-saver';
 import { memo, useState, useMemo } from 'react';
 
 import { Trans, t } from '@grafana/i18n';
+import { type Dashboard } from '@grafana/schema';
 import { Button, Field, Modal, Switch } from '@grafana/ui';
 import { appEvents } from 'app/core/app_events';
 import { DashboardExporter } from 'app/features/dashboard/components/DashExportModal/DashboardExporter';
 import { makeExportableV1 } from 'app/features/dashboard-scene/scene/export/exporters';
 import { DashboardInteractions } from 'app/features/dashboard-scene/utils/interactions';
+import { type DashboardJson } from 'app/features/manage-dashboards/types';
 import { ShowModalReactEvent } from 'app/types/events';
 
 import { ViewJsonModal } from './ViewJsonModal';
@@ -51,7 +53,13 @@ export const ShareExport = memo(({ dashboard, panel, onDismiss }: Props) => {
     }
   };
 
-  const openSaveAsDialog = (dash: any) => {
+  // TODO(modernization-2026): makeExportableV1 / DashboardExporter.makeExportable can return
+  // { error: unknown } when export fails. That error case is not handled here and would result
+  // in a malformed file name (template literal interpolates `dash.title` as the string
+  // "undefined"). Pre-existing behavior preserved per minimal-change mandate; the parameter
+  // type explicitly admits the error variant (with `title?: undefined`) so the file-naming
+  // expression below typechecks without modifying the forbidden caller `onSaveAsFile`.
+  const openSaveAsDialog = (dash: Dashboard | DashboardJson | { error: unknown; title?: undefined }) => {
     const dashboardJsonPretty = JSON.stringify(dash, null, 2);
     const blob = new Blob([dashboardJsonPretty], {
       type: 'application/json;charset=utf-8',
