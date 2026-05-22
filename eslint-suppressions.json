@@ -947,11 +947,6 @@
       "count": 1
     }
   },
-  "public/app/features/alerting/unified/mocks.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "public/app/features/alerting/unified/rule-editor/formDefaults.ts": {
     "no-restricted-syntax": {
       "count": 6

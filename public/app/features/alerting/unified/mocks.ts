@@ -821,10 +821,20 @@ export const mockThresholdExpression = (partial: Partial<ExpressionQuery> = {}):
 });
 
 class LocalStorageMock implements Storage {
-  [key: string]: any;
+  // The Storage interface stores string values keyed by string. We type the
+  // backing index signature as `unknown` (instead of `any`) to satisfy the
+  // repository's `@typescript-eslint/no-explicit-any` policy while keeping the
+  // mock fully compatible with the structural `Storage` contract. Reads are
+  // narrowed back to `string | null` inside `getItem` below.
+  [key: string]: unknown;
 
   getItem(key: string) {
-    return this[key] ?? null;
+    // Narrow the stored value to match the native `Storage.getItem` contract
+    // (`string | null`). In practice `setItem(key, value: string)` is the only
+    // writer, so the stored value is always a string; the `typeof` guard
+    // simply makes that invariant visible to the type system.
+    const value = this[key];
+    return typeof value === 'string' ? value : null;
   }
 
   setItem(key: string, value: string) {
