@@ -289,7 +289,7 @@ const Policy = (props: PolicyComponentProps) => {
                 {!isImmutablePolicy && (
                   <>
                     {hasMatchers ? (
-                      <div style={{ overflow: 'hidden' }}>
+                      <div className={styles.matchersWrapper}>
                         <Matchers matchers={matchers ?? []} formatter={getAmMatcherFormatter(alertManagerSourceName)} />
                       </div>
                     ) : (
@@ -1169,6 +1169,9 @@ const getStyles = (theme: GrafanaTheme2) => ({
   }),
   noShrink: css({
     flexShrink: 0,
+  }),
+  matchersWrapper: css({
+    overflow: 'hidden',
   }),
 });
 
