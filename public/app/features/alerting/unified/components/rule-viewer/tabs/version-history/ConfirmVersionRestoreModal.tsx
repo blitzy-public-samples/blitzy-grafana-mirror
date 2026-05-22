@@ -1,9 +1,10 @@
+import { css } from '@emotion/css';
 import { type ComponentProps } from 'react';
 import { useNavigate } from 'react-router-dom-v5-compat';
 
 import { urlUtil } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
-import { Alert, ConfirmModal, Stack, Text } from '@grafana/ui';
+import { Alert, ConfirmModal, Stack, Text, useStyles2 } from '@grafana/ui';
 import { useRuleWithLocation } from 'app/features/alerting/unified/hooks/useCombinedRule';
 import { stringifyErrorLike } from 'app/features/alerting/unified/utils/misc';
 import { rulerRuleToFormValues } from 'app/features/alerting/unified/utils/rule-form';
@@ -35,6 +36,7 @@ export const ConfirmVersionRestoreModal = ({
   onRestoreSucess,
   onRestoreError,
 }: ModalProps) => {
+  const styles = useStyles2(getStyles);
   const { result: ruleWithLocation } = useRuleWithLocation({ ruleIdentifier });
   const navigate = useNavigate();
   const [restoreMethod, { error }] = useRestoreVersion();
@@ -107,7 +109,7 @@ export const ConfirmVersionRestoreModal = ({
                 Your alert rule could not be restored. This may be due to changes to other entities such as contact
                 points, data sources etc. Please manually restore the rule version
               </Trans>
-              <pre style={{ marginBottom: 0 }}>
+              <pre className={styles.errorPre}>
                 <code>{stringifyErrorLike(error)}</code>
               </pre>
             </Alert>
@@ -119,3 +121,9 @@ export const ConfirmVersionRestoreModal = ({
     />
   );
 };
+
+const getStyles = () => ({
+  errorPre: css({
+    marginBottom: 0,
+  }),
+});
