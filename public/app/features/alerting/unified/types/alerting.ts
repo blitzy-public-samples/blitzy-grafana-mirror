@@ -142,25 +142,25 @@ export interface NotificationChannelType {
 }
 
 export interface NotificationChannelDTO {
-  [key: string]: string | boolean | number | SelectableValue<string>;
+  [key: string]: string | boolean | number | SelectableValue<string> | undefined;
   id: number;
   name: string;
-  type: SelectableValue<string>;
+  type: string;
   sendReminder: boolean;
   disableResolveMessage: boolean;
   frequency: string;
   settings: ChannelTypeSettings;
-  secureSettings: NotificationChannelSecureSettings;
-  secureFields: NotificationChannelSecureFields;
+  secureSettings?: NotificationChannelSecureSettings;
+  secureFields?: NotificationChannelSecureFields;
   isDefault: boolean;
 }
 
-export type NotificationChannelSecureSettings = Record<string, string | number>;
+export type NotificationChannelSecureSettings = Record<string, unknown>;
 export type NotificationChannelSecureFields = Record<string, boolean | ''>;
 
 export interface ChannelTypeSettings {
   [key: string]: unknown;
-  autoResolve: true;
+  autoResolve: boolean;
   httpMethod: string;
   severity: string;
   uploadImage: boolean;
