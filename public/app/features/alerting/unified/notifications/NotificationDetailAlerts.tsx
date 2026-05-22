@@ -5,7 +5,16 @@ import { AlertLabels } from '@grafana/alerting/unstable';
 import { type CreateNotificationsqueryalertsNotificationEntryAlert } from '@grafana/api-clients/rtkq/historian.alerting/v0alpha1';
 import { type GrafanaTheme2, dateTimeFormat, dateTimeFormatTimeAgo } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
-import { LoadingPlaceholder, Stack, Text, TextLink, Tooltip, useStyles2 } from '@grafana/ui';
+import {
+  type Column,
+  InteractiveTable,
+  LoadingPlaceholder,
+  Stack,
+  Text,
+  TextLink,
+  Tooltip,
+  useStyles2,
+} from '@grafana/ui';
 
 import { AlertEnrichments } from '../components/AlertEnrichments';
 import { StateTag } from '../components/StateTag';
@@ -107,20 +116,7 @@ export function OverviewSection({ alerts, groupLabels, isLoading }: SectionProps
             <Text variant="h6">
               <Trans i18nKey="alerting.notification-detail.common-annotations">Annotations</Trans>
             </Text>
-            <table className={styles.annotationsTable}>
-              <tbody>
-                {Object.entries(commonAnnotations).map(([key, value]) => (
-                  <tr key={key}>
-                    <td className={styles.annotationKey}>
-                      <Text color="secondary">{key}</Text>
-                    </td>
-                    <td className={styles.annotationValue}>
-                      <AnnotationValue value={value} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <AnnotationsTable annotations={commonAnnotations} />
           </Stack>
         </div>
       )}
@@ -233,22 +229,7 @@ function AlertCard({ alert, groupLabels }: AlertCardProps) {
             <AlertLabels labels={filteredLabels} size="sm" />
           </Stack>
         )}
-        {hasAnnotations && (
-          <table className={styles.annotationsTable}>
-            <tbody>
-              {Object.entries(annotations).map(([key, value]) => (
-                <tr key={key}>
-                  <td className={styles.annotationKey}>
-                    <Text color="secondary">{key}</Text>
-                  </td>
-                  <td className={styles.annotationValue}>
-                    <AnnotationValue value={value} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+        {hasAnnotations && <AnnotationsTable annotations={annotations} />}
       </Stack>
     </div>
   );
@@ -275,33 +256,42 @@ function AnnotationValue({ value }: { value: string }) {
   return <Text>{value}</Text>;
 }
 
+interface AnnotationRow {
+  key: string;
+  value: string;
+}
+
+function AnnotationsTable({ annotations }: { annotations: Record<string, string> }) {
+  const data = useMemo<AnnotationRow[]>(
+    () => Object.entries(annotations).map(([key, value]) => ({ key, value })),
+    [annotations]
+  );
+
+  const columns = useMemo<Array<Column<AnnotationRow>>>(
+    () => [
+      {
+        id: 'key',
+        header: t('alerting.notification-detail.annotation-name', 'Name'),
+        disableGrow: true,
+        cell: ({ row: { original } }) => <Text color="secondary">{original.key}</Text>,
+      },
+      {
+        id: 'value',
+        header: t('alerting.notification-detail.annotation-value', 'Value'),
+        cell: ({ row: { original } }) => <AnnotationValue value={original.value} />,
+      },
+    ],
+    []
+  );
+
+  return <InteractiveTable columns={columns} data={data} getRowId={(row) => row.key} />;
+}
+
 const getStyles = (theme: GrafanaTheme2) => ({
   alertDetail: css({
     padding: theme.spacing(1.5),
     backgroundColor: theme.colors.background.canvas,
     borderRadius: theme.shape.radius.default,
     border: `1px solid ${theme.colors.border.weak}`,
-  }),
-  annotationsTable: css({
-    borderCollapse: 'collapse',
-    width: '100%',
-
-    td: {
-      padding: `${theme.spacing(0.5)} ${theme.spacing(1)}`,
-      verticalAlign: 'top',
-      borderBottom: `1px solid ${theme.colors.border.weak}`,
-    },
-
-    'tr:last-child td': {
-      borderBottom: 'none',
-    },
-  }),
-  annotationKey: css({
-    whiteSpace: 'nowrap',
-    width: '1%',
-    fontWeight: theme.typography.fontWeightMedium,
-  }),
-  annotationValue: css({
-    wordBreak: 'break-word',
   }),
 });
