@@ -4,6 +4,22 @@ import { t } from '@grafana/i18n';
 import { type IconName } from '@grafana/ui';
 import { QueryPart, QueryPartDef } from 'app/features/alerting/state/query_part';
 
+interface AlertReducerModel {
+  type: string;
+  params?: unknown[];
+}
+
+interface EvalMatch {
+  metric?: string;
+  value?: number | string;
+  Metric?: string;
+  Value?: number | string;
+}
+
+interface AlertAnnotationData {
+  data: EvalMatch[] | { evalMatches?: EvalMatch[]; error?: string };
+}
+
 const alertQueryDef = new QueryPartDef({
   type: 'query',
   params: [
@@ -91,7 +107,7 @@ const executionErrorModes = [
   { text: 'Keep Last State', value: 'keep_state' },
 ];
 
-function createReducerPart(model: any) {
+function createReducerPart(model: AlertReducerModel) {
   const def = new QueryPartDef({ type: model.type, defaultParams: [] });
   return new QueryPart(model, def);
 }
@@ -191,7 +207,7 @@ function getStateDisplayModel(state: string): AlertStateDisplayModel {
   }
 }
 
-function joinEvalMatches(matches: any, separator: string) {
+function joinEvalMatches(matches: EvalMatch[] | undefined, separator: string) {
   return reduce(
     matches,
     (res, ev) => {
@@ -210,7 +226,7 @@ function joinEvalMatches(matches: any, separator: string) {
   ).join(separator);
 }
 
-function getAlertAnnotationInfo(ah: any) {
+function getAlertAnnotationInfo(ah: AlertAnnotationData) {
   // backward compatibility, can be removed in grafana 5.x
   // old way stored evalMatches in data property directly,
   // new way stores it in evalMatches property on new data object
@@ -229,7 +245,7 @@ function getAlertAnnotationInfo(ah: any) {
 }
 
 // Copy of getAlertAnnotationInfo, used in annotation tooltip
-function getAlertAnnotationText(annotationData: any) {
+function getAlertAnnotationText(annotationData: EvalMatch[] | { evalMatches?: EvalMatch[]; error?: string }) {
   // backward compatibility, can be removed in grafana 5.x
   // old way stored evalMatches in data property directly,
   // new way stores it in evalMatches property on new data object
