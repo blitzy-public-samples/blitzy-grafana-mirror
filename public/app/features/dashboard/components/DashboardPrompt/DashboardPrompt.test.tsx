@@ -56,8 +56,7 @@ describe('DashboardPrompt', () => {
 
   it('Should ignore a lot of changes', () => {
     const { original, dash } = getTestContext();
-    // `DashboardModel.time` is `RawTimeRange` which requires both `from` and `to`.
-    dash.time = { from: '1h', to: 'now' };
+    dash.time = { from: '1h' };
     dash.refresh = '30s';
     dash.schemaVersion = 10;
     expect(hasChanges(dash, original)).toBe(false);

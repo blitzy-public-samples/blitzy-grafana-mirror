@@ -116,7 +116,7 @@ export class Scene {
     // TODO: Will need to update this approach for dashboard scenes
     // migration (new dashboard edit experience)
     const dashboard = getDashboardSrv().getCurrent();
-    const enableEditing = (options.inlineEditing && dashboard?.editable) ?? false;
+    const enableEditing = options.inlineEditing && dashboard?.editable;
 
     this.root = this.load(options, enableEditing);
 

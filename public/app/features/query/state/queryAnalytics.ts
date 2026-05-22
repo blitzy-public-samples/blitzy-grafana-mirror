@@ -67,11 +67,9 @@ export function emitDataRequestEvent(datasource: DataSourceApi) {
 
     const dashboard = getDashboardSrv().getCurrent();
     if (dashboard) {
-      // `DashboardModel.id` is `number | null | undefined`; coerce null to undefined for the optional payload field.
-      eventData.dashboardId = dashboard.id ?? undefined;
+      eventData.dashboardId = dashboard.id;
       eventData.dashboardName = dashboard.title;
-      // `DashboardModel.uid` is `string | null`; coerce null to undefined for the optional payload field.
-      eventData.dashboardUid = dashboard.uid ?? undefined;
+      eventData.dashboardUid = dashboard.uid;
       eventData.folderName = dashboard.meta.folderTitle;
     }
   }

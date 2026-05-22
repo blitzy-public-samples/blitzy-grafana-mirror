@@ -76,7 +76,8 @@ interface DataSources {
 export interface LibraryElementExport {
   name: string;
   uid: string;
-  model: Omit<Panel, 'gridPos' | 'id' | 'libraryPanel'>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Public API surface: this exported type is consumed by out-of-scope modules (dashboard-scene/scene/export/exporters.ts, manage-dashboards/import/legacy/actions.ts) and their tests, which build LibraryElementExport-shaped objects directly from heterogeneous library-panel JSON (with string-literal enum values, plugin-specific fieldConfig shapes, etc.). Per AAP §0.9.1 (preserve public API) and §0.9.2.12 (minimal change), `any` is retained at this serialization boundary so external callers continue to type-check without coupling to internal `@grafana/schema` Panel typing.
+  model: any;
   kind: LibraryElementKind;
 }
 
@@ -312,19 +313,14 @@ export class DashboardExporter {
       );
 
       // make inputs and requires a top thing
-      // `defaults` returns the merged object whose type the inference engine builds from the
-      // DashboardModel save shape. The merged value is structurally compatible with `DashboardJson`
-      // at runtime (DashboardJson extends Dashboard which the save-model implements); cast at the
-      // assignment boundary to satisfy the now-stricter `DashboardJson` type.
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- structurally-compatible save-model → DashboardJson bridge
-      const newObj = defaults(
+      const newObj: DashboardJson = defaults(
         {
           __inputs: inputs,
           __elements,
           __requires: sortBy(requires, ['id']),
         },
         saveModel
-      ) as unknown as DashboardJson;
+      );
 
       // Remove extraneous props from library panels
       for (let i = 0; i < newObj.panels.length; i++) {

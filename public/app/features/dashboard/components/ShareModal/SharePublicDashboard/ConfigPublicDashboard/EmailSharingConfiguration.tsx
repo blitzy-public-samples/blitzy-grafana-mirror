@@ -1,5 +1,6 @@
 import { css } from '@emotion/css';
-import { useForm, Controller } from 'react-hook-form';
+import { useRef } from 'react';
+import { Controller, type UseFormReset } from 'react-hook-form';
 import { useWindowSize } from 'react-use';
 
 import { type GrafanaTheme2, type SelectableValue } from '@grafana/data';
@@ -11,6 +12,7 @@ import {
   type Column,
   Field,
   FieldSet,
+  Form,
   Input,
   InteractiveTable,
   RadioButtonGroup,
@@ -119,31 +121,18 @@ export const EmailSharingConfiguration = ({ dashboard }: { dashboard: DashboardM
   const { width } = useWindowSize();
   const styles = useStyles2(getStyles);
 
-  // `DashboardModel.uid` is now `string | null` (DashboardScene state.uid is `string | undefined`);
-  // coerce to empty-string so downstream queries receive a concrete `string`.
-  const dashboardUid =
-    dashboard instanceof DashboardScene ? (dashboard.state.uid ?? '') : (dashboard.uid ?? '');
+  const dashboardUid = dashboard instanceof DashboardScene ? dashboard.state.uid : dashboard.uid;
   const { data: publicDashboard } = useGetPublicDashboardQuery(dashboardUid);
   const [updateShareType] = useUpdatePublicDashboardAccessMutation();
   const [addEmail, { isLoading: isAddEmailLoading }] = useAddRecipientMutation();
 
   const hasWritePermissions = contextSrv.hasPermission(AccessControlAction.DashboardsPublicWrite);
 
-  const {
-    register,
-    setValue,
-    control,
-    watch,
-    handleSubmit,
-    formState: { errors },
-    reset,
-  } = useForm<EmailSharingConfigurationForm>({
-    defaultValues: {
-      shareType: publicDashboard?.share || PublicDashboardShareType.PUBLIC,
-      email: '',
-    },
-    mode: 'onSubmit',
-  });
+  // `reset` (from the Form render-prop API) is captured into this ref so the outer
+  // onSubmit handler can clear the form after a successful invite, equivalent to
+  // the previous direct `useForm` `reset({ email: '', shareType: ... })` call.
+  // This pattern matches `dashboard-scene/.../ConfigEmailSharing.tsx`.
+  const resetRef = useRef<UseFormReset<EmailSharingConfigurationForm> | null>(null);
 
   const onUpdateShareType = (shareType: PublicDashboardShareType) => {
     const req = {
@@ -160,95 +149,109 @@ export const EmailSharingConfiguration = ({ dashboard }: { dashboard: DashboardM
   const onSubmit = async (data: EmailSharingConfigurationForm) => {
     DashboardInteractions.publicDashboardEmailInviteClicked();
     await addEmail({ recipient: data.email, uid: publicDashboard!.uid, dashboardUid }).unwrap();
-    reset({ email: '', shareType: PublicDashboardShareType.EMAIL });
+    resetRef.current?.({ email: '', shareType: PublicDashboardShareType.EMAIL });
   };
 
   return (
-    // Design system gap: react-hook-form useForm() integration — raw <form> required for handleSubmit() composition
-    <form onSubmit={handleSubmit(onSubmit)}>
-      <FieldSet disabled={!hasWritePermissions} data-testid={selectors.Container} className={styles.container}>
-        <Field
-          label={t('public-dashboard.config.can-view-dashboard-radio-button-label', 'Can view dashboard')}
-          className={styles.field}
-        >
-          <Controller
-            name="shareType"
-            control={control}
-            render={({ field }) => {
-              const { ref, ...rest } = field;
-              const options: Array<SelectableValue<PublicDashboardShareType>> = [
-                {
-                  label: t('public-dashboard.config.public-share-type-option-label', 'Anyone with a link'),
-                  value: PublicDashboardShareType.PUBLIC,
-                },
-                {
-                  label: t('public-dashboard.config.email-share-type-option-label', 'Only specified people'),
-                  value: PublicDashboardShareType.EMAIL,
-                },
-              ];
-              return (
-                <RadioButtonGroup
-                  {...rest}
-                  size={width < 480 ? 'sm' : 'md'}
-                  options={options}
-                  onChange={(shareType: PublicDashboardShareType) => {
-                    DashboardInteractions.publicDashboardShareTypeChange({
-                      shareType: shareType === PublicDashboardShareType.EMAIL ? 'email' : 'public',
-                    });
-                    setValue('shareType', shareType);
-                    onUpdateShareType(shareType);
-                  }}
-                />
-              );
-            }}
-          />
-        </Field>
-        {watch('shareType') === PublicDashboardShareType.EMAIL && (
-          <>
+    <Form<EmailSharingConfigurationForm>
+      defaultValues={{
+        shareType: publicDashboard?.share || PublicDashboardShareType.PUBLIC,
+        email: '',
+      }}
+      validateOn="onSubmit"
+      maxWidth="none"
+      onSubmit={onSubmit}
+    >
+      {({ register, setValue, control, watch, formState: { errors }, reset }) => {
+        // Capture the form API's reset for use by the outer onSubmit handler.
+        // See `resetRef` declaration above for rationale.
+        resetRef.current = reset;
+        return (
+          <FieldSet disabled={!hasWritePermissions} data-testid={selectors.Container} className={styles.container}>
             <Field
-              label={t('public-dashboard.email-sharing.invite-field-label', 'Invite')}
-              description={t('public-dashboard.email-sharing.invite-field-desc', 'Invite people by email')}
-              error={errors.email?.message}
-              invalid={!!errors.email?.message || undefined}
+              label={t('public-dashboard.config.can-view-dashboard-radio-button-label', 'Can view dashboard')}
               className={styles.field}
             >
-              <div className={styles.emailContainer}>
-                <Input
-                  className={styles.emailInput}
-                  // eslint-disable-next-line @grafana/i18n/no-untranslated-strings
-                  placeholder="me@example.com"
-                  autoCapitalize="none"
-                  {...register('email', {
-                    required: t('public-dashboard.email-sharing.input-required-email-text', 'Email is required'),
-                    pattern: {
-                      value: validEmailRegex,
-                      message: t('public-dashboard.email-sharing.input-invalid-email-text', 'Invalid email'),
+              <Controller
+                name="shareType"
+                control={control}
+                render={({ field }) => {
+                  const { ref, ...rest } = field;
+                  const options: Array<SelectableValue<PublicDashboardShareType>> = [
+                    {
+                      label: t('public-dashboard.config.public-share-type-option-label', 'Anyone with a link'),
+                      value: PublicDashboardShareType.PUBLIC,
                     },
-                  })}
-                  data-testid={selectors.EmailSharingInput}
-                />
-                <Button
-                  type="submit"
-                  variant="primary"
-                  disabled={isAddEmailLoading}
-                  data-testid={selectors.EmailSharingInviteButton}
-                >
-                  <Trans i18nKey="public-dashboard.email-sharing.invite-button">Invite</Trans>
-                  {isAddEmailLoading && <Spinner />}
-                </Button>
-              </div>
-            </Field>
-            {!!publicDashboard?.recipients?.length && (
-              <EmailList
-                recipients={publicDashboard.recipients}
-                dashboardUid={dashboardUid}
-                publicDashboardUid={publicDashboard.uid}
+                    {
+                      label: t('public-dashboard.config.email-share-type-option-label', 'Only specified people'),
+                      value: PublicDashboardShareType.EMAIL,
+                    },
+                  ];
+                  return (
+                    <RadioButtonGroup
+                      {...rest}
+                      size={width < 480 ? 'sm' : 'md'}
+                      options={options}
+                      onChange={(shareType: PublicDashboardShareType) => {
+                        DashboardInteractions.publicDashboardShareTypeChange({
+                          shareType: shareType === PublicDashboardShareType.EMAIL ? 'email' : 'public',
+                        });
+                        setValue('shareType', shareType);
+                        onUpdateShareType(shareType);
+                      }}
+                    />
+                  );
+                }}
               />
+            </Field>
+            {watch('shareType') === PublicDashboardShareType.EMAIL && (
+              <>
+                <Field
+                  label={t('public-dashboard.email-sharing.invite-field-label', 'Invite')}
+                  description={t('public-dashboard.email-sharing.invite-field-desc', 'Invite people by email')}
+                  error={errors.email?.message}
+                  invalid={!!errors.email?.message || undefined}
+                  className={styles.field}
+                >
+                  <div className={styles.emailContainer}>
+                    <Input
+                      className={styles.emailInput}
+                      // eslint-disable-next-line @grafana/i18n/no-untranslated-strings
+                      placeholder="me@example.com"
+                      autoCapitalize="none"
+                      {...register('email', {
+                        required: t('public-dashboard.email-sharing.input-required-email-text', 'Email is required'),
+                        pattern: {
+                          value: validEmailRegex,
+                          message: t('public-dashboard.email-sharing.input-invalid-email-text', 'Invalid email'),
+                        },
+                      })}
+                      data-testid={selectors.EmailSharingInput}
+                    />
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      disabled={isAddEmailLoading}
+                      data-testid={selectors.EmailSharingInviteButton}
+                    >
+                      <Trans i18nKey="public-dashboard.email-sharing.invite-button">Invite</Trans>
+                      {isAddEmailLoading && <Spinner />}
+                    </Button>
+                  </div>
+                </Field>
+                {!!publicDashboard?.recipients?.length && (
+                  <EmailList
+                    recipients={publicDashboard.recipients}
+                    dashboardUid={dashboardUid}
+                    publicDashboardUid={publicDashboard.uid}
+                  />
+                )}
+              </>
             )}
-          </>
-        )}
-      </FieldSet>
-    </form>
+          </FieldSet>
+        );
+      }}
+    </Form>
   );
 };
 

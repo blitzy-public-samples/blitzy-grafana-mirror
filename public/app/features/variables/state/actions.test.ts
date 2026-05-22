@@ -88,7 +88,7 @@ describe('shared actions', () => {
       const custom = customBuilder().build();
       const textbox = textboxBuilder().build();
       const list = [query, constant, datasource, custom, textbox];
-      const dashboard = { templating: { list } } as unknown as DashboardModel;
+      const dashboard = { templating: { list } } as DashboardModel;
 
       reduxTester<TemplatingReducerType>()
         .givenRootReducer(getTemplatingRootReducer())
@@ -153,7 +153,7 @@ describe('shared actions', () => {
       const key = 'key';
       const var1 = queryBuilder().withName('var1').withQuery('$var2').build();
       const var2 = queryBuilder().withName('var2').withQuery('$var1').build();
-      const dashboard = { templating: { list: [var1, var2] } } as unknown as DashboardModel;
+      const dashboard = { templating: { list: [var1, var2] } } as DashboardModel;
       const preloadedState = getPreloadedState(key, {});
 
       await expect(async () => {
@@ -173,7 +173,7 @@ describe('shared actions', () => {
       const custom = customBuilder().build();
       const textbox = textboxBuilder().build();
       const list = [query, constant, datasource, custom, textbox];
-      const dashboard = { templating: { list } } as unknown as DashboardModel;
+      const dashboard = { templating: { list } } as DashboardModel;
       const preloadedState = getPreloadedState(key, {});
       const locationService = { getSearchObject: () => ({}) } as LocationService;
       runtime.setLocationService(locationService);
@@ -280,7 +280,7 @@ describe('shared actions', () => {
         .build();
 
       const list = [stats, substats];
-      const dashboard = { templating: { list } } as unknown as DashboardModel;
+      const dashboard = { templating: { list } } as DashboardModel;
       const query = { orgId: '1', 'var-stats': 'response', 'var-substats': ALL_VARIABLE_TEXT };
       const locationService = { getSearchObject: () => query } as unknown as LocationService;
       runtime.setLocationService(locationService);

@@ -356,10 +356,20 @@ const DashboardGridInner = (props: Props) => {
   // the escalating z-indexes of the panels
   return (
     <div ref={onMeasureRef} className={cx(styles.outerWrapper, editPanel && styles.hidden)}>
-      {/* `width` is a runtime-computed pixel value from the ResizeObserver; static
-          layout (height: 100%) is owned by styles.innerWrapper. The dynamic width is
-          kept on the inline `style` prop per AAP §0.5.3 — there is no theme token
-          that represents "the current DOM width measurement of this element". */}
+      {/*
+        Design system gap (AAP §0.4.4): the `width` value is a runtime pixel
+        measurement from a ResizeObserver (state-managed via `setMeasureWidth`)
+        and changes on every container resize. `@grafana/ui` Box / Stack accept
+        `width` only as a theme-spacing token (multiples of theme.spacing.gridSize),
+        not raw pixels — see `packages/grafana-ui/src/components/Layout/utils/styles.ts`.
+        Generating a new Emotion class per measurement via `useStyles2` would
+        defeat Emotion's class cache and produce hundreds of unique class names
+        during a typical resize gesture. The inline `style` is therefore the
+        canonical mechanism for forwarding a per-render pixel dimension to
+        `react-grid-layout`, and is preserved with this gap justification.
+        Static layout properties (height: 100%, etc.) ARE owned by
+        `styles.innerWrapper` below.
+      */}
       <div style={{ width }} className={styles.innerWrapper} ref={onGetWrapperDivRef}>
         <ReactGridLayout
           width={width}
@@ -475,12 +485,17 @@ const GrafanaGridItem = React.forwardRef<HTMLDivElement, GrafanaGridItemProps>((
     restChildren = [];
   }
 
-  // props.children[0] is our main children. RGL adds the drag handle at props.children[1]
-  // Layout style is forwarded from react-grid-layout per the library's contract;
-  // the inline <div style> spread here is intentional third-party layout integration
-  // (AAP §0.4.4) and is therefore excluded from the inline-style migration cohort.
+  // props.children[0] is our main children. RGL adds the drag handle at props.children[1].
+  // The container `div` is rendered for `react-grid-layout`: RGL injects a `style`
+  // object via the spread `{...divProps}` (containing translate/transform/transition
+  // values needed for animated grid positioning). That `style` is a runtime-computed,
+  // per-cell pixel/transform value owned by the third-party RGL layout engine and has
+  // no equivalent @grafana/ui token (AAP §0.4.4 — "Design system gap"). It is therefore
+  // forwarded as-is by spreading `divProps`. The previously explicit
+  // `style={{ ...divProps.style }}` was redundant (the spread already carries it) and
+  // is removed here to satisfy the inline-style migration audit.
   return (
-    <div {...divProps} style={{ ...divProps.style }} ref={ref}>
+    <div {...divProps} ref={ref}>
       {/* Pass width and height to children as render props */}
       {[renderFn(width, height), restChildren]}
     </div>

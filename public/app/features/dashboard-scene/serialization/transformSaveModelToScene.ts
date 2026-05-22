@@ -305,10 +305,7 @@ export function createDashboardSceneFromDashboardModel(
   let variables: SceneVariableSet | undefined;
   let annotationLayers: SceneDataLayerProvider[] = [];
   let alertStatesLayer: AlertStatesDataLayer | undefined;
-  // `DashboardModel.uid` is now typed as `string | null` (was previously `any`).
-  // Downstream scene-builder APIs accept `string` or `string | undefined`; coerce
-  // to an empty string here so the same value is used consistently below.
-  const uid = oldModel.uid ?? '';
+  const uid = oldModel.uid;
   const targetVersion = sceneOptions?.targetVersion ?? 'v1';
 
   if (oldModel.meta.isSnapshot) {
@@ -354,10 +351,10 @@ export function createDashboardSceneFromDashboardModel(
       : undefined;
 
   // Create profiler once and reuse to avoid duplicate metadata setting
-  const dashboardProfiler = getDashboardSceneProfilerWithMetadata(uid, oldModel.title);
+  const dashboardProfiler = getDashboardSceneProfilerWithMetadata(oldModel.uid, oldModel.title);
 
   const enableProfiling =
-    config.dashboardPerformanceMetrics.findIndex((perfUid) => perfUid === '*' || perfUid === uid) !== -1;
+    config.dashboardPerformanceMetrics.findIndex((uid) => uid === '*' || uid === oldModel.uid) !== -1;
   const queryController = new behaviors.SceneQueryController(
     {
       enableProfiling,
@@ -368,7 +365,7 @@ export function createDashboardSceneFromDashboardModel(
   const interactionTracker = new behaviors.SceneInteractionTracker(
     {
       enableInteractionTracking: enableProfiling,
-      onInteractionComplete: getDashboardComponentInteractionCallback(uid, oldModel.title),
+      onInteractionComplete: getDashboardComponentInteractionCallback(oldModel.uid, oldModel.title),
     },
     dashboardProfiler
   );
@@ -412,8 +409,7 @@ export function createDashboardSceneFromDashboardModel(
 
   const dashboardScene = new DashboardScene(
     {
-      // `DashboardModel.id` is now `number | null | undefined`; DashboardScene expects `number | undefined`.
-      id: oldModel.id ?? undefined,
+      id: oldModel.id,
       uid,
       description: oldModel.description,
       editable: oldModel.editable,
@@ -427,12 +423,8 @@ export function createDashboardSceneFromDashboardModel(
       scopeMeta,
       body,
       $timeRange: new SceneTimeRange({
-        // `time.from`/`time.to` are now `string | DateTime` (from RawTimeRange);
-        // SceneTimeRange's `from`/`to` accept `string | undefined`. At runtime
-        // dashboard JSON stores these as strings ('now-6h', 'now') — coerce
-        // DateTime values to ISO strings for type compatibility.
-        from: typeof oldModel.time.from === 'string' ? oldModel.time.from : oldModel.time.from.toISOString(),
-        to: typeof oldModel.time.to === 'string' ? oldModel.time.to : oldModel.time.to.toISOString(),
+        from: oldModel.time.from,
+        to: oldModel.time.to,
         fiscalYearStartMonth: oldModel.fiscalYearStartMonth,
         timeZone: oldModel.timezone,
         weekStart: isWeekStart(oldModel.weekStart) ? oldModel.weekStart : undefined,

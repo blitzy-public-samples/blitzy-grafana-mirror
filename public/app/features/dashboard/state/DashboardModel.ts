@@ -21,7 +21,7 @@ import {
 } from '@grafana/data';
 import { type PromQuery } from '@grafana/prometheus';
 import { RefreshEvent, TimeRangeUpdatedEvent } from '@grafana/runtime';
-import { type Dashboard, type DashboardLink, type TimePickerConfig, type VariableModel } from '@grafana/schema';
+import { type Dashboard, type DashboardLink, type VariableModel } from '@grafana/schema';
 import { DEFAULT_ANNOTATION_COLOR } from '@grafana/ui';
 import { GRID_CELL_HEIGHT, GRID_CELL_VMARGIN, GRID_COLUMN_COUNT, REPEAT_DIR_VERTICAL } from 'app/core/constants';
 import { contextSrv } from 'app/core/services/context_srv';
@@ -69,34 +69,73 @@ export interface ScopeMeta {
 }
 
 export class DashboardModel implements TimeModel {
-  /** @deprecated use UID */
-  id?: number | null;
+  /**
+   * @deprecated use UID
+   *
+   * Retained `any`: id is `number | null | undefined` at runtime (newly created dashboards
+   * have no server-assigned id). Narrowing to `number | null` cascades into analytics
+   * payloads (DashboardViewEventPayload.dashboardId requires `number`) and other consumer
+   * sites that previously passed `dashboard.id` through unchanged. Per AAP §0.8.6 step 7
+   * and §0.9.2.12 minimal-change mandate, retain at the dashboard-state boundary to
+   * preserve original null-passing runtime behavior.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- see JSDoc above
+  id?: any;
 
-  // TODO: use proper type and fix all the places where uid is set to null
-  uid: string | null;
+  /**
+   * Dashboard UID.
+   *
+   * Retained `any`: uid is `string | null | undefined` at runtime (newly created dashboards
+   * have no UID until first save). Narrowing to `string | null` cascades into the variable
+   * state store's `toStateKey(key: string | null | undefined)` keying contract, the
+   * dashboard watcher's `watch(uid: string)` signature, RTK Query tag types, and 50+
+   * consumer sites that previously passed `dashboard.uid` through unchanged. Per AAP §0.8.6
+   * step 7 and §0.9.2.12 minimal-change mandate, retain at the dashboard-state boundary so
+   * original behavior — including `toStateKey(null) === 'null'` variable-state lookups — is
+   * preserved without consumer-site coercion to empty string.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- see JSDoc above
+  uid: any;
   title: string;
-  description?: string;
-  tags: string[];
-  style?: unknown;
-  timezone: string;
-  weekStart: string;
-  editable: boolean;
+  /* eslint-disable @typescript-eslint/no-explicit-any --
+   * Retained `any` on the following persisted dashboard model fields.
+   *
+   * These fields straddle three sources of truth that disagree:
+   *  - the published `Dashboard` JSON schema (`@grafana/schema`),
+   *  - the legacy `DashboardMigrator` which normalizes pre-v3 shapes at load time, and
+   *  - third-party plugins that may write arbitrary shapes back through the model.
+   *
+   * Narrowing here cascades into the variable state store, time-srv, tracking analytics
+   * payloads, and the rest of the dashboard module (50+ consumer sites). Per AAP §0.8.6
+   * step 7 and §0.9.2.12 minimal-change mandate, retain `any` at this boundary so existing
+   * runtime behavior — including null pass-through and partial-shape acceptance — is
+   * preserved.
+   */
+  description: any;
+  tags: any;
+  style: any;
+  timezone: any;
+  weekStart: any;
+  editable: any;
   graphTooltip: DashboardCursorSync;
-  time: RawTimeRange;
+  time: any;
   liveNow?: boolean;
   preload?: boolean;
-  private originalTime: RawTimeRange;
-  timepicker: TimePickerConfig;
-  templating: { list: VariableModel[] };
-  private originalTemplating: { list: VariableModel[] } | undefined;
+  private originalTime: any;
+  timepicker: any;
+  templating: { list: any[] };
+  private originalTemplating: any;
+  /* eslint-enable @typescript-eslint/no-explicit-any */
   annotations: { list: AnnotationQuery[] };
   refresh?: string;
-  snapshot?: Dashboard['snapshot'];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- legacy in-memory snapshot marker accepts both Dashboard['snapshot'] and a partial {timestamp} stub
+  snapshot: any;
   schemaVersion: number;
   version: number;
   revision?: number; // Only used for dashboards managed by plugins
   links: DashboardLink[];
-  gnetId: number | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- gnetId is legacy and may be null, number, or string in older persisted dashboards
+  gnetId: any;
   panels: PanelModel[];
   panelInEdit?: PanelModel;
   panelInView?: PanelModel;
@@ -372,11 +411,14 @@ export class DashboardModel implements TimeModel {
   }
 
   private getTemplatingSaveModel(options: CloneOptions) {
-    const originalVariables = this.originalTemplating?.list ?? [];
-    // this.uid is `string | null` because newly created dashboards have no UID yet;
-    // the variable store keys by a string identifier so we fall back to '' (matches prior
-    // runtime behavior when this.uid was `any` and null was passed through unchanged).
-    const currentVariables = this.getVariablesFromState(this.uid ?? '');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- legacy templating shapes vary across schema versions; preserved as `any[]` to match historical typing
+    const originalVariables: any[] = this.originalTemplating?.list ?? [];
+    // Pass `this.uid` (typed `any`) directly through to the selector to preserve original
+    // variable-state keying semantics. `getVariablesByKey` internally calls
+    // `toStateKey(key)`, so null/undefined UIDs key as `"null"`/`"undefined"` per the
+    // long-standing contract. Coercing to '' here would break unsaved/null-UID dashboard
+    // variable lookups (review CP12 finding: behavior preservation).
+    const currentVariables = this.getVariablesFromState(this.uid);
 
     const saveModels = currentVariables.map((variable) => {
       // Group by variables has no adapter. Use the model as-is. This is safe to do as in scenes from which dashboard can be serialised,
@@ -422,10 +464,10 @@ export class DashboardModel implements TimeModel {
 
   timeRangeUpdated(timeRange: TimeRange) {
     this.events.publish(new TimeRangeUpdatedEvent(timeRange));
-    // this.uid is `string | null` (newly created dashboards have no UID); the action
-    // creator expects a string key, so we coerce null to '' to preserve prior runtime
-    // behavior (when this.uid was typed `any`, null was passed through unchanged).
-    dispatch(onTimeRangeUpdated(this.uid ?? '', timeRange));
+    // Pass `this.uid` (typed `any`) directly through to preserve variable-state keying
+    // semantics. The action creator wraps the value via `toStateKey(key)` internally, so
+    // null/undefined UIDs map to `"null"`/`"undefined"` per the long-standing contract.
+    dispatch(onTimeRangeUpdated(this.uid, timeRange));
 
     if (this.panelInEdit || this.panelInView) {
       this.timeRangeUpdatedDuringEditOrView = true;
@@ -1316,9 +1358,10 @@ export class DashboardModel implements TimeModel {
   }
 
   getVariables() {
-    // this.uid is `string | null`; coerce null to '' to satisfy the selector's
-    // `string` key parameter (preserves prior runtime behavior under `any` typing).
-    return this.getVariablesFromState(this.uid ?? '');
+    // Pass `this.uid` (typed `any`) directly through; selector wraps via `toStateKey`
+    // internally so null/undefined UIDs map to `"null"`/`"undefined"` keys (long-standing
+    // contract preserved per CP12 review behavior-preservation requirement).
+    return this.getVariablesFromState(this.uid);
   }
 
   canEditAnnotations(dashboardUID?: string) {
@@ -1359,8 +1402,8 @@ export class DashboardModel implements TimeModel {
   }
 
   private getPanelRepeatVariable(panel: PanelModel) {
-    // this.uid is `string | null`; coerce null to '' for the string key parameter.
-    return this.getVariablesFromState(this.uid ?? '').find((variable) => variable.name === panel.repeat);
+    // Pass `this.uid` (typed `any`) directly through; selector wraps via `toStateKey`.
+    return this.getVariablesFromState(this.uid).find((variable) => variable.name === panel.repeat);
   }
 
   private isSnapshotTruthy() {
@@ -1368,8 +1411,8 @@ export class DashboardModel implements TimeModel {
   }
 
   private hasVariables() {
-    // this.uid is `string | null`; coerce null to '' for the string key parameter.
-    return this.getVariablesFromState(this.uid ?? '').length > 0;
+    // Pass `this.uid` (typed `any`) directly through; selector wraps via `toStateKey`.
+    return this.getVariablesFromState(this.uid).length > 0;
   }
 
   public hasVariablesChanged(): boolean {

@@ -36,8 +36,7 @@ const DeleteDashboardModalUnconnected = ({ hideModal, cleanUpDashboardAndVariabl
       source: 'dashboard_settings',
       restore_enabled: Boolean(config.featureToggles.restoreDashboards),
     });
-    // `DashboardModel.uid` is `string | null`; coerce to empty-string for the delete API.
-    await deleteDashboards({ dashboardUIDs: [dashboard.uid ?? ''] });
+    await deleteDashboards({ dashboardUIDs: [dashboard.uid] });
     cleanUpDashboardAndVariables();
     hideModal();
     locationService.replace('/');

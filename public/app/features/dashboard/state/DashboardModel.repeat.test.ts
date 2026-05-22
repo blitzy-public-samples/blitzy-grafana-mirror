@@ -47,7 +47,7 @@ describe('given dashboard with panel repeat', () => {
     expect(dashboard.panels.length).toBe(1);
 
     // change variable
-    dashboard.templating.list[0].options![2].selected = false;
+    dashboard.templating.list[0].options[2].selected = false;
     dashboard.templating.list[0].current = {
       text: 'se1, se2',
       value: ['se1', 'se2'],
@@ -706,7 +706,7 @@ describe('given dashboard with row and panel repeat', () => {
     expect(dashboard.panels.length).toBe(2);
 
     // change variable
-    dashboard.templating.list[1].current!.value = ['se1', 'se2', 'se3'];
+    dashboard.templating.list[1].current.value = ['se1', 'se2', 'se3'];
 
     // toggle row back
     dashboard.toggleRow(dashboard.panels[1]);

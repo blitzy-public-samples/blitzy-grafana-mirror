@@ -38,11 +38,7 @@ export const cleanUpDashboardAndVariables = (): ThunkResult<void> => (dispatch, 
 
   if (dashboard) {
     dashboard.destroy();
-    // dashboard.uid is `string | null` (newly created dashboards have no UID yet); the
-    // action creator expects a string key, so coerce null to '' to preserve prior
-    // runtime behavior (when dashboard.uid was typed `any`, null was passed through
-    // unchanged).
-    dispatch(cancelVariables(dashboard.uid ?? ''));
+    dispatch(cancelVariables(dashboard.uid));
   }
 
   getTimeSrv().stopAutoRefresh();

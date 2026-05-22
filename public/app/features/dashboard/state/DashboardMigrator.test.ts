@@ -12,18 +12,6 @@ import { type PanelModel } from '../state/PanelModel';
 
 import { DASHBOARD_SCHEMA_VERSION } from './DashboardMigrator';
 
-// Test-only helper: widens a value to a type that includes the legacy variable
-// fields (`tags`, `tagsQuery`, `tagValuesQuery`, `useTags`) removed from the
-// VariableModel schema in V28. The V28 migration deletes these fields at
-// runtime; the tests below assert their absence. The cast is benign — the
-// runtime value is unchanged; only the TypeScript view is widened.
-function asLegacyVariable<T>(
-  v: T
-): T & { tags?: unknown; tagsQuery?: unknown; tagValuesQuery?: unknown; useTags?: unknown } {
-  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- widening cast for legacy field assertions; the V28 migration removes these fields and the tests verify their absence
-  return v as T & { tags?: unknown; tagsQuery?: unknown; tagValuesQuery?: unknown; useTags?: unknown };
-}
-
 const dataSources = {
   prom: mockDataSource({
     name: 'prom',
@@ -739,27 +727,27 @@ describe('DashboardModel', () => {
     });
 
     it('should have no tags', () => {
-      expect(asLegacyVariable(model.templating.list[0]).tags).toBeUndefined();
-      expect(asLegacyVariable(model.templating.list[1]).tags).toBeUndefined();
-      expect(asLegacyVariable(model.templating.list[2]).tags).toBeUndefined();
+      expect(model.templating.list[0].tags).toBeUndefined();
+      expect(model.templating.list[1].tags).toBeUndefined();
+      expect(model.templating.list[2].tags).toBeUndefined();
     });
 
     it('should have no tagsQuery property', () => {
-      expect(asLegacyVariable(model.templating.list[0]).tagsQuery).toBeUndefined();
-      expect(asLegacyVariable(model.templating.list[1]).tagsQuery).toBeUndefined();
-      expect(asLegacyVariable(model.templating.list[2]).tagsQuery).toBeUndefined();
+      expect(model.templating.list[0].tagsQuery).toBeUndefined();
+      expect(model.templating.list[1].tagsQuery).toBeUndefined();
+      expect(model.templating.list[2].tagsQuery).toBeUndefined();
     });
 
     it('should have no tagValuesQuery property', () => {
-      expect(asLegacyVariable(model.templating.list[0]).tagValuesQuery).toBeUndefined();
-      expect(asLegacyVariable(model.templating.list[1]).tagValuesQuery).toBeUndefined();
-      expect(asLegacyVariable(model.templating.list[2]).tagValuesQuery).toBeUndefined();
+      expect(model.templating.list[0].tagValuesQuery).toBeUndefined();
+      expect(model.templating.list[1].tagValuesQuery).toBeUndefined();
+      expect(model.templating.list[2].tagValuesQuery).toBeUndefined();
     });
 
     it('should have no useTags property', () => {
-      expect(asLegacyVariable(model.templating.list[0]).useTags).toBeUndefined();
-      expect(asLegacyVariable(model.templating.list[1]).useTags).toBeUndefined();
-      expect(asLegacyVariable(model.templating.list[2]).useTags).toBeUndefined();
+      expect(model.templating.list[0].useTags).toBeUndefined();
+      expect(model.templating.list[1].useTags).toBeUndefined();
+      expect(model.templating.list[2].useTags).toBeUndefined();
     });
   });
 
@@ -1077,10 +1065,7 @@ describe('DashboardModel', () => {
     it('should removed options from all query variables', () => {
       const queryVariables = model.templating.list.filter((v) => v.type === 'query');
       expect(queryVariables).toHaveLength(10);
-      // VariableModel.options is now optional (schema type); the V28 migration
-      // removes/empties the array. The `?? 0` guard preserves the prior reduction
-      // semantics whether the property is absent or present-but-zero-length.
-      const noOfOptions = queryVariables.reduce((all, variable) => all + (variable.options?.length ?? 0), 0);
+      const noOfOptions = queryVariables.reduce((all, variable) => all + variable.options.length, 0);
       expect(noOfOptions).toBe(0);
     });
 

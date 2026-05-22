@@ -329,19 +329,14 @@ export async function makeExportableV1(dashboard: DashboardModel) {
     );
 
     // make inputs and requires a top thing
-    // `defaults` returns the merged object whose type the inference engine builds from the
-    // DashboardModel save shape. The merged value is structurally compatible with `DashboardJson`
-    // at runtime (DashboardJson extends Dashboard which the save-model implements); cast at the
-    // assignment boundary to satisfy the now-stricter `DashboardJson` type.
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- structurally-compatible save-model → DashboardJson bridge
-    const newObj = defaults(
+    const newObj: DashboardJson = defaults(
       {
         __inputs: inputs,
         __elements,
         __requires: sortBy(requires, ['id']),
       },
       saveModel
-    ) as unknown as DashboardJson;
+    );
 
     // Remove extraneous props from library panels
     for (let i = 0; i < newObj.panels.length; i++) {

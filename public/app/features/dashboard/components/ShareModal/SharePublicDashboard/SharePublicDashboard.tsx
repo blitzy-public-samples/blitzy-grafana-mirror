@@ -30,8 +30,7 @@ export const Loader = () => {
 };
 
 export const SharePublicDashboard = (props: Props) => {
-  // `DashboardModel.uid` is `string | null`; coerce to empty-string for the RTK Query argument.
-  const { data: publicDashboard, isLoading, isError } = useGetPublicDashboardQuery(props.dashboard.uid ?? '');
+  const { data: publicDashboard, isLoading, isError } = useGetPublicDashboardQuery(props.dashboard.uid);
   const dashboardState = useSelector((store) => store.dashboard);
   const dashboard = dashboardState.getModel()!;
   const { unsupportedDataSources } = useGetUnsupportedDataSources(dashboard);

@@ -236,8 +236,7 @@ export function ConfigPublicDashboard({ publicDashboard, unsupportedDatasources 
     deletePublicDashboard({
       dashboard,
       uid: publicDashboard!.uid,
-      // `DashboardModel.uid` is `string | null`; coerce to empty-string for the public-dashboard API.
-      dashboardUid: dashboard.uid ?? '',
+      dashboardUid: dashboard.uid,
     });
     onDelete();
   };

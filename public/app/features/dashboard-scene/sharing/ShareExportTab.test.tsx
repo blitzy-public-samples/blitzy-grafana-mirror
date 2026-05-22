@@ -7,7 +7,6 @@ import {
 } from '@grafana/schema/apis/dashboard.grafana.app/v2';
 import * as dashboardApiModule from 'app/features/dashboard/api/dashboard_api';
 import { ExportFormat, type DashboardWithAccessInfo } from 'app/features/dashboard/api/types';
-import { type DashboardJson } from 'app/features/manage-dashboards/types';
 import { type DashboardDataDTO } from 'app/types/dashboard';
 
 import { DashboardScene } from '../scene/DashboardScene';
@@ -152,12 +151,7 @@ describe('ShareExportTab', () => {
     config.featureToggles.kubernetesDashboards = true;
     config.featureToggles.dashboardNewLayouts = false;
 
-    // The mock returns the input DashboardModel as a stand-in for DashboardJson — these are
-    // structurally compatible save-models for test purposes.
-    makeExportableV1Spy = jest
-      .spyOn(exporters, 'makeExportableV1')
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- test mock; DashboardModel is structurally compatible with DashboardJson for the test assertions
-      .mockImplementation(async (dashboard) => dashboard as unknown as DashboardJson);
+    makeExportableV1Spy = jest.spyOn(exporters, 'makeExportableV1').mockImplementation(async (dashboard) => dashboard);
     makeExportableV2Spy = jest.spyOn(exporters, 'makeExportableV2').mockImplementation(async (spec) => spec);
 
     mockGetDashboardAPI(mockV1Spec, mockV2ResourceResponse);

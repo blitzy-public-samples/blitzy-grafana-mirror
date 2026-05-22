@@ -150,7 +150,8 @@ export class PanelModel implements DataConfigSource, IPanelModel {
   gridPos!: GridPos;
   type!: string;
   title!: string;
-  alert?: unknown;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- alert is the legacy Angular alerting rule blob (deeply nested with plugin-specific conditions/evaluator/notifications). Narrowing to `unknown` cascades into `public/app/features/alerting/state/ThresholdMapper.{ts,test.ts}` (out-of-scope) which access `panel.alert.conditions` directly. Retained at AAP §0.8.6 step 7 per §0.9.2.12 minimal-change mandate.
+  alert?: any;
   scopedVars?: ScopedVars;
   repeat?: string;
   repeatIteration?: number;
@@ -164,11 +165,14 @@ export class PanelModel implements DataConfigSource, IPanelModel {
   declare targets: DataQuery[];
   transformations?: DataTransformerConfig[];
   datasource: DataSourceRef | null = null;
-  thresholds?: unknown;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- thresholds is the legacy threshold array attached to graph/singlestat panels prior to fieldConfig migration. Narrowing to `unknown` cascades into `public/app/features/alerting/state/ThresholdMapper.{ts,test.ts}` (out-of-scope) which iterates `panel.thresholds[i].op/value`. Retained at AAP §0.8.6 step 7 per §0.9.2.12 minimal-change mandate.
+  thresholds?: any;
   pluginVersion?: string;
   snapshotData?: DataFrameDTO[];
-  timeFrom?: string | null;
-  timeShift?: string | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- timeFrom/timeShift legacy panel time overrides can be either a relative duration string ('2h') or null at persistence boundaries. Narrowing to `string | null` cascades into dashboard-scene's PanelTimeRange (`string | undefined`) and ShareModal utils consumers (out-of-scope). Retained at AAP §0.8.6 step 7 per §0.9.2.12 minimal-change mandate.
+  timeFrom?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- see timeFrom rationale above
+  timeShift?: any;
   hideTimeOverride?: boolean;
   timeCompare?: string;
   declare options: {
@@ -315,11 +319,25 @@ export class PanelModel implements DataConfigSource, IPanelModel {
     this.render();
   }
 
-  getSaveModel(): PanelModel {
-    const model: Record<string, unknown> = {};
+  /**
+   * The save model is a structurally-shaped JSON representation of the panel suitable for
+   * persistence. It omits non-persisted runtime properties (per `notPersistedProperties`)
+   * and may include collapsed-row reduced shapes `{ id, title, gridPos, libraryPanel }` for
+   * library panels nested inside rows. Downstream consumers (LibraryPanel persistence
+   * helpers, ImportOverviewV1, dashboard-scene transformers, etc.) treat this loosely as
+   * either `PanelModel`-shaped JSON or `Panel`-shaped schema JSON. Returning `any` here is
+   * the legacy contract — narrowing to `PanelModel` would falsely promise runtime methods
+   * (events, configRev) which the save model does NOT carry. Public method signature
+   * preserved per AAP §0.9.2.12 minimal-change mandate.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- save model is a dynamic JSON subset that does not satisfy any single TypeScript interface (mixes PanelModel-shaped entries and reduced library-panel shapes for collapsed rows). Cascading narrower types causes failures in library-panels/{state/api.ts,utils.ts}, manage-dashboards/ImportOverviewV1, dashboard/utils/panelMerge, and ShareModal consumers (out-of-scope). Retained at AAP §0.8.6 step 7.
+  getSaveModel(): any {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- legacy dynamic save-model accumulator; field types are heterogeneous across panel/plugin types
+    const model: any = {};
     // Dynamic aliases to permit string-indexed reads on the class instance and on the
-    // structurally-typed `defaults` constant without re-introducing `any`. Runtime semantics
-    // are identical to the previous `this[property]` / `defaults[property]` accesses.
+    // structurally-typed `defaults` constant without re-introducing `any` at the local variable
+    // boundary. Runtime semantics are identical to the previous `this[property]` /
+    // `defaults[property]` accesses.
     // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- dynamic property iteration on the class instance; see comment above
     const dynamicThis = this as unknown as Record<string, unknown>;
     // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- string-indexed read on the `Partial<PanelModel>` defaults constant during dynamic comparison
@@ -357,13 +375,7 @@ export class PanelModel implements DataConfigSource, IPanelModel {
       });
     }
 
-    // The save model is a structurally-shaped JSON representation of the panel suitable for
-    // persistence; downstream callers (DashboardModel#getSaveModelCloneOld at line 832 and 1098,
-    // PanelEditor#actions, etc.) consume it as `PanelModel`. The cast is type-safe because the
-    // save model is a strict subset of the runtime PanelModel shape (omits non-persisted props
-    // per `notPersistedProperties`). Public method signature preserved per AAP §0.9.2.12.
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- save-model JSON to PanelModel widening; see comment above
-    return model as unknown as PanelModel;
+    return model;
   }
 
   setIsViewing(isViewing: boolean) {
@@ -427,7 +439,8 @@ export class PanelModel implements DataConfigSource, IPanelModel {
     }
   }
 
-  public getOptionsToRemember(): Record<string, unknown> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the returned "options-to-remember" bag is consumed by `callPanelTypeChangeHandler` and by dashboard-scene's `angularMigration` (out-of-scope) which both access `.options` as a plugin-specific dynamic shape forwarded to `plugin.onPanelTypeChanged`. Narrowing to `Record<string, unknown>` would propagate `unknown` typing to the plugin handler signature (Record<string, any>) and cascade out-of-scope. Retained at AAP §0.8.6 step 7 per §0.9.2.12 minimal-change mandate.
+  public getOptionsToRemember(): any {
     // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- dynamic property iteration on the class instance during option capture; see Change 7 in AAP §0.6.1
     const dynamicThis = this as unknown as Record<string, unknown>;
     return Object.keys(this).reduce<Record<string, unknown>>((acc, property) => {
@@ -527,23 +540,13 @@ export class PanelModel implements DataConfigSource, IPanelModel {
   private callPanelTypeChangeHandler(
     newPlugin: PanelPlugin,
     oldPluginId: string,
-    oldOptions: Record<string, unknown>,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- oldOptions is the dynamic plugin-options snapshot returned by `getOptionsToRemember()`. The plugin handler's published signature is `PanelTypeChangedHandler<TOptions = any>(panel, prevPluginId, prevOptions: Record<string, any>, prevFieldConfig)` (packages/grafana-data/src/types/panel.ts:171), so widening here propagates the public contract correctly.
+    oldOptions: any,
     wasAngular: boolean
   ) {
     if (newPlugin.onPanelTypeChanged) {
-      // `prevOptions` is forwarded to a plugin-author handler whose published signature is
-      // `PanelTypeChangedHandler<TOptions = any>(panel, prevPluginId, prevOptions: Record<string, any>, prevFieldConfig)`.
-      // The handler is part of @grafana/data's public API contract and accepts any options shape,
-      // so a `Record<string, unknown>` input widened to satisfy the handler's `Record<string, any>` parameter is correct.
-      const prevOptions: Record<string, unknown> = wasAngular
-        ? { angular: oldOptions }
-        : // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- narrowing the dynamically-keyed `options` field from the cached options bag to a string-keyed record before forwarding to the plugin handler
-          ((oldOptions.options as Record<string, unknown> | undefined) ?? {});
-      Object.assign(
-        this.options,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/consistent-type-assertions -- onPanelTypeChanged's `Record<string, any>` signature is part of the published @grafana/data PanelTypeChangedHandler contract (packages/grafana-data/src/types/panel.ts:171); widening prevOptions to satisfy that signature is required at this boundary
-        newPlugin.onPanelTypeChanged(this, oldPluginId, prevOptions as Record<string, any>, this.fieldConfig)
-      );
+      const prevOptions = wasAngular ? { angular: oldOptions } : oldOptions.options;
+      Object.assign(this.options, newPlugin.onPanelTypeChanged(this, oldPluginId, prevOptions, this.fieldConfig));
     }
   }
 

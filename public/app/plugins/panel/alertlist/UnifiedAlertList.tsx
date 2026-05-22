@@ -252,7 +252,7 @@ function UnifiedAlertList(props: PanelProps<UnifiedAlertListOptions>) {
               width={props.width}
               height={props.height}
               options={parsedOptions}
-              dashboardUid={options.dashboardAlerts ? (dashboardRef.current?.uid ?? undefined) : undefined}
+              dashboardUid={options.dashboardAlerts ? dashboardRef.current?.uid : undefined}
               styles={styles}
             />
           )}

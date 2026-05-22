@@ -50,8 +50,7 @@ function createExtensionContext(panel: PanelModel, dashboard: DashboardModel): P
       timeZone: dashboard.timezone,
     }),
     dashboard: {
-      // `DashboardModel.uid` is `string | null`; coerce to empty-string for the panel-menu provider.
-      uid: dashboard.uid ?? '',
+      uid: dashboard.uid,
       title: dashboard.title,
       tags: Array.from<string>(dashboard.tags),
     },

@@ -74,8 +74,7 @@ export const VersionsSettings = memo(function VersionsSettings({ dashboard, sect
 
       getDashboardAPI()
         .then(async (api) => {
-          // `DashboardModel.uid` is `string | null`; coerce to empty-string for the API call.
-          const result = await api.listDashboardHistory(dashboard.uid ?? '', options);
+          const result = await api.listDashboardHistory(dashboard.uid, options);
           const fetched = transformToRevisionModels(result.items);
           setIsLoading(false);
           setVersions((prev) => [...(prev ?? []), ...decorateVersions(fetched)]);

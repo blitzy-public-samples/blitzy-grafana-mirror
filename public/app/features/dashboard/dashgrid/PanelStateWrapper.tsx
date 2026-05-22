@@ -194,10 +194,31 @@ const PanelStateWrapperInternal = (props: Props) => {
   // matching the class field `private eventFilter: EventFilterOptions`.
   const eventFilterRef = useRef<EventFilterOptions>({ onlyLocal: true });
 
-  // panelOptionsLogger is created lazily on mount when this panel is being
-  // edited (PanelEditor app). Held in a ref so it survives re-renders without
-  // re-instantiating, and so `onPanelError` can read the latest value.
+  // panelOptionsLogger is created lazily DURING THE FIRST RENDER (not in a
+  // mount effect) when this panel is being edited (PanelEditor app). The
+  // class component initialized this in the constructor, so the logger had
+  // to be available before the very first render — including the render
+  // that produces an error caught by <ErrorBoundary>. If initialization
+  // were deferred to a mount effect, an error thrown by a panel on first
+  // render would invoke `onPanelError` → `logPanelChangesOnError()` before
+  // the effect ran, dereferencing an undefined ref and causing a secondary
+  // crash. The `panelOptionsLoggerInitializedRef` sentinel prevents
+  // re-initialization on subsequent renders (matching constructor-once
+  // semantics), and the conditional ensures we only allocate the logger in
+  // PanelEditor mode (matching the class's `componentDidMount` guard for
+  // CoreApp.PanelEditor — see review finding C-5/PanelStateWrapper).
   const panelOptionsLoggerRef = useRef<PanelOptionsLogger | undefined>(undefined);
+  const panelOptionsLoggerInitializedRef = useRef<boolean>(false);
+  if (!panelOptionsLoggerInitializedRef.current) {
+    panelOptionsLoggerInitializedRef.current = true;
+    if (getPanelContextAppValue(isEditing, isViewing) === CoreApp.PanelEditor) {
+      panelOptionsLoggerRef.current = new PanelOptionsLogger(panel.getOptions(), panel.fieldConfig, {
+        panelId: String(panel.id),
+        panelType: panel.type,
+        panelTitle: panel.title,
+      });
+    }
+  }
 
   // ============ State (formerly this.state in the class) ============
   // The class kept all six fields on a single State object and frequently
@@ -416,8 +437,7 @@ const PanelStateWrapperInternal = (props: Props) => {
 
       panel.refreshWhenInView = false;
       panel.runAllPanelQueries({
-        // `DashboardModel.uid` is `string | null`; coerce to empty-string for the query runner.
-        dashboardUID: dashboard.uid ?? '',
+        dashboardUID: dashboard.uid,
         dashboardTimezone: dashboard.getTimezone(),
         dashboardTitle: dashboard.title,
         timeData,
@@ -597,21 +617,10 @@ const PanelStateWrapperInternal = (props: Props) => {
   // call, and liveTimer registration all happen exactly once when the panel
   // first mounts — matching the class's componentDidMount. The cleanup
   // function matches componentWillUnmount: unsubscribe + liveTimer.remove.
-  // panelOptionsLogger is also created here when the panel is opened in
-  // the editor (the class did this in the constructor but on the functional
-  // side we can defer it to mount without changing observable behavior).
+  // The panelOptionsLogger initialization happens DURING the first render
+  // above (not here), so it is available to onPanelError on the first paint.
   useEffect(() => {
     const subs = new Subscription();
-
-    // Initialize the panelOptionsLogger lazily when the panel is being edited.
-    if (getPanelContextAppValue(isEditing, isViewing) === CoreApp.PanelEditor) {
-      const panelInfo = {
-        panelId: String(panel.id),
-        panelType: panel.type,
-        panelTitle: panel.title,
-      };
-      panelOptionsLoggerRef.current = new PanelOptionsLogger(panel.getOptions(), panel.fieldConfig, panelInfo);
-    }
 
     // Subscribe to panel events — these RxJS subscribers invoke the ref
     // callbacks so they always run the latest closure even though they

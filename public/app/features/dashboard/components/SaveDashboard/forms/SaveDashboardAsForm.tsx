@@ -56,8 +56,7 @@ export const SaveDashboardAsForm = ({
 }: SaveDashboardAsFormProps) => {
   const defaultValues: SaveDashboardAsFormDTO = {
     title: isNew ? dashboard.title : `${dashboard.title} Copy`,
-    // `DashboardModel.description` is now `string | undefined`; coerce undefined to empty-string for the form default.
-    description: dashboard.description ?? '',
+    description: dashboard.description,
     $folder: {
       uid: dashboard.meta.folderUid,
       title: dashboard.meta.folderTitle,

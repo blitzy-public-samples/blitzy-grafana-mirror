@@ -1275,11 +1275,6 @@
       "count": 5
     }
   },
-  "public/app/features/dashboard/components/DashboardSettings/VersionsSettings.tsx": {
-    "react-prefer-function-component/react-prefer-function-component": {
-      "count": 1
-    }
-  },
   "public/app/features/dashboard/components/HelpWizard/HelpWizard.tsx": {
     "no-restricted-syntax": {
       "count": 3
@@ -1306,9 +1301,6 @@
   "public/app/features/dashboard/components/PanelEditor/PanelEditor.tsx": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1
-    },
-    "react-prefer-function-component/react-prefer-function-component": {
-      "count": 1
     }
   },
   "public/app/features/dashboard/components/PanelEditor/VisualizationSelectPane.tsx": {
@@ -1316,6 +1308,11 @@
       "count": 1
     },
     "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "public/app/features/dashboard/components/PanelEditor/getVisualizationOptions.tsx": {
+    "@typescript-eslint/no-explicit-any": {
       "count": 1
     }
   },
@@ -1384,11 +1381,6 @@
       "count": 1
     }
   },
-  "public/app/features/dashboard/components/SubMenu/SubMenu.tsx": {
-    "react-prefer-function-component/react-prefer-function-component": {
-      "count": 1
-    }
-  },
   "public/app/features/dashboard/components/SubMenu/SubMenuItems.tsx": {
     "no-restricted-syntax": {
       "count": 1
@@ -1407,24 +1399,10 @@
   "public/app/features/dashboard/containers/DashboardPage.tsx": {
     "@grafana/no-aria-label-selectors": {
       "count": 1
-    },
-    "@typescript-eslint/consistent-type-assertions": {
-      "count": 2
-    },
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    },
-    "react-prefer-function-component/react-prefer-function-component": {
-      "count": 1
     }
   },
   "public/app/features/dashboard/containers/PublicDashboardPage.tsx": {
     "@typescript-eslint/consistent-type-assertions": {
-      "count": 1
-    }
-  },
-  "public/app/features/dashboard/dashgrid/DashboardPanel.tsx": {
-    "react-prefer-function-component/react-prefer-function-component": {
       "count": 1
     }
   },
@@ -1446,9 +1424,6 @@
   "public/app/features/dashboard/state/DashboardMigrator.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 2
-    },
-    "@typescript-eslint/no-explicit-any": {
-      "count": 16
     }
   },
   "public/app/features/dashboard/state/DashboardModel.repeat.test.ts": {

@@ -1,3 +1,24 @@
+/* eslint-disable @typescript-eslint/no-explicit-any --
+ * Retained `any` annotations in this file are genuinely unresolvable per
+ * AAP §0.6.2 / §0.9.2.7. DashboardMigrator processes historical dashboard
+ * JSON spanning 40+ legacy schema versions; each version's input panels,
+ * data links, value mappings, and grid-position records are a distinct
+ * legacy shape that predates the current Dashboard/Panel/DataLink schemas.
+ *
+ * Migration handlers (`updateSchema`, `panelUpgrades.push((panel: any) => …)`,
+ * `upgradeToGridLayout`, `addPanel`, `getPanelPosition`, `upgradePanelLink`,
+ * `upgradeValueMappings`) must accept the open union of every historical
+ * schema's panel/link/mapping format. Authoring 40+ separate legacy interfaces
+ * per concrete migration step would balloon this file without improving
+ * runtime correctness — the code intentionally uses dynamic property access
+ * and feature-detection narrowing to read and rewrite legacy fields.
+ *
+ * The retained `any` here is the documented "last resort" path in AAP §0.8.6
+ * step 7: untyped legacy data structures whose shape cannot be enumerated
+ * without breaking runtime parity. Each handler treats its input as an opaque
+ * legacy shape and emits a typed result that flows into the current
+ * `PanelModel` / `DashboardModel` types.
+ */
 import { each, find, findIndex, flattenDeep, isArray, isString, map, max, some } from 'lodash';
 
 import {

@@ -4,7 +4,6 @@ import { isEmptyObject, type SelectableValue, VariableRefresh } from '@grafana/d
 import { selectors as e2eSelectors } from '@grafana/e2e-selectors';
 import { Trans, t } from '@grafana/i18n';
 import { getBackendSrv } from '@grafana/runtime';
-import { type Dashboard } from '@grafana/schema';
 import { Box, Button, ClipboardButton, Field, Input, LinkButton, Modal, Select, Spinner, Stack } from '@grafana/ui';
 import { getTimeSrv } from 'app/features/dashboard/services/TimeSrv';
 import { type DashboardModel } from 'app/features/dashboard/state/DashboardModel';
@@ -178,12 +177,9 @@ export const ShareSnapshot = memo(({ dashboard, panel, onDismiss }: Props) => {
   };
 
   const createSnapshot = (external?: boolean) => () => {
-    // The strict `Dashboard['snapshot']` shape declares many required fields
-    // (created/expires/external/etc.), but the legacy in-memory snapshot marker only needs a
-    // truthy object — `dashboard.isSnapshot()` returns Boolean(snapshot). The runtime value
-    // here is intentionally minimal; cast so the legacy assignment continues to compile.
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- legacy in-memory snapshot marker; only truthiness is consumed
-    dashboard.snapshot = { timestamp: new Date() } as unknown as Dashboard['snapshot'];
+    dashboard.snapshot = {
+      timestamp: new Date(),
+    };
 
     setIsLoading(true);
     dashboard.startRefresh();

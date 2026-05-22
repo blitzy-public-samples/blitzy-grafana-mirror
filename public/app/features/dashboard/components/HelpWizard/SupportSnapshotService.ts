@@ -30,7 +30,16 @@ interface SupportSnapshotState {
   panel: PanelModel;
   panelTitle: string;
 
-  // eslint-disable-next-line
+  /**
+   * The support snapshot wraps an arbitrary `DataFrameJSON`-shaped payload built
+   * from the panel's current scenarios (data, processed data, options, scene
+   * graph); each tab serializer renders this shape differently and external
+   * support-ticket attachments may reflect older snapshot schemas. The runtime
+   * shape is intentionally an opaque dump and is consumed only by readonly
+   * diff/viewers, so a concrete type cannot be authored without regressing
+   * backward compatibility with already-uploaded snapshots.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- intentionally untyped support-snapshot payload; see JSDoc above
   snapshot?: any;
   snapshotUpdate: number;
   scene?: SceneObject;

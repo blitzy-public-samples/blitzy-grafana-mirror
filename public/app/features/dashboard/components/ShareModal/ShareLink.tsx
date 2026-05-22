@@ -22,8 +22,7 @@ export const ShareLink = memo(({ panel, dashboard }: Props) => {
   useEffect(() => {
     async function buildUrl() {
       const newShareUrl = await buildShareUrl(useCurrentTimeRange, selectedTheme, panel, useShortUrl);
-      // `DashboardModel.uid` is `string | null`; coerce to empty-string for the URL builder.
-      const newImageUrl = buildImageUrl(useCurrentTimeRange, dashboard.uid ?? '', selectedTheme, panel);
+      const newImageUrl = buildImageUrl(useCurrentTimeRange, dashboard.uid, selectedTheme, panel);
 
       setShareUrl(newShareUrl);
       setImageUrl(newImageUrl);

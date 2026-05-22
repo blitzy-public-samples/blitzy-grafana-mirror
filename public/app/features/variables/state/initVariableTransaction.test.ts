@@ -63,7 +63,7 @@ function getTestContext(variables?: BaseVariableModel[]) {
   } as unknown as VariableQueryRunner;
   setVariableQueryRunner(variableQueryRunner);
 
-  const dashboard = { title: 'Some dash', uid: key, templating } as unknown as DashboardModel;
+  const dashboard = { title: 'Some dash', uid: key, templating } as DashboardModel;
 
   return { constant, getInstanceSettingsMock, templating, key, dashboard };
 }

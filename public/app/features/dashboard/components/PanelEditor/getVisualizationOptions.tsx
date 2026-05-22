@@ -94,13 +94,7 @@ export function getVisualizationOptions(props: OptionPaneRenderProps): OptionsPa
   };
 
   // Load the options into categories
-  fillOptionsPaneItems<unknown>(
-    plugin.meta.id,
-    plugin.getPanelOptionsSupplier(),
-    access,
-    getOptionsPaneCategory,
-    context
-  );
+  fillOptionsPaneItems(plugin.meta.id, plugin.getPanelOptionsSupplier(), access, getOptionsPaneCategory, context);
 
   /**
    * Field options
@@ -255,13 +249,7 @@ export function getVisualizationOptions2(props: OptionPaneRenderProps2): Options
   });
 
   // Load the options into categories
-  fillOptionsPaneItems<unknown>(
-    plugin.meta.id,
-    plugin.getPanelOptionsSupplier(),
-    access,
-    getOptionsPaneCategory,
-    context
-  );
+  fillOptionsPaneItems(plugin.meta.id, plugin.getPanelOptionsSupplier(), access, getOptionsPaneCategory, context);
 
   // Field options
   const currentFieldConfig = panel.state.fieldConfig;
@@ -318,15 +306,17 @@ export function getVisualizationOptions2(props: OptionPaneRenderProps2): Options
  *
  * @internal
  */
-export function fillOptionsPaneItems<TOptions = unknown>(
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- public API surface: function is consumed by out-of-scope external callers (transformers/spatial/optionsHelper.tsx, plugins/panel/canvas/editor/inline/InlineEditBody.tsx) that pass PanelOptionsSupplier<T> with arbitrary T. Per AAP §0.9.1 (preserve public API) and §0.9.2.12 (minimal change), `any` is retained at this consumer boundary so heterogeneous callers continue to type-check.
+export function fillOptionsPaneItems(
   idPrefix: string,
-  supplier: PanelOptionsSupplier<TOptions>,
+  supplier: PanelOptionsSupplier<any>,
   access: NestedValueAccess,
   getOptionsPaneCategory: categoryGetter,
-  context: StandardEditorContext<TOptions>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- see justification above for supplier type
+  context: StandardEditorContext<any>,
   parentCategory?: OptionsPaneCategoryDescriptor
 ) {
-  const builder = new PanelOptionsEditorBuilder<TOptions>();
+  const builder = new PanelOptionsEditorBuilder();
   supplier(builder, context);
 
   for (const pluginOption of builder.getItems()) {
@@ -350,7 +340,7 @@ export function fillOptionsPaneItems<TOptions = unknown>(
         ? subAccess.getContext(context)
         : { ...context, options: access.getValue(pluginOption.path) };
 
-      fillOptionsPaneItems<unknown>(
+      fillOptionsPaneItems(
         htmlId,
         pluginOption.getBuilder(),
         subAccess,

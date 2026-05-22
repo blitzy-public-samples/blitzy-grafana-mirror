@@ -1,10 +1,9 @@
 import { css } from '@emotion/css';
-import { useForm } from 'react-hook-form';
 
 import { type GrafanaTheme2 } from '@grafana/data';
 import { selectors as e2eSelectors } from '@grafana/e2e-selectors';
 import { Trans } from '@grafana/i18n';
-import { Button, Spinner, useStyles2 } from '@grafana/ui';
+import { Button, Form, Spinner, useStyles2 } from '@grafana/ui';
 import { contextSrv } from 'app/core/services/context_srv';
 import { useCreatePublicDashboardMutation } from 'app/features/dashboard/api/publicDashboardApi';
 import { type DashboardModel } from 'app/features/dashboard/state/DashboardModel';
@@ -49,11 +48,6 @@ export const CreatePublicDashboardBase = ({
     createPublicDashboard({ dashboard, payload: { isEnabled: true } });
     DashboardInteractions.generatePublicDashboardUrlClicked({});
   };
-  const {
-    handleSubmit,
-    register,
-    formState: { isValid },
-  } = useForm<SharePublicDashboardAcknowledgmentInputs>({ mode: 'onChange' });
 
   const disableInputs = !hasWritePermissions || isLoading || isError || hasError;
 
@@ -78,18 +72,25 @@ export const CreatePublicDashboardBase = ({
         <UnsupportedDataSourcesAlert unsupportedDataSources={unsupportedDatasources.join(', ')} />
       )}
 
-      {/* Design system gap: react-hook-form useForm() integration — raw <form> required for handleSubmit() composition */}
-      <form onSubmit={handleSubmit(onCreate)}>
-        <div className={styles.checkboxes}>
-          <AcknowledgeCheckboxes disabled={disableInputs} register={register} />
-        </div>
-        <div className={styles.buttonContainer}>
-          <Button type="submit" disabled={disableInputs || !isValid} data-testid={selectors.CreateButton}>
-            <Trans i18nKey="public-dashboard.create-page.generate-public-url-button">Generate public URL</Trans>
-            {isLoading && <Spinner className={styles.loadingSpinner} />}
-          </Button>
-        </div>
-      </form>
+      <Form<SharePublicDashboardAcknowledgmentInputs>
+        onSubmit={onCreate}
+        validateOn="onChange"
+        maxWidth="none"
+      >
+        {({ register, formState: { isValid } }) => (
+          <>
+            <div className={styles.checkboxes}>
+              <AcknowledgeCheckboxes disabled={disableInputs} register={register} />
+            </div>
+            <div className={styles.buttonContainer}>
+              <Button type="submit" disabled={disableInputs || !isValid} data-testid={selectors.CreateButton}>
+                <Trans i18nKey="public-dashboard.create-page.generate-public-url-button">Generate public URL</Trans>
+                {isLoading && <Spinner className={styles.loadingSpinner} />}
+              </Button>
+            </div>
+          </>
+        )}
+      </Form>
     </div>
   );
 };

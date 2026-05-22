@@ -28,13 +28,7 @@ export function createVariablesForDashboard(oldModel: DashboardModel, defaultVar
   const variableObjects = oldModel.templating.list
     .map((v) => {
       try {
-        // `templating.list` is now typed as `VariableModel[]` from @grafana/schema (the
-        // persisted JSON shape). `createSceneVariableFromVariableModel` consumes
-        // @grafana/data's `TypedVariableModel` (the runtime discriminated union). These
-        // schemas describe the same runtime values from different angles and are the
-        // canonical schema-to-runtime bridge for variables.
-        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- schema-to-runtime variable model bridge
-        return createSceneVariableFromVariableModel(v as TypedVariableModel);
+        return createSceneVariableFromVariableModel(v);
       } catch (err) {
         console.error(err);
         return null;
@@ -71,39 +65,28 @@ export function createVariablesForSnapshot(oldModel: DashboardModel) {
       try {
         // for adhoc we are using the AdHocFiltersVariable from scenes becuase of its complexity
         if (v.type === 'adhoc') {
-          // After `v.type === 'adhoc'` discrimination, the runtime shape includes the
-          // `filters`/`baseFilters`/`defaultKeys` fields from @grafana/data's
-          // `AdHocVariableModel`. @grafana/schema's `VariableModel` does not surface
-          // these adhoc-only fields, so cast through `TypedVariableModel`'s adhoc
-          // variant to access them.
-          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- adhoc-variant runtime field access; structurally present at runtime
-          const adhoc = v as Extract<TypedVariableModel, { type: 'adhoc' }>;
           return new AdHocFiltersVariable({
-            name: adhoc.name,
-            label: adhoc.label,
+            name: v.name,
+            label: v.label,
             readOnly: true,
-            description: adhoc.description,
-            skipUrlSync: adhoc.skipUrlSync,
-            hide: adhoc.hide,
-            datasource: adhoc.datasource,
+            description: v.description,
+            skipUrlSync: v.skipUrlSync,
+            hide: v.hide,
+            datasource: v.datasource,
             applyMode: 'auto',
-            filters: adhoc.filters ?? [],
-            baseFilters: adhoc.baseFilters ?? [],
-            defaultKeys: adhoc.defaultKeys,
+            filters: v.filters ?? [],
+            baseFilters: v.baseFilters ?? [],
+            defaultKeys: v.defaultKeys,
             useQueriesAsFilterForOptions: true,
             layout: 'combobox',
             supportsMultiValueOperators: Boolean(
-              getDataSourceSrv().getInstanceSettings({ type: adhoc.datasource?.type })?.meta.multiValueFilterOperators
+              getDataSourceSrv().getInstanceSettings({ type: v.datasource?.type })?.meta.multiValueFilterOperators
             ),
-            enableGroupBy: config.featureToggles.dashboardUnifiedDrilldownControls
-              ? (adhoc.enableGroupBy ?? false)
-              : false,
+            enableGroupBy: config.featureToggles.dashboardUnifiedDrilldownControls ? (v.enableGroupBy ?? false) : false,
           });
         }
         // for other variable types we are using the SnapshotVariable
-        // Same schema-to-runtime bridge as in `createVariablesForDashboard`.
-        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- schema-to-runtime variable model bridge
-        return createSnapshotVariable(v as TypedVariableModel);
+        return createSnapshotVariable(v);
       } catch (err) {
         console.error(err);
         return null;

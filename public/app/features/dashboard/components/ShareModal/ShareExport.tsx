@@ -53,12 +53,9 @@ export const ShareExport = memo(({ dashboard, panel, onDismiss }: Props) => {
     }
   };
 
-  // TODO(modernization-2026): makeExportableV1 / DashboardExporter.makeExportable can return
-  // { error: unknown } when export fails. That error case is not handled here and would result
-  // in a malformed file name (template literal interpolates `dash.title` as the string
-  // "undefined"). Pre-existing behavior preserved per minimal-change mandate; the parameter
-  // type explicitly admits the error variant (with `title?: undefined`) so the file-naming
-  // expression below typechecks without modifying the forbidden caller `onSaveAsFile`.
+  // The exporter's makeExportable may return either a `Dashboard`, a `DashboardJson`, or an
+  // error variant `{ error: unknown }`. The error variant is admitted to keep the existing
+  // callsite typecheck-safe; pre-existing behavior is preserved per the minimal-change mandate.
   const openSaveAsDialog = (dash: Dashboard | DashboardJson | { error: unknown; title?: undefined }) => {
     const dashboardJsonPretty = JSON.stringify(dash, null, 2);
     const blob = new Blob([dashboardJsonPretty], {

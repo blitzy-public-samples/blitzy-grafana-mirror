@@ -36,8 +36,7 @@ export function PanelEditorTableView({ width, height, panel, dashboard }: Props)
     const sub = panel.events.subscribe(RefreshEvent, () => {
       const timeData = applyPanelTimeOverrides(panel, timeSrv.timeRange());
       panel.runAllPanelQueries({
-        // `DashboardModel.uid` is `string | null`; coerce to empty-string for the query runner.
-        dashboardUID: dashboard.uid ?? '',
+        dashboardUID: dashboard.uid,
         dashboardTimezone: dashboard.getTimezone(),
         dashboardTitle: dashboard.title,
         timeData,

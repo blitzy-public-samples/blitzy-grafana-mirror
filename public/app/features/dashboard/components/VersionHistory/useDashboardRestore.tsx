@@ -21,8 +21,7 @@ const restoreDashboard = async (version: number, dashboard: DashboardModel) => {
   // Skip the watcher logic for this save since it's handled by the hook
   dashboardWatcher.ignoreNextSave();
   const api = await getDashboardAPI();
-  // `DashboardModel.uid` is `string | null`; coerce to empty-string for the restore API.
-  return await api.restoreDashboardVersion(dashboard.uid ?? '', version);
+  return await api.restoreDashboardVersion(dashboard.uid, version);
 };
 
 export const useDashboardRestore = (id: number, version: number) => {

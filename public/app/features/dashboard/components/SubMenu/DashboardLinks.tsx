@@ -36,10 +36,7 @@ export const DashboardLinks = ({ dashboard, links }: Props) => {
         const key = `${link.title}-$${index}`;
 
         if (link.type === 'dashboards') {
-          // `DashboardModel.uid` is `string | null`; coerce null to empty-string for the prop.
-          return (
-            <DashboardLinksDashboard key={key} link={link} linkInfo={linkInfo} dashboardUID={dashboard.uid ?? ''} />
-          );
+          return <DashboardLinksDashboard key={key} link={link} linkInfo={linkInfo} dashboardUID={dashboard.uid} />;
         }
 
         const icon = LINK_ICON_MAP[link.icon];

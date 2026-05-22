@@ -205,7 +205,7 @@ describe('processDashboard', () => {
         fieldConfig: {
           defaults: {
             color: {
-              mode: FieldColorModeId.PaletteClassic,
+              mode: 'palette-classic',
             },
             custom: {
               axisCenteredZero: false,
@@ -239,7 +239,7 @@ describe('processDashboard', () => {
             },
             mappings: [],
             thresholds: {
-              mode: ThresholdsMode.Absolute,
+              mode: 'absolute',
               steps: [
                 {
                   color: 'green',
@@ -316,7 +316,7 @@ describe('processDashboard', () => {
         fieldConfig: {
           defaults: {
             color: {
-              mode: FieldColorModeId.PaletteClassic,
+              mode: 'palette-classic',
             },
             custom: {
               axisCenteredZero: false,
@@ -350,7 +350,7 @@ describe('processDashboard', () => {
             },
             mappings: [],
             thresholds: {
-              mode: ThresholdsMode.Absolute,
+              mode: 'absolute',
               steps: [
                 {
                   color: 'green',

@@ -238,7 +238,7 @@ describe('PanelAlertTabContent', () => {
       }),
     ];
 
-    renderAlertTab(dashboard, dashboard as unknown as DashboardDataDTO);
+    renderAlertTab(dashboard, dashboard);
 
     const defaults = await clickNewButton();
 
@@ -265,7 +265,7 @@ describe('PanelAlertTabContent', () => {
       }),
     ];
 
-    renderAlertTab(dashboard, dashboard as unknown as DashboardDataDTO);
+    renderAlertTab(dashboard, dashboard);
     const defaults = await clickNewButton();
 
     expect(defaults.queries[0].model).toEqual({
@@ -293,7 +293,7 @@ describe('PanelAlertTabContent', () => {
       }),
     ];
 
-    renderAlertTab(dashboard, dashboard as unknown as DashboardDataDTO);
+    renderAlertTab(dashboard, dashboard);
     const defaults = await clickNewButton();
 
     expect(defaults.queries[0].model).toEqual({
@@ -313,7 +313,7 @@ describe('PanelAlertTabContent', () => {
   it('Will render alerts belonging to panel and a button to create alert from panel queries', async () => {
     dashboard.panels = [panel];
     config.unifiedAlertingEnabled = true;
-    renderAlertTab(dashboard, dashboard as unknown as DashboardDataDTO);
+    renderAlertTab(dashboard, dashboard);
 
     const rows = await ui.row.findAll();
     expect(rows).toHaveLength(2);
