@@ -5,7 +5,7 @@ import { type FieldErrors, FormProvider, type SubmitErrorHandler, useForm } from
 import { type GrafanaTheme2 } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
 import { isFetchError } from '@grafana/runtime';
-import { Alert, Button, Field, Input, LinkButton, Stack, useStyles2 } from '@grafana/ui';
+import { Alert, Button, Field, FieldSet, Input, LinkButton, Stack, useStyles2 } from '@grafana/ui';
 import { useAppNotification } from 'app/core/copy/appNotification';
 import { useCleanup } from 'app/core/hooks/useCleanup';
 import { useValidateContactPoint } from 'app/features/alerting/unified/components/contact-points/useContactPoints';
@@ -150,74 +150,78 @@ export function ReceiverForm<R extends ChannelValues>({
             />
           )}
         </Stack>
-        <Field
-          label={t('alerting.receiver-form.label-name', 'Name')}
-          invalid={!!errors.name}
-          error={errors.name && errors.name.message}
-          required
-          noMargin
-        >
-          <Input
-            readOnly={!isEditable}
-            id="name"
-            {...register('name', {
-              required: 'Name is required',
-              validate: async (value) => {
-                const existingValue = initialValues?.name;
-                return validateContactPointName(value, existingValue);
-              },
-            })}
-            width={39}
-            placeholder={t('alerting.receiver-form.name-placeholder-name', 'Name')}
-          />
-        </Field>
-        {fields.map((field, index) => {
-          const pathPrefix = `items.${index}.` as const;
-          if (field.__deleted) {
-            return <DeletedSubForm key={field.__id} pathPrefix={pathPrefix} />;
-          }
-          const initialItem = initialValues?.items.find(({ __id }) => __id === field.__id);
-          return (
-            <ChannelSubForm<R>
-              defaultValues={field}
-              initialValues={initialItem}
-              key={field.__id}
-              integrationIndex={index}
-              onDuplicate={() => {
-                const currentValues: R = getValues().items[index];
-                append({ ...currentValues, __id: String(Math.random()) });
-              }}
-              onTest={
-                onTestChannel
-                  ? () => {
-                      const currentValues: R = getValues().items[index];
-                      onTestChannel(currentValues);
-                    }
-                  : undefined
-              }
-              onDelete={() => remove(index)}
-              pathPrefix={pathPrefix}
-              notifiers={notifiers}
-              // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-              errors={errors?.items?.[index] as FieldErrors<R> | undefined}
-              commonSettingsComponent={commonSettingsComponent}
-              isEditable={isEditable}
-              isTestable={isTestable}
-              canEditProtectedFields={canEditProtectedFields}
-              customValidators={customValidators ? customValidators[field.type] : undefined}
-            />
-          );
-        })}
-        {isEditable && (
-          <Button
-            type="button"
-            icon="plus"
-            variant="secondary"
-            onClick={() => append({ ...defaultItem, __id: String(Math.random()) })}
+        <FieldSet>
+          <Field
+            label={t('alerting.receiver-form.label-name', 'Name')}
+            invalid={!!errors.name}
+            error={errors.name && errors.name.message}
+            required
+            noMargin
           >
-            <Trans i18nKey="alerting.receiver-form.add-contact-point-integration">Add contact point integration</Trans>
-          </Button>
-        )}
+            <Input
+              readOnly={!isEditable}
+              id="name"
+              {...register('name', {
+                required: 'Name is required',
+                validate: async (value) => {
+                  const existingValue = initialValues?.name;
+                  return validateContactPointName(value, existingValue);
+                },
+              })}
+              width={39}
+              placeholder={t('alerting.receiver-form.name-placeholder-name', 'Name')}
+            />
+          </Field>
+          {fields.map((field, index) => {
+            const pathPrefix = `items.${index}.` as const;
+            if (field.__deleted) {
+              return <DeletedSubForm key={field.__id} pathPrefix={pathPrefix} />;
+            }
+            const initialItem = initialValues?.items.find(({ __id }) => __id === field.__id);
+            return (
+              <ChannelSubForm<R>
+                defaultValues={field}
+                initialValues={initialItem}
+                key={field.__id}
+                integrationIndex={index}
+                onDuplicate={() => {
+                  const currentValues: R = getValues().items[index];
+                  append({ ...currentValues, __id: String(Math.random()) });
+                }}
+                onTest={
+                  onTestChannel
+                    ? () => {
+                        const currentValues: R = getValues().items[index];
+                        onTestChannel(currentValues);
+                      }
+                    : undefined
+                }
+                onDelete={() => remove(index)}
+                pathPrefix={pathPrefix}
+                notifiers={notifiers}
+                // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+                errors={errors?.items?.[index] as FieldErrors<R> | undefined}
+                commonSettingsComponent={commonSettingsComponent}
+                isEditable={isEditable}
+                isTestable={isTestable}
+                canEditProtectedFields={canEditProtectedFields}
+                customValidators={customValidators ? customValidators[field.type] : undefined}
+              />
+            );
+          })}
+          {isEditable && (
+            <Button
+              type="button"
+              icon="plus"
+              variant="secondary"
+              onClick={() => append({ ...defaultItem, __id: String(Math.random()) })}
+            >
+              <Trans i18nKey="alerting.receiver-form.add-contact-point-integration">
+                Add contact point integration
+              </Trans>
+            </Button>
+          )}
+        </FieldSet>
         <div className={styles.buttons}>
           {isEditable && (
             <>
