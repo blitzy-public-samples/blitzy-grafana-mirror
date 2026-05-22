@@ -440,7 +440,7 @@ For detailed information about notification templates, refer to our documentatio
     <Alert title="" severity="info">
       <Stack direction="column" gap={2}>
         <Stack direction="row">
-          <div style={{ whiteSpace: 'pre' }}>{intro}</div>
+          <div className={styles.preWhitespace}>{intro}</div>
           <div>
             <LinkButton
               href={DOCS_URL_TEMPLATE_NOTIFICATIONS}
@@ -547,6 +547,9 @@ export const getStyles = (theme: GrafanaTheme2) => {
     code: css({
       color: theme.colors.text.secondary,
       fontWeight: theme.typography.fontWeightBold,
+    }),
+    preWhitespace: css({
+      whiteSpace: 'pre',
     }),
   };
 };
