@@ -228,6 +228,15 @@ export const AlertRuleForm = ({ existing, prefill, isManualRestore }: Props) => 
 
   return (
     <FormProvider {...formAPI}>
+      {/* Design system gap: @grafana/ui's <Form> component is @deprecated (see
+          packages/grafana-ui/src/components/Forms/Form.tsx JSDoc). The deprecated
+          JSDoc itself recommends "use the useForm hook from react-hook-form
+          instead" — which is exactly what this file already does via useForm() +
+          FormProvider. Inner fields are composed from @grafana/ui design-system
+          primitives (<Field>, <Input>, <Combobox>, <Switch>, <RadioButtonGroup>,
+          etc.) via the nested step components. The native <form> element bridges
+          react-hook-form's handleSubmit to the DOM submit event. Per AAP §0.4.2
+          "Raw <form> with custom submit logic", the native <form> stays. */}
       <form onSubmit={(e) => e.preventDefault()} className={styles.form}>
         <div className={styles.contentOuter}>
           {isManualRestore && (
