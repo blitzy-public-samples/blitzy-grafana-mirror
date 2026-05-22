@@ -1,11 +1,11 @@
-import { css, cx } from '@emotion/css';
+import { css } from '@emotion/css';
 import { concat, uniq, upperFirst, without } from 'lodash';
 import { useEffect, useState } from 'react';
 import { useFieldArray, useFormContext } from 'react-hook-form';
 
 import { type GrafanaTheme2 } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
-import { Button, Field, FieldSet, Icon, InlineSwitch, Input, Stack, useStyles2 } from '@grafana/ui';
+import { Button, Field, FieldSet, FilterPill, Icon, InlineSwitch, Input, Stack, useStyles2 } from '@grafana/ui';
 
 import { useAlertmanager } from '../../state/AlertmanagerContext';
 import { type MuteTimingFields } from '../../types/mute-timing-form';
@@ -236,7 +236,6 @@ function parseWeekdayRange(input: string): string[] {
 }
 
 const DaysOfTheWeek = ({ defaultValue = '', onChange }: DaysOfTheWeekProps) => {
-  const styles = useStyles2(getStyles);
   const defaultValues = parseDays(defaultValue);
   const [selectedDays, setSelectedDays] = useState<string[]>(defaultValues);
 
@@ -254,13 +253,15 @@ const DaysOfTheWeek = ({ defaultValue = '', onChange }: DaysOfTheWeekProps) => {
     <div data-testid="mute-timing-weekdays">
       <Stack gap={1}>
         {DAYS_OF_THE_WEEK.map((day) => {
-          const style = cx(styles.dayOfTheWeek, selectedDays.includes(day) && 'selected');
           const abbreviated = day.slice(0, 3);
 
           return (
-            <button type="button" key={day} className={style} onClick={() => toggleDay(day)}>
-              {upperFirst(abbreviated)}
-            </button>
+            <FilterPill
+              key={day}
+              label={upperFirst(abbreviated)}
+              selected={selectedDays.includes(day)}
+              onClick={() => toggleDay(day)}
+            />
           );
         })}
       </Stack>
@@ -278,23 +279,5 @@ const getStyles = (theme: GrafanaTheme2) => ({
   }),
   removeTimeIntervalButton: css({
     marginTop: theme.spacing(2),
-  }),
-  dayOfTheWeek: css({
-    cursor: 'pointer',
-    userSelect: 'none',
-    padding: `${theme.spacing(1)} ${theme.spacing(3)}`,
-
-    border: `solid 1px ${theme.colors.border.medium}`,
-    background: 'none',
-    borderRadius: theme.shape.radius.default,
-
-    color: theme.colors.text.secondary,
-
-    '&.selected': {
-      fontWeight: theme.typography.fontWeightBold,
-      color: theme.colors.primary.text,
-      borderColor: theme.colors.primary.border,
-      background: theme.colors.primary.transparent,
-    },
   }),
 });
