@@ -3,7 +3,7 @@ import { useState } from 'react';
 
 import { type GrafanaTheme2, type RelativeTimeRange, getDefaultRelativeTimeRange } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
-import { Icon, InlineField, RelativeTimeRangePicker, Toggletip, clearButtonStyles, useStyles2 } from '@grafana/ui';
+import { Button, Icon, InlineField, RelativeTimeRangePicker, Toggletip, useStyles2 } from '@grafana/ui';
 import { type AlertQuery } from 'app/types/unified-alerting-dto';
 
 import { TimeRangeLabel } from '../TimeRangeLabel';
@@ -51,10 +51,16 @@ export const QueryOptions = ({
         closeButton={true}
         placement="bottom-start"
       >
-        <button type="button" className={styles.actionLink} onClick={() => setShowOptions(!showOptions)}>
+        <Button
+          type="button"
+          fill="text"
+          variant="secondary"
+          size="sm"
+          onClick={() => setShowOptions(!showOptions)}
+        >
           <Trans i18nKey="alerting.query-options.button-options">Options</Trans>{' '}
-          {showOptions ? <Icon name="angle-right" /> : <Icon name="angle-down" />}
-        </button>
+          <Icon name={showOptions ? 'angle-right' : 'angle-down'} />
+        </Button>
       </Toggletip>
 
       <div className={styles.staticValues}>
@@ -86,28 +92,15 @@ export const QueryOptions = ({
   );
 };
 
-const getStyles = (theme: GrafanaTheme2) => {
-  const clearButton = clearButtonStyles(theme);
+const getStyles = (theme: GrafanaTheme2) => ({
+  queryOptions: css({
+    '> div': {
+      justifyContent: 'space-between',
+    },
+  }),
 
-  return {
-    queryOptions: css({
-      '> div': {
-        justifyContent: 'space-between',
-      },
-    }),
-
-    staticValues: css({
-      color: theme.colors.text.secondary,
-      marginRight: theme.spacing(1),
-    }),
-
-    actionLink: css(clearButton, {
-      color: theme.colors.text.link,
-      cursor: 'pointer',
-
-      '&:hover': {
-        textDecoration: 'underline',
-      },
-    }),
-  };
-};
+  staticValues: css({
+    color: theme.colors.text.secondary,
+    marginRight: theme.spacing(1),
+  }),
+});
