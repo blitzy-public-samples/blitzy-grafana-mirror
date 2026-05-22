@@ -1,10 +1,9 @@
 import { css } from '@emotion/css';
-import * as React from 'react';
-import type { JSX } from 'react';
+import { type JSX, type ReactNode, useMemo } from 'react';
 
 import { type GrafanaTheme2 } from '@grafana/data';
-import { Trans } from '@grafana/i18n';
-import { Stack, Text, useStyles2 } from '@grafana/ui';
+import { Trans, t } from '@grafana/i18n';
+import { type Column, InteractiveTable, Stack, Text, useStyles2 } from '@grafana/ui';
 
 import { PopupCard } from '../HoverCard';
 
@@ -86,43 +85,75 @@ const getTemplateDataDocsStyles = (theme: GrafanaTheme2) => ({
 interface TemplateDataTableProps {
   dataItems: TemplateDataItem[];
   caption?: JSX.Element | string;
-  typeRenderer?: (type: TemplateDataItem['type']) => React.ReactNode;
+  typeRenderer?: (type: TemplateDataItem['type']) => ReactNode;
 }
 
 export function TemplateDataTable({ dataItems, caption, typeRenderer }: TemplateDataTableProps) {
-  const styles = useStyles2(getTemplateDataTableStyles);
+  // Memoize column definitions so InteractiveTable receives a stable reference across renders
+  // (InteractiveTable JSDoc explicitly requires that `columns` is memoized). The `typeRenderer`
+  // prop is included in the dependency array because the `type` column's cell renderer closes
+  // over it; this preserves the original raw-table behavior of using the caller's renderer to
+  // produce the interactive PopupCard for '[]Alert' and 'KeyValue' types.
+  const columns = useMemo<Array<Column<TemplateDataItem>>>(
+    () => [
+      {
+        id: 'name',
+        header: t('alerting.template-data-table.name', 'Name'),
+        cell: ({ row: { original: item } }) => item.name,
+      },
+      {
+        id: 'type',
+        header: t('alerting.template-data-table.type', 'Type'),
+        cell: ({ row: { original: item } }) => (typeRenderer ? typeRenderer(item.type) : item.type),
+      },
+      {
+        id: 'notes',
+        header: t('alerting.template-data-table.notes', 'Notes'),
+        cell: ({ row: { original: item } }) => item.notes,
+      },
+    ],
+    [typeRenderer]
+  );
 
   return (
-    <table className={styles.table}>
-      {caption && <caption>{caption}</caption>}
-      <thead>
-        <tr>
-          <th>
-            <Trans i18nKey="alerting.template-data-table.name">Name</Trans>
-          </th>
-          <th>
-            <Trans i18nKey="alerting.template-data-table.type">Type</Trans>
-          </th>
-          <th>
-            <Trans i18nKey="alerting.template-data-table.notes">Notes</Trans>
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        {dataItems.map(({ name, type, notes }, index) => (
-          <tr key={index}>
-            <td>{name}</td>
-            <td>{typeRenderer ? typeRenderer(type) : type}</td>
-            <td>{notes}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <Stack direction="column" gap={1}>
+      {caption}
+      <InteractiveTable columns={columns} data={dataItems} getRowId={(row) => row.name} />
+    </Stack>
   );
 }
 
+type KeyValueTemplateFunctionRow = (typeof KeyValueTemplateFunctions)[number];
+
 function KeyValueTemplateDataTable() {
-  const tableStyles = useStyles2(getTemplateDataTableStyles);
+  // Static columns: data and renderers do not depend on any prop, so an empty dependency array
+  // produces a single memoized column definition for the lifetime of the component (matching the
+  // InteractiveTable `columns` stability requirement).
+  const columns = useMemo<Array<Column<KeyValueTemplateFunctionRow>>>(
+    () => [
+      {
+        id: 'name',
+        header: t('alerting.key-value-template-data-table.name', 'Name'),
+        cell: ({ row: { original: item } }) => item.name,
+      },
+      {
+        id: 'arguments',
+        header: t('alerting.key-value-template-data-table.arguments', 'Arguments'),
+        cell: ({ row: { original: item } }) => item.args,
+      },
+      {
+        id: 'returns',
+        header: t('alerting.key-value-template-data-table.returns', 'Returns'),
+        cell: ({ row: { original: item } }) => item.returns,
+      },
+      {
+        id: 'notes',
+        header: t('alerting.key-value-template-data-table.notes', 'Notes'),
+        cell: ({ row: { original: item } }) => item.notes,
+      },
+    ],
+    []
+  );
 
   return (
     <div>
@@ -132,68 +163,12 @@ function KeyValueTemplateDataTable() {
       <pre>
         <code>{KeyValueCodeSnippet}</code>
       </pre>
-      <table className={tableStyles.table}>
-        <caption>
+      <Stack direction="column" gap={1}>
+        <Text variant="h6" element="h6">
           <Trans i18nKey="alerting.key-value-template-data-table.keyvalue-methods">Key-value methods</Trans>
-        </caption>
-        <thead>
-          <tr>
-            <th>
-              <Trans i18nKey="alerting.key-value-template-data-table.name">Name</Trans>
-            </th>
-            <th>
-              <Trans i18nKey="alerting.key-value-template-data-table.arguments">Arguments</Trans>
-            </th>
-            <th>
-              <Trans i18nKey="alerting.key-value-template-data-table.returns">Returns</Trans>
-            </th>
-            <th>
-              <Trans i18nKey="alerting.key-value-template-data-table.notes">Notes</Trans>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {KeyValueTemplateFunctions.map(({ name, args, returns, notes }) => (
-            <tr key={name}>
-              <td>{name}</td>
-              <td>{args}</td>
-              <td>{returns}</td>
-              <td>{notes}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+        </Text>
+        <InteractiveTable columns={columns} data={KeyValueTemplateFunctions} getRowId={(row) => row.name} />
+      </Stack>
     </div>
   );
 }
-
-export const getTemplateDataTableStyles = (theme: GrafanaTheme2) => ({
-  table: css({
-    borderCollapse: 'collapse',
-    width: '100%',
-
-    caption: {
-      captionSide: 'top',
-    },
-
-    'td, th': {
-      padding: theme.spacing(1, 1),
-    },
-
-    thead: {
-      fontWeight: theme.typography.fontWeightBold,
-    },
-
-    'tbody tr:nth-child(2n + 1)': {
-      backgroundColor: theme.colors.background.secondary,
-    },
-
-    'tbody td:nth-child(1)': {
-      fontWeight: theme.typography.fontWeightBold,
-    },
-
-    'tbody td:nth-child(2)': {
-      fontStyle: 'italic',
-    },
-  }),
-});
