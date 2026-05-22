@@ -1,7 +1,7 @@
 import { FormProvider, useForm } from 'react-hook-form';
 
 import { Trans, t } from '@grafana/i18n';
-import { Alert, Button, LinkButton, Stack } from '@grafana/ui';
+import { Alert, Button, FieldSet, LinkButton, Stack } from '@grafana/ui';
 import { useCleanup } from 'app/core/hooks/useCleanup';
 import { type AlertManagerCortexConfig } from 'app/plugins/datasource/alertmanager/types';
 import { useDispatch } from 'app/types/store';
@@ -79,17 +79,19 @@ export const GlobalConfigForm = ({ config, alertManagerSourceName }: Props) => {
             {error.message || String(error)}
           </Alert>
         )}
-        {globalConfigOptions.map((option) => (
-          <OptionField
-            readOnly={readOnly}
-            defaultValue={defaultValues[option.propertyName]}
-            key={option.propertyName}
-            option={option}
-            error={errors[option.propertyName]}
-            pathPrefix={''}
-            secureFields={{}}
-          />
-        ))}
+        <FieldSet>
+          {globalConfigOptions.map((option) => (
+            <OptionField
+              readOnly={readOnly}
+              defaultValue={defaultValues[option.propertyName]}
+              key={option.propertyName}
+              option={option}
+              error={errors[option.propertyName]}
+              pathPrefix={''}
+              secureFields={{}}
+            />
+          ))}
+        </FieldSet>
         <div>
           <Stack>
             {!readOnly && (
