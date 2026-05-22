@@ -1,6 +1,6 @@
 import { css } from '@emotion/css';
 import { type ReactNode, useState } from 'react';
-import { Controller, useFieldArray, useForm } from 'react-hook-form';
+import { Controller, useFieldArray } from 'react-hook-form';
 
 import { ContactPointSelector as GrafanaManagedContactPointSelector } from '@grafana/alerting/unstable';
 import { type GrafanaTheme2 } from '@grafana/data';
@@ -10,6 +10,8 @@ import {
   Button,
   Field,
   FieldValidationMessage,
+  Form,
+  type FormAPI,
   IconButton,
   Input,
   MultiSelect,
@@ -49,44 +51,28 @@ export interface AmRoutesExpandedFormProps {
   defaults?: Partial<FormAmRoute>;
 }
 
-export const AmRoutesExpandedForm = ({ actionButtons, route, onSubmit, defaults }: AmRoutesExpandedFormProps) => {
+interface AmRoutesExpandedFormBodyProps {
+  api: FormAPI<FormAmRoute>;
+  actionButtons: ReactNode;
+  route?: RouteWithID;
+}
+
+const AmRoutesExpandedFormBody = ({ api, actionButtons, route }: AmRoutesExpandedFormBodyProps) => {
   const styles = useStyles2(getStyles);
   const formStyles = useStyles2(getFormStyles);
   const { selectedAlertmanager, isGrafanaAlertmanager } = useAlertmanager();
   const [, canSeeMuteTimings] = useAlertmanagerAbility(AlertmanagerAction.ViewTimeInterval);
   const [groupByOptions, setGroupByOptions] = useState(stringsToSelectableValues(route?.group_by));
 
-  const emptyMatcher = [{ name: '', operator: MatcherOperator.equal, value: '' }];
-
-  const formAmRoute = {
-    ...amRouteToFormAmRoute(route),
-    ...defaults,
-  };
-
-  const defaultValues: Omit<FormAmRoute, 'routes'> = {
-    ...formAmRoute,
-    // if we're adding a new route, show at least one empty matcher
-    object_matchers: route ? formAmRoute.object_matchers : emptyMatcher,
-  };
-
-  const {
-    handleSubmit,
-    control,
-    register,
-    formState: { errors },
-    setValue,
-    watch,
-    getValues,
-  } = useForm<FormAmRoute>({
-    defaultValues,
-  });
+  const { register, control, errors, setValue, watch, getValues } = api;
   const { fields, append, remove } = useFieldArray({
     control,
     name: 'object_matchers',
   });
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)}>
+    <>
+      {/* Design system gap: hidden input registers the 'id' field with react-hook-form; no @grafana/ui equivalent for hidden form fields */}
       <input type="hidden" {...register('id')} />
       <Stack direction="column" alignItems="flex-start">
         <div>
@@ -355,7 +341,28 @@ export const AmRoutesExpandedForm = ({ actionButtons, route, onSubmit, defaults 
         />
       </Field>
       {actionButtons}
-    </form>
+    </>
+  );
+};
+
+export const AmRoutesExpandedForm = ({ actionButtons, route, onSubmit, defaults }: AmRoutesExpandedFormProps) => {
+  const emptyMatcher = [{ name: '', operator: MatcherOperator.equal, value: '' }];
+
+  const formAmRoute = {
+    ...amRouteToFormAmRoute(route),
+    ...defaults,
+  };
+
+  const defaultValues: Omit<FormAmRoute, 'routes'> = {
+    ...formAmRoute,
+    // if we're adding a new route, show at least one empty matcher
+    object_matchers: route ? formAmRoute.object_matchers : emptyMatcher,
+  };
+
+  return (
+    <Form<FormAmRoute> defaultValues={defaultValues} onSubmit={onSubmit} maxWidth="none">
+      {(api) => <AmRoutesExpandedFormBody api={api} actionButtons={actionButtons} route={route} />}
+    </Form>
   );
 };
 
