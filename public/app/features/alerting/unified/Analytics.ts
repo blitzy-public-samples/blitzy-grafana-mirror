@@ -63,13 +63,12 @@ export function withPerformanceLogging<TArgs extends unknown[], TReturn>(
   };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function withPromRulesMetadataLogging<TFunc extends (...args: any[]) => Promise<RuleNamespace[]>>(
+export function withPromRulesMetadataLogging<TArgs extends unknown[]>(
   type: string,
-  func: TFunc,
+  func: (...args: TArgs) => Promise<RuleNamespace[]>,
   context: Record<string, string>
 ) {
-  return async (...args: Parameters<TFunc>) => {
+  return async (...args: TArgs) => {
     const startLoadingTs = performance.now();
     const response = await func(...args);
 
@@ -115,13 +114,12 @@ function getPromRulesMetadata(promRules: RuleNamespace[]) {
   return metadata;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function withRulerRulesMetadataLogging<TFunc extends (...args: any[]) => Promise<RulerRulesConfigDTO>>(
+export function withRulerRulesMetadataLogging<TArgs extends unknown[]>(
   type: string,
-  func: TFunc,
+  func: (...args: TArgs) => Promise<RulerRulesConfigDTO>,
   context: Record<string, string>
 ) {
-  return async (...args: Parameters<TFunc>) => {
+  return async (...args: TArgs) => {
     const startLoadingTs = performance.now();
     const response = await func(...args);
 
@@ -384,11 +382,7 @@ export function trackFilterButtonApplyClick(payload: AdvancedFilters, pluginsFil
   });
 }
 
-function filterMeaningfulValues(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  obj: Record<string, any>,
-  opts?: { pluginsFilterEnabled?: boolean }
-) {
+function filterMeaningfulValues<T extends object>(obj: T, opts?: { pluginsFilterEnabled?: boolean }) {
   const { pluginsFilterEnabled = true } = opts ?? {};
   return pickBy(obj, (value, key) => {
     if (value === null || value === undefined || value === '') {
