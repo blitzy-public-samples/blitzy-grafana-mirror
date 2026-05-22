@@ -3,7 +3,7 @@ import { useState } from 'react';
 
 import { type GrafanaTheme2 } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
-import { Button, Input, Stack, useStyles2 } from '@grafana/ui';
+import { Button, type Column, Input, InteractiveTable, Stack, useStyles2 } from '@grafana/ui';
 
 import { ActionIcon } from '../../../rules/ActionIcon';
 
@@ -31,81 +31,69 @@ export const KeyValueMapInput = ({ value, onChange, readOnly = false }: Props) =
     }
   };
 
+  type PairRow = { key: string; value: string; index: number };
+
+  const tableData: PairRow[] = pairs.map(([key, value], index) => ({ key, value, index }));
+
+  const columns: Array<Column<PairRow>> = [
+    {
+      id: 'key',
+      header: t('alerting.key-value-map-input.name', 'Name'),
+      cell: ({ row }) => <Input readOnly={readOnly} value={row.original.key} disabled />,
+    },
+    {
+      id: 'value',
+      header: t('alerting.key-value-map-input.value', 'Value'),
+      cell: ({ row }) => <Input readOnly={readOnly} value={row.original.value} disabled />,
+    },
+  ];
+
+  if (!readOnly) {
+    columns.push({
+      id: 'actions',
+      disableGrow: true,
+      cell: ({ row }) => (
+        <ActionIcon
+          icon="trash-alt"
+          tooltip={t('alerting.common.delete', 'Delete')}
+          onClick={() => deleteItem(row.original.index)}
+        />
+      ),
+    });
+  }
+
   return (
     <div>
       {!!pairs.length && (
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th>
-                <Trans i18nKey="alerting.key-value-map-input.name">Name</Trans>
-              </th>
-              <th>
-                <Trans i18nKey="alerting.key-value-map-input.value">Value</Trans>
-              </th>
-              {!readOnly && <th />}
-            </tr>
-          </thead>
-          <tbody>
-            {pairs.map(([key, value], index) => (
-              <tr key={index}>
-                <td>
-                  <Input readOnly={readOnly} value={key} disabled />
-                </td>
-                <td>
-                  <Input readOnly={readOnly} value={value} disabled />
-                </td>
-                {!readOnly && (
-                  <td>
-                    <ActionIcon
-                      icon="trash-alt"
-                      tooltip={t('alerting.common.delete', 'Delete')}
-                      onClick={() => deleteItem(index)}
-                    />
-                  </td>
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <InteractiveTable columns={columns} data={tableData} getRowId={(row) => String(row.index)} />
       )}
       {currentNewPair && (
-        <table className={styles.table}>
-          <tr>
-            <Stack gap={1}>
-              <td>
-                <Input
-                  value={currentNewPair[0]}
-                  onChange={(e) => setCurrentNewPair([e.currentTarget.value, currentNewPair[1]])}
-                />
-              </td>
-              <td>
-                <Input
-                  value={currentNewPair[1]}
-                  onChange={(e) => setCurrentNewPair([currentNewPair[0], e.currentTarget.value])}
-                />
-              </td>
-              <td>
-                <Stack gap={1}>
-                  <ActionIcon
-                    icon="check"
-                    tooltip={t('alerting.contact-points.key-value-map.confirm-add', 'Confirm to add')}
-                    onClick={() => {
-                      setPairs([...pairs, currentNewPair]);
-                      setCurrentNewPair(undefined);
-                      emitChange([...pairs, currentNewPair]);
-                    }}
-                  />
-                  <ActionIcon
-                    icon="times"
-                    tooltip={t('alerting.common.cancel', 'Cancel')}
-                    onClick={() => setCurrentNewPair(undefined)}
-                  />
-                </Stack>
-              </td>
-            </Stack>
-          </tr>
-        </table>
+        <Stack direction="row" gap={1}>
+          <Input
+            value={currentNewPair[0]}
+            onChange={(e) => setCurrentNewPair([e.currentTarget.value, currentNewPair[1]])}
+          />
+          <Input
+            value={currentNewPair[1]}
+            onChange={(e) => setCurrentNewPair([currentNewPair[0], e.currentTarget.value])}
+          />
+          <Stack gap={1}>
+            <ActionIcon
+              icon="check"
+              tooltip={t('alerting.contact-points.key-value-map.confirm-add', 'Confirm to add')}
+              onClick={() => {
+                setPairs([...pairs, currentNewPair]);
+                setCurrentNewPair(undefined);
+                emitChange([...pairs, currentNewPair]);
+              }}
+            />
+            <ActionIcon
+              icon="times"
+              tooltip={t('alerting.common.cancel', 'Cancel')}
+              onClick={() => setCurrentNewPair(undefined)}
+            />
+          </Stack>
+        </Stack>
       )}
       {!readOnly && (
         <Button
@@ -127,11 +115,6 @@ export const KeyValueMapInput = ({ value, onChange, readOnly = false }: Props) =
 const getStyles = (theme: GrafanaTheme2) => ({
   addButton: css({
     marginTop: theme.spacing(1),
-  }),
-  table: css({
-    'tbody td': {
-      padding: `0 ${theme.spacing(1)} ${theme.spacing(1)} 0`,
-    },
   }),
 });
 
