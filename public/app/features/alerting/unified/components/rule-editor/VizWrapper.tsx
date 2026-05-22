@@ -29,36 +29,75 @@ export const VizWrapper = ({ data, thresholds, thresholdsType }: Props) => {
     <div className={styles.wrapper}>
       <AutoSizer disableHeight>
         {({ width }) => (
-          <div style={{ width }}>
-            {isTimeSeriesData ? (
-              <GraphContainer
-                statusMessage={statusMessage}
-                data={data.series}
-                eventBus={appEvents}
-                height={300}
-                width={width}
-                timeRange={data.timeRange}
-                timeZone="browser"
-                onChangeTime={() => {}}
-                splitOpenFn={() => {}}
-                loadingState={data.state}
-                thresholdsConfig={thresholds}
-                thresholdsStyle={thresholdsStyle}
-              />
-            ) : (
-              <div className={styles.instantVectorResultWrapper}>
-                <header className={styles.title}>
-                  <Trans i18nKey="alerting.viz-wrapper.table">Table</Trans>
-                </header>
-                <ExpressionResult series={data.series} />
-              </div>
-            )}
-          </div>
+          <VizContentSizer
+            width={width}
+            isTimeSeriesData={isTimeSeriesData}
+            data={data}
+            statusMessage={statusMessage}
+            thresholds={thresholds}
+            thresholdsStyle={thresholdsStyle}
+            styles={styles}
+          />
         )}
       </AutoSizer>
     </div>
   );
 };
+
+/**
+ * Inner component that owns the parameterized `useStyles2(getSizerStyles, width)` call.
+ * Extracted from the `AutoSizer` render callback so the hook is invoked inside a stable
+ * component boundary (satisfies `react-hooks/rules-of-hooks`). The parameterized
+ * `useStyles2` pattern avoids the inline `style={{ width }}` that this refactor replaces
+ * (per AAP §0.1.2 Rule T3 — inline style migration).
+ */
+function VizContentSizer({
+  width,
+  isTimeSeriesData,
+  data,
+  statusMessage,
+  thresholds,
+  thresholdsStyle,
+  styles,
+}: {
+  width: number;
+  isTimeSeriesData: boolean;
+  data: PanelData;
+  statusMessage: ReturnType<typeof getStatusMessage>;
+  thresholds: ThresholdsConfig | undefined;
+  thresholdsStyle: { mode: GraphThresholdsStyleMode } | undefined;
+  styles: ReturnType<typeof getStyles>;
+}) {
+  const sizerStyles = useStyles2(getSizerStyles, width);
+
+  return (
+    <div className={sizerStyles.sizer}>
+      {isTimeSeriesData ? (
+        <GraphContainer
+          statusMessage={statusMessage}
+          data={data.series}
+          eventBus={appEvents}
+          height={300}
+          width={width}
+          timeRange={data.timeRange}
+          timeZone="browser"
+          onChangeTime={() => {}}
+          splitOpenFn={() => {}}
+          loadingState={data.state}
+          thresholdsConfig={thresholds}
+          thresholdsStyle={thresholdsStyle}
+        />
+      ) : (
+        <div className={styles.instantVectorResultWrapper}>
+          <header className={styles.title}>
+            <Trans i18nKey="alerting.viz-wrapper.table">Table</Trans>
+          </header>
+          <ExpressionResult series={data.series} />
+        </div>
+      )}
+    </div>
+  );
+}
 
 const getStyles = (theme: GrafanaTheme2) => ({
   wrapper: css({
@@ -83,4 +122,12 @@ const getStyles = (theme: GrafanaTheme2) => ({
     fontSize: theme.typography.h6.fontSize,
     fontWeight: theme.typography.h6.fontWeight,
   }),
+});
+
+// Parameterized style creator for the dynamic AutoSizer-driven width. Replaces the
+// previous inline `style={{ width }}` on the inner sizer <div>. The `_theme` parameter
+// is unused but kept positional because `useStyles2` always invokes `getStyles` with
+// the theme as its first argument; the `width` comes through as the additional argument.
+const getSizerStyles = (_theme: GrafanaTheme2, width: number) => ({
+  sizer: css({ width }),
 });
