@@ -117,6 +117,15 @@ const ImportToGMARules = () => {
     >
       <Stack gap={2} direction={'column'}>
         <FormProvider {...formAPI}>
+          {/* Design system gap: @grafana/ui's <Form> (Forms/Form.tsx) is @deprecated and creates its own
+              internal useForm without exposing a FormProvider context. Sub-components in this file
+              (YamlFileUpload, YamlTargetDataSourceField, TargetDataSourceForRecordingRulesField,
+              TargetFolderField, DataSourceField) rely on useFormContext<ImportFormValues>(), which
+              requires the external FormProvider above. The onSubmit handler also has custom logic
+              (opens a confirmation modal rather than submitting directly). Per AAP §0.4.2 "Raw <form>
+              with custom submit logic" mapping rule, the <form> element stays and the internal layout
+              uses Field/FieldSet primitives — which it already does (see <Field>/<InlineField> usages
+              throughout this file). */}
           <form onSubmit={handleSubmit(onSubmit)}>
             <Stack direction="column" gap={1}>
               <Field
