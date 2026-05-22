@@ -705,11 +705,6 @@
       "count": 4
     }
   },
-  "public/app/features/alerting/state/query_part.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 10
-    }
-  },
   "public/app/features/alerting/state/reducers.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 2
