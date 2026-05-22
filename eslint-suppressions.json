@@ -841,11 +841,6 @@
       "count": 2
     }
   },
-  "public/app/features/alerting/unified/components/rule-editor/PreviewRule.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "public/app/features/alerting/unified/components/rule-editor/QueryRows.tsx": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1
@@ -926,11 +921,6 @@
   },
   "public/app/features/alerting/unified/hooks/useCombinedRuleNamespaces.ts": {
     "no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "public/app/features/alerting/unified/hooks/useControlledFieldArray.ts": {
-    "@typescript-eslint/no-explicit-any": {
       "count": 1
     }
   },
