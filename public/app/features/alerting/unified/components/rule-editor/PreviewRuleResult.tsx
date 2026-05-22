@@ -2,7 +2,13 @@ import { css } from '@emotion/css';
 import * as React from 'react';
 import AutoSizer from 'react-virtualized-auto-sizer';
 
-import { type FieldConfigSource, FieldMatcherID, type GrafanaTheme2, LoadingState } from '@grafana/data';
+import {
+  type FieldConfigSource,
+  FieldMatcherID,
+  type GrafanaTheme2,
+  LoadingState,
+  type PanelData,
+} from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
 import { PanelRenderer } from '@grafana/runtime';
 import { TableCellDisplayMode, useStyles2 } from '@grafana/ui';
@@ -68,16 +74,7 @@ export function PreviewRuleResult(props: Props): React.ReactElement | null {
       <div className={styles.table}>
         <AutoSizer>
           {({ width, height }) => (
-            <div style={{ width: `${width}px`, height: `${height}px` }}>
-              <PanelRenderer
-                title=""
-                width={width}
-                height={height}
-                pluginId="table"
-                data={data}
-                fieldConfig={fieldConfig}
-              />
-            </div>
+            <PreviewPanelSizer width={width} height={height} data={data} fieldConfig={fieldConfig} />
           )}
         </AutoSizer>
       </div>
@@ -99,3 +96,35 @@ function getStyles(theme: GrafanaTheme2) {
     }),
   };
 }
+
+// Module-private inner component owning the parameterized `useStyles2` call that
+// receives the dynamic width/height reported by `AutoSizer`. Extracting it allows
+// the dynamic dimensions to flow through Emotion's `css()` via the memoized hook
+// (see `packages/grafana-ui/src/themes/ThemeContext.tsx` — `useStyles2` memoizes
+// up to 10 distinct `(theme, ...args)` invocations), avoiding the prior inline
+// `style={{}}` while preserving identical layout sizing for `<PanelRenderer>`.
+function PreviewPanelSizer({
+  width,
+  height,
+  data,
+  fieldConfig,
+}: {
+  width: number;
+  height: number;
+  data: PanelData;
+  fieldConfig: FieldConfigSource;
+}) {
+  const styles = useStyles2(getPanelSizerStyles, width, height);
+  return (
+    <div className={styles.panelSize}>
+      <PanelRenderer title="" width={width} height={height} pluginId="table" data={data} fieldConfig={fieldConfig} />
+    </div>
+  );
+}
+
+const getPanelSizerStyles = (_theme: GrafanaTheme2, width: number, height: number) => ({
+  panelSize: css({
+    width,
+    height,
+  }),
+});
