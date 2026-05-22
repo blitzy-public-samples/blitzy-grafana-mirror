@@ -1,6 +1,6 @@
 import { css, cx } from '@emotion/css';
 import { uniqueId } from 'lodash';
-import { type FC, Suspense, lazy, useCallback, useState } from 'react';
+import { type FC, Suspense, lazy, useCallback, useMemo, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 
 import {
@@ -13,7 +13,17 @@ import {
   isTimeSeriesFrames,
 } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
-import { Alert, AutoSizeInput, Button, IconButton, Stack, Text, clearButtonStyles, useStyles2 } from '@grafana/ui';
+import {
+  Alert,
+  AutoSizeInput,
+  Button,
+  type Column,
+  IconButton,
+  InteractiveTable,
+  Stack,
+  Text,
+  useStyles2,
+} from '@grafana/ui';
 import { ClassicConditions } from 'app/features/expressions/components/ClassicConditions';
 import { Math } from 'app/features/expressions/components/Math';
 import { Reduce } from 'app/features/expressions/components/Reduce';
@@ -364,7 +374,6 @@ const Header: FC<HeaderProps> = ({
   query,
 }) => {
   const styles = useStyles2(getStyles);
-  const clearButton = useStyles2(clearButtonStyles);
   /**
    * There are 3 edit modes:
    *
@@ -382,9 +391,9 @@ const Header: FC<HeaderProps> = ({
       <Stack direction="row" gap={0.5} alignItems="center">
         <Stack direction="row" gap={1} alignItems="center">
           {!editingRefId && (
-            <button type="button" className={cx(clearButton, styles.editable)} onClick={() => setEditMode('refId')}>
-              <div className={styles.expression.refId}>{refId}</div>
-            </button>
+            <Button variant="secondary" fill="outline" size="sm" onClick={() => setEditMode('refId')}>
+              <span className={styles.expression.refId}>{refId}</span>
+            </Button>
           )}
           {editingRefId && (
             <AutoSizeInput
@@ -481,6 +490,12 @@ function FrameRow({ frame, index, isAlertCondition, isRecordingRule }: FrameProp
   );
 }
 interface TimeseriesRowProps extends Omit<FrameProps, 'isRecordingRule'> {}
+
+interface TimeseriesTableRow {
+  timestamp: number;
+  value: number;
+}
+
 const TimeseriesRow: FC<TimeseriesRowProps & { index: number }> = ({ frame, index }) => {
   const styles = useStyles2(getStyles);
 
@@ -490,10 +505,32 @@ const TimeseriesRow: FC<TimeseriesRowProps & { index: number }> = ({ frame, inde
   const displayNameFromDS = valueField.config?.displayNameFromDS;
   const name = displayNameFromDS ?? (hasLabels ? formatLabels(valueField.labels ?? {}) : 'Series ' + index);
 
-  const timestamps = frame.fields[0].values;
+  const tableData = useMemo<TimeseriesTableRow[]>(() => {
+    const timestamps: number[] = frame.fields[0].values;
+    const values: number[] = frame.fields[1].values;
+    return timestamps.map((timestamp, idx) => ({
+      timestamp,
+      value: values[idx],
+    }));
+  }, [frame]);
 
-  const getTimestampFromIndex = (index: number) => frame.fields[0].values[index];
-  const getValueFromIndex = (index: number) => frame.fields[1].values[index];
+  const tableColumns = useMemo<Array<Column<TimeseriesTableRow>>>(
+    () => [
+      {
+        id: 'timestamp',
+        header: t('alerting.timeseries-row.timestamp', 'Timestamp'),
+        cell: ({ row: { original } }) => (
+          <span className={styles.mutedText}>{dateTimeFormat(original.timestamp)}</span>
+        ),
+      },
+      {
+        id: 'value',
+        header: t('alerting.timeseries-row.value', 'Value'),
+        cell: ({ row: { original } }) => <span className={styles.expression.resultValue}>{original.value}</span>,
+      },
+    ],
+    [styles]
+  );
 
   return (
     <div className={styles.expression.resultsRow}>
@@ -506,26 +543,11 @@ const TimeseriesRow: FC<TimeseriesRowProps & { index: number }> = ({ frame, inde
             placement="right"
             wrapperClassName={styles.timeseriesTableWrapper}
             content={
-              <table className={styles.timeseriesTable}>
-                <thead>
-                  <tr>
-                    <th>
-                      <Trans i18nKey="alerting.timeseries-row.timestamp">Timestamp</Trans>
-                    </th>
-                    <th>
-                      <Trans i18nKey="alerting.timeseries-row.value">Value</Trans>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {timestamps.map((_, index) => (
-                    <tr key={index}>
-                      <td className={styles.mutedText}>{dateTimeFormat(getTimestampFromIndex(index))}</td>
-                      <td className={styles.expression.resultValue}>{getValueFromIndex(index)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <InteractiveTable<TimeseriesTableRow>
+                columns={tableColumns}
+                data={tableData}
+                getRowId={(row, idx) => `${idx}-${row.timestamp}`}
+              />
             }
           >
             <span>
@@ -648,47 +670,10 @@ const getStyles = (theme: GrafanaTheme2) => ({
   mutedIcon: css({
     color: theme.colors.text.secondary,
   }),
-  editable: css({
-    padding: `${theme.spacing(0.5)} ${theme.spacing(1)}`,
-    border: `solid 1px ${theme.colors.border.weak}`,
-    borderRadius: theme.shape.radius.default,
-
-    display: 'flex',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing(1),
-    cursor: 'pointer',
-  }),
   timeseriesTableWrapper: css({
     maxHeight: '500px',
 
     overflowY: 'scroll',
-  }),
-  timeseriesTable: css({
-    tableLayout: 'auto',
-
-    width: '100%',
-    height: '100%',
-
-    'td, th': {
-      padding: theme.spacing(1),
-    },
-
-    td: {
-      background: theme.colors.background.primary,
-    },
-
-    th: {
-      background: theme.colors.background.secondary,
-    },
-
-    tr: {
-      borderBottom: `1px solid ${theme.colors.border.medium}`,
-
-      '&:last-of-type': {
-        borderBottom: 'none',
-      },
-    },
   }),
   pagination: {
     wrapper: css({
