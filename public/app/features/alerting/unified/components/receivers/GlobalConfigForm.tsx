@@ -1,4 +1,4 @@
-import { FormProvider, useForm } from 'react-hook-form';
+import { type DeepMap, type FieldError, FormProvider, useForm } from 'react-hook-form';
 
 import { Trans, t } from '@grafana/i18n';
 import { Alert, Button, FieldSet, LinkButton, Stack } from '@grafana/ui';
@@ -86,7 +86,10 @@ export const GlobalConfigForm = ({ config, alertManagerSourceName }: Props) => {
               defaultValue={defaultValues[option.propertyName]}
               key={option.propertyName}
               option={option}
-              error={errors[option.propertyName]}
+              error={
+                // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- OptionField.error is a discriminated union (FieldError | DeepMap<...>) selected by option.element at runtime; react-hook-form's indexed FieldErrors entry is structurally compatible but its declared union (Merge<FieldError, FieldErrorsImpl<{}>>) is not a TypeScript subtype, so the cast bridges the API
+                errors[option.propertyName] as FieldError | DeepMap<Record<string, unknown>, FieldError> | undefined
+              }
               pathPrefix={''}
               secureFields={{}}
             />

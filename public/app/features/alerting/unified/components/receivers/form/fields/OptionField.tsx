@@ -31,12 +31,12 @@ import { SubformField } from './SubformField';
 import { WrapWithTemplateSelection } from './TemplateSelector';
 
 interface Props {
-  defaultValue: any;
+  defaultValue: unknown;
   option: NotificationChannelOption;
   getOptionMeta?: (option: NotificationChannelOption) => OptionMeta;
   invalid?: boolean;
   pathPrefix: string;
-  error?: FieldError | DeepMap<any, FieldError>;
+  error?: FieldError | DeepMap<Record<string, unknown>, FieldError>;
   readOnly?: boolean;
   customValidator?: (value: string) => boolean | string | Promise<boolean | string>;
   onResetSecureField?: (propertyName: string) => void;
@@ -65,7 +65,8 @@ export const OptionField: FC<Props> = ({
         readOnly={readOnly}
         defaultValue={defaultValue}
         option={option}
-        errors={error}
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- error is forwarded opaquely from the parent OptionField caller; SubformField is dispatched only when option.element === 'subform', guaranteeing the runtime value is a record-shaped error tree (DeepMap) rather than a leaf FieldError
+        errors={error as DeepMap<Record<string, unknown>, FieldError> | undefined}
         pathPrefix={pathPrefix}
         onDelete={onDeleteSubform}
         getOptionMeta={getOptionMeta}
@@ -77,10 +78,11 @@ export const OptionField: FC<Props> = ({
       <SubformArrayField
         secureFields={secureFields}
         readOnly={readOnly}
-        defaultValues={defaultValue}
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- defaultValue is forwarded opaquely from the parent OptionField caller; SubformArrayField is dispatched only when option.element === 'subform_array', guaranteeing the runtime value is an array of records
+        defaultValues={defaultValue as Array<Record<string, unknown>> | undefined}
         option={option}
         pathPrefix={pathPrefix}
-        errors={error as Array<DeepMap<any, FieldError>> | undefined}
+        errors={error as Array<DeepMap<Record<string, unknown>, FieldError>> | undefined}
         getOptionMeta={getOptionMeta}
       />
     );
@@ -111,7 +113,8 @@ export const OptionField: FC<Props> = ({
       label={label}
       description={option.description || undefined}
       invalid={!!error}
-      error={error?.message}
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- the early returns above (option.element === 'subform' / 'subform_array') guarantee error is a leaf FieldError here, not a DeepMap error tree, so error.message is always string | undefined
+      error={(error as FieldError | undefined)?.message}
       data-testid={`${pathPrefix}${option.propertyName}`}
     >
       <OptionInput
