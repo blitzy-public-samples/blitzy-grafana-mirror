@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 
 import { type GrafanaTheme2 } from '@grafana/data';
 import { t } from '@grafana/i18n';
-import { Box, IconButton, Input, Stack, Text, useStyles2 } from '@grafana/ui';
+import { Box, Field, IconButton, Input, Stack, useStyles2 } from '@grafana/ui';
 
 import { useAppNotification } from '../../../../../core/copy/appNotification';
 
@@ -76,19 +76,20 @@ export function InlineSaveInput({ onSave, onCancel, savedSearches }: InlineSaveI
         <Stack direction="row" alignItems="center" gap={1} wrap={false}>
           {/* Input area - flex=1 like the name area in list items */}
           <Box flex={1} marginRight={2}>
-            <Input
-              {...register('name', {
-                required: t('alerting.saved-searches.error-name-required', 'Name is required'),
-                validate: (value) => {
-                  const error = validateSearchName(value, savedSearches);
-                  return error ?? true;
-                },
-              })}
-              onKeyDown={handleKeyDown}
-              placeholder={t('alerting.saved-searches.name-placeholder', 'Enter a name...')}
-              invalid={!!errors.name}
-              disabled={isSubmitting}
-            />
+            <Field invalid={!!errors.name} error={errors.name?.message} noMargin>
+              <Input
+                {...register('name', {
+                  required: t('alerting.saved-searches.error-name-required', 'Name is required'),
+                  validate: (value) => {
+                    const error = validateSearchName(value, savedSearches);
+                    return error ?? true;
+                  },
+                })}
+                onKeyDown={handleKeyDown}
+                placeholder={t('alerting.saved-searches.name-placeholder', 'Enter a name...')}
+                disabled={isSubmitting}
+              />
+            </Field>
           </Box>
 
           {/* X icon - aligned with magnifying glass */}
@@ -117,11 +118,6 @@ export function InlineSaveInput({ onSave, onCancel, savedSearches }: InlineSaveI
           />
         </Stack>
       </form>
-      {errors.name?.message && (
-        <Text color="error" variant="bodySmall">
-          {errors.name.message}
-        </Text>
-      )}
     </Stack>
   );
 }
