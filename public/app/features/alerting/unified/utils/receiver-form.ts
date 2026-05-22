@@ -120,13 +120,12 @@ export function formValuesToCloudReceiver(
   return recv;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function convertJiraFieldToJson(object: Record<string, any>) {
+export function convertJiraFieldToJson(object: Record<string, unknown>) {
   // Only for cloud alert manager. Jira fields option can be a nested object. We need to convert it to JSON.
 
   const objectCopy = structuredClone(object);
 
-  if (typeof objectCopy.fields === 'object') {
+  if (typeof objectCopy.fields === 'object' && objectCopy.fields !== null) {
     for (const [optionName, optionValue] of Object.entries(objectCopy.fields)) {
       let valueForField;
       try {
@@ -135,20 +134,19 @@ export function convertJiraFieldToJson(object: Record<string, any>) {
       } catch {
         valueForField = optionValue; // is not a stringified object
       }
-      objectCopy.fields[optionName] = valueForField;
+      Object.assign(objectCopy.fields, { [optionName]: valueForField });
     }
   }
 
   return objectCopy;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function convertJsonToJiraField(object: Record<string, any>) {
+export function convertJsonToJiraField(object: Record<string, unknown>) {
   // Only for cloud alert manager. Convert JSON back to nested Jira fields option.
 
   const objectCopy = structuredClone(object);
 
-  if (typeof objectCopy.fields === 'object') {
+  if (typeof objectCopy.fields === 'object' && objectCopy.fields !== null) {
     for (const [optionName, optionValue] of Object.entries(objectCopy.fields)) {
       let valueForField;
       if (typeof optionValue === 'object') {
@@ -156,7 +154,7 @@ export function convertJsonToJiraField(object: Record<string, any>) {
       } else {
         valueForField = optionValue;
       }
-      objectCopy.fields[optionName] = valueForField;
+      Object.assign(objectCopy.fields, { [optionName]: valueForField });
     }
   }
 
@@ -275,7 +273,7 @@ export function omitEmptyValues<T>(obj: T): T {
   } else if (typeof obj === 'object' && obj !== null) {
     Object.entries(obj).forEach(([key, value]) => {
       if (isUnacceptableValue(value)) {
-        delete (obj as any)[key];
+        delete (obj as Record<string, unknown>)[key];
       } else {
         omitEmptyValues(value);
       }

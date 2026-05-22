@@ -965,9 +965,6 @@
   "public/app/features/alerting/unified/utils/receiver-form.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 3
-    },
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
     }
   },
   "public/app/features/alerting/unified/utils/redux.ts": {
