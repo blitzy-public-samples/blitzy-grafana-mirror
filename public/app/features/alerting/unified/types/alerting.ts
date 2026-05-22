@@ -3,6 +3,12 @@ import { type ValidationRule } from 'react-hook-form';
 import { type SelectableValue } from '@grafana/data';
 import { type IconName } from '@grafana/ui';
 
+interface AlertEvalMatch {
+  metric: string;
+  tags?: Record<string, string> | null;
+  value: number | null;
+}
+
 export interface AlertRuleDTO {
   id: number;
   dashboardId: number;
@@ -13,7 +19,7 @@ export interface AlertRuleDTO {
   state: string;
   newStateDate: string;
   evalDate: string;
-  evalData?: { noData?: boolean; evalMatches?: any };
+  evalData?: { noData?: boolean; evalMatches?: AlertEvalMatch[] };
   executionError: string;
   url: string;
 }
@@ -35,7 +41,7 @@ export interface AlertRule {
   info?: string;
   executionError?: string;
   evalDate?: string;
-  evalData?: { noData?: boolean; evalMatches?: any };
+  evalData?: { noData?: boolean; evalMatches?: AlertEvalMatch[] };
 }
 
 export type GrafanaNotifierType =
@@ -153,7 +159,7 @@ export type NotificationChannelSecureSettings = Record<string, string | number>;
 export type NotificationChannelSecureFields = Record<string, boolean | ''>;
 
 export interface ChannelTypeSettings {
-  [key: string]: any;
+  [key: string]: unknown;
   autoResolve: true;
   httpMethod: string;
   severity: string;
@@ -202,7 +208,7 @@ export interface NotificationChannelOption {
 export interface NotificationChannelState {
   notificationChannelTypes: NotificationChannelType[];
   notifiers: NotifierDTO[];
-  notificationChannel: any;
+  notificationChannel: NotificationChannelDTO;
 }
 
 export interface NotifierStatus {
@@ -268,5 +274,5 @@ export interface AnnotationItemDTO {
   login: string;
   email: string;
   avatarUrl: string;
-  data: any;
+  data: Record<string, unknown>;
 }
