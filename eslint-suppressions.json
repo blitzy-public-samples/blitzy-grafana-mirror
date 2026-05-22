@@ -801,11 +801,6 @@
       "count": 1
     }
   },
-  "public/app/features/alerting/unified/components/receivers/form/fields/SubformArrayField.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    }
-  },
   "public/app/features/alerting/unified/components/receivers/form/fields/SubformField.tsx": {
     "@typescript-eslint/no-explicit-any": {
       "count": 2
