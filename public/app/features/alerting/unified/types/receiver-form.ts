@@ -9,7 +9,7 @@ export interface ChannelValues {
   __id: string; // used to correlate form values to original DTOs
   type: string;
   version?: string; // Integration version (e.g. "v0" for Mimir legacy, "v1" for Grafana)
-  settings: Record<string, any>;
+  settings: Record<string, unknown>;
   secureFields: Record<string, boolean | ''>;
 }
 

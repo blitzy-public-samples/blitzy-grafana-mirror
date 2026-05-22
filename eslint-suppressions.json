@@ -952,11 +952,6 @@
       "count": 6
     }
   },
-  "public/app/features/alerting/unified/types/receiver-form.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "public/app/features/alerting/unified/utils/datasource.ts": {
     "no-restricted-syntax": {
       "count": 2
