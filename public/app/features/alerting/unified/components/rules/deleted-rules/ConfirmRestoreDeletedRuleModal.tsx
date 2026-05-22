@@ -88,7 +88,7 @@ export const ConfirmRestoreDeletedRuleModal = ({
                 Your alert rule could not be restored. This may be due to changes to other entities such as contact
                 points, data sources etc. Please manually restore the deleted rule by editing the rule and saving it.
               </Trans>
-              <pre style={{ marginBottom: 0 }}>
+              <pre className={styles.errorPre}>
                 <code>{stringifyErrorLike(error)}</code>
               </pre>
             </Alert>
@@ -129,6 +129,9 @@ const getStyles = () => ({
   }),
   modal: css({
     width: '700px',
+  }),
+  errorPre: css({
+    marginBottom: 0,
   }),
 });
 
