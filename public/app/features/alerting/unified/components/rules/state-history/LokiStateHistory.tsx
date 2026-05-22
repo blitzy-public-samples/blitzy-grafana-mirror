@@ -2,7 +2,7 @@ import { css } from '@emotion/css';
 import { fromPairs, isEmpty, sortBy, take, uniq } from 'lodash';
 import * as React from 'react';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { FormProvider, useForm } from 'react-hook-form';
 
 import { AlertLabels } from '@grafana/alerting/unstable';
 import { type DataFrame, type GrafanaTheme2, type SelectableValue, type TimeRange, dateTime } from '@grafana/data';
@@ -43,7 +43,8 @@ const LokiStateHistory = ({ ruleUID }: Props) => {
   const [stateTo, setStateTo] = useState<string>(StateFilterValues.all);
   const logsRef = useRef<Map<number, HTMLElement>>(new Map<number, HTMLElement>());
 
-  const { getValues, setValue, register, handleSubmit } = useForm({ defaultValues: { query: '' } });
+  const formMethods = useForm({ defaultValues: { query: '' } });
+  const { getValues, setValue, register, handleSubmit } = formMethods;
 
   const { useGetRuleHistoryQuery } = stateHistoryApi;
 
@@ -148,96 +149,99 @@ const LokiStateHistory = ({ ruleUID }: Props) => {
   }
 
   return (
-    <div className={styles.fullSize}>
-      <Stack direction="row" gap={1} alignItems="flex-end">
-        <div className={styles.instancesFilterForm}>
-          <form onSubmit={handleSubmit((data) => setInstancesFilter(data.query))}>
-            <SearchFieldInput
-              {...register('query')}
-              showClearFilterSuffix={!!instancesFilter}
-              onClearFilterClick={onFilterCleared}
+    // Using FormProvider+useForm pattern per AAP §0.4.2
+    <FormProvider {...formMethods}>
+      <div className={styles.fullSize}>
+        <Stack direction="row" gap={1} alignItems="flex-end">
+          <div className={styles.instancesFilterForm}>
+            <form onSubmit={handleSubmit((data) => setInstancesFilter(data.query))}>
+              <SearchFieldInput
+                {...register('query')}
+                showClearFilterSuffix={!!instancesFilter}
+                onClearFilterClick={onFilterCleared}
+              />
+              <input type="submit" hidden />
+            </form>
+          </div>
+          <Field noMargin label={t('alerting.loki-state-history.start-state', 'Start state')}>
+            <Select
+              options={STATE_FILTER_OPTIONS}
+              value={stateFrom}
+              onChange={(v) => setStateFrom(v.value ?? StateFilterValues.all)}
+              width={18}
             />
-            <input type="submit" hidden />
-          </form>
-        </div>
-        <Field noMargin label={t('alerting.loki-state-history.start-state', 'Start state')}>
-          <Select
-            options={STATE_FILTER_OPTIONS}
-            value={stateFrom}
-            onChange={(v) => setStateFrom(v.value ?? StateFilterValues.all)}
-            width={18}
-          />
-        </Field>
-        <Field noMargin label={t('alerting.loki-state-history.end-state', 'End state')}>
-          <Select
-            options={STATE_FILTER_OPTIONS}
-            value={stateTo}
-            onChange={(v) => setStateTo(v.value ?? StateFilterValues.all)}
-            width={18}
-          />
-        </Field>
-      </Stack>
-      {!isEmpty(commonLabels) && (
-        <div className={styles.commonLabels}>
-          <Stack gap={1} alignItems="center" wrap="wrap">
-            <Stack gap={0.5} alignItems="center" minWidth="fit-content">
-              <Text variant="bodySmall">
-                <Trans i18nKey="alerting.loki-state-history.common-labels">Common labels</Trans>
-              </Text>
-              <Tooltip
-                content={t(
-                  'alerting.loki-state-history.tooltip-common-labels',
-                  'Common labels are the ones attached to all of the alert instances'
-                )}
-              >
-                <Icon name="info-circle" size="sm" />
-              </Tooltip>
-            </Stack>
-            <AlertLabels labels={fromPairs(commonLabels)} size="sm" />
-          </Stack>
-        </div>
-      )}
-      {isEmpty(frameSubset) ? (
-        <div className={styles.emptyState}>
-          {emptyStateMessage}
-          {(totalRecordsCount > 0 || hasActiveStateFilter) && (
-            <Button variant="secondary" type="button" onClick={onFilterCleared}>
-              <Trans i18nKey="alerting.loki-state-history.clear-filters">Clear filters</Trans>
-            </Button>
-          )}
-        </div>
-      ) : (
-        <>
-          {hasActiveStateFilter ? (
-            <div className={styles.timelineHiddenMessage}>
-              <Text variant="bodySmall" color="secondary">
-                <Trans i18nKey="alerting.loki-state-history.timeline-hidden">
-                  Timeline is hidden when state filters are active
-                </Trans>
-              </Text>
-            </div>
-          ) : (
-            <div className={styles.graphWrapper}>
-              <LogTimelineViewer frames={frameSubset} timeRange={frameTimeRange} />
-            </div>
-          )}
-          {hasMoreInstances && (
-            <div className={styles.moreInstancesWarning}>
-              <Stack direction="row" alignItems="center" gap={1}>
-                <Icon name="exclamation-triangle" size="sm" />
-                <small>{`Only showing ${frameSubset.length} out of ${dataFrames.length} instances. Click on the labels to narrow down the results`}</small>
+          </Field>
+          <Field noMargin label={t('alerting.loki-state-history.end-state', 'End state')}>
+            <Select
+              options={STATE_FILTER_OPTIONS}
+              value={stateTo}
+              onChange={(v) => setStateTo(v.value ?? StateFilterValues.all)}
+              width={18}
+            />
+          </Field>
+        </Stack>
+        {!isEmpty(commonLabels) && (
+          <div className={styles.commonLabels}>
+            <Stack gap={1} alignItems="center" wrap="wrap">
+              <Stack gap={0.5} alignItems="center" minWidth="fit-content">
+                <Text variant="bodySmall">
+                  <Trans i18nKey="alerting.loki-state-history.common-labels">Common labels</Trans>
+                </Text>
+                <Tooltip
+                  content={t(
+                    'alerting.loki-state-history.tooltip-common-labels',
+                    'Common labels are the ones attached to all of the alert instances'
+                  )}
+                >
+                  <Icon name="info-circle" size="sm" />
+                </Tooltip>
               </Stack>
-            </div>
-          )}
-          <LogRecordViewerByTimestamp
-            records={historyRecords}
-            commonLabels={commonLabels}
-            onRecordsRendered={(recordRefs) => (logsRef.current = recordRefs)}
-            onLabelClick={onLogRecordLabelClick}
-          />
-        </>
-      )}
-    </div>
+              <AlertLabels labels={fromPairs(commonLabels)} size="sm" />
+            </Stack>
+          </div>
+        )}
+        {isEmpty(frameSubset) ? (
+          <div className={styles.emptyState}>
+            {emptyStateMessage}
+            {(totalRecordsCount > 0 || hasActiveStateFilter) && (
+              <Button variant="secondary" type="button" onClick={onFilterCleared}>
+                <Trans i18nKey="alerting.loki-state-history.clear-filters">Clear filters</Trans>
+              </Button>
+            )}
+          </div>
+        ) : (
+          <>
+            {hasActiveStateFilter ? (
+              <div className={styles.timelineHiddenMessage}>
+                <Text variant="bodySmall" color="secondary">
+                  <Trans i18nKey="alerting.loki-state-history.timeline-hidden">
+                    Timeline is hidden when state filters are active
+                  </Trans>
+                </Text>
+              </div>
+            ) : (
+              <div className={styles.graphWrapper}>
+                <LogTimelineViewer frames={frameSubset} timeRange={frameTimeRange} />
+              </div>
+            )}
+            {hasMoreInstances && (
+              <div className={styles.moreInstancesWarning}>
+                <Stack direction="row" alignItems="center" gap={1}>
+                  <Icon name="exclamation-triangle" size="sm" />
+                  <small>{`Only showing ${frameSubset.length} out of ${dataFrames.length} instances. Click on the labels to narrow down the results`}</small>
+                </Stack>
+              </div>
+            )}
+            <LogRecordViewerByTimestamp
+              records={historyRecords}
+              commonLabels={commonLabels}
+              onRecordsRendered={(recordRefs) => (logsRef.current = recordRefs)}
+              onLabelClick={onLogRecordLabelClick}
+            />
+          </>
+        )}
+      </div>
+    </FormProvider>
   );
 };
 
