@@ -1,10 +1,10 @@
 import { css } from '@emotion/css';
-import { memo, useCallback } from 'react';
+import { type FormEvent, memo, useCallback, useReducer } from 'react';
 
 import { type AnnotationQuery, type DataQuery, type GrafanaTheme2 } from '@grafana/data';
 import { t } from '@grafana/i18n';
 import { type DashboardLink } from '@grafana/schema';
-import { Form, useForceUpdate, useStyles2 } from '@grafana/ui';
+import { useStyles2 } from '@grafana/ui';
 import { useSelector } from 'app/types/store';
 
 import { getSubMenuVariables, getVariablesState } from '../../../variables/state/selectors';
@@ -20,24 +20,28 @@ interface Props {
   annotations: AnnotationQuery[];
 }
 
-const SubMenuInternal = ({ dashboard, links, annotations }: Props) => {
-  // useSelector replaces connect(mapStateToProps) — pull the per-dashboard
-  // template-variable list from the variables slice using the dashboard UID as
-  // the key. `dashboard.uid` flows through toStateKey() inside the variable
-  // selectors which correctly handles null/undefined sentinel mapping.
+export const SubMenu = memo(({ dashboard, links, annotations }: Props) => {
+  const styles = useStyles2(getStyles);
+  // useReducer replaces the legacy `this.forceUpdate()` call. The original
+  // PureComponent (now React.memo below) skips re-renders unless props change
+  // shallow-equally; when `onAnnotationStateChanged` mutates the dashboard's
+  // annotations list in place (because annotations are not yet in Redux),
+  // there is no prop change to trigger a re-render. Dispatching the reducer
+  // (`forceUpdate()`) bumps an internal counter to force a re-render, matching
+  // the original behavior exactly.
+  const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
+
+  // useSelector replaces the legacy `connect(mapStateToProps)` HOC. The inner
+  // selector body is byte-identical to the original mapStateToProps body:
+  // read uid from dashboard, look up the templating state for that uid, and
+  // derive the submenu variables list. Per ESLint no-restricted-imports rule
+  // (eslint.config.js lines 71-74), useSelector is sourced from
+  // 'app/types/store', NEVER from 'react-redux'.
   const variables = useSelector((state) => {
     const { uid } = dashboard;
     const templatingState = getVariablesState(uid, state);
     return getSubMenuVariables(uid, templatingState.variables);
   });
-
-  // The class's render-side mutation + this.forceUpdate() pattern relied on
-  // class-instance re-render semantics. The functional equivalent is the
-  // useForceUpdate hook (a shared utility in app/core/hooks) which returns
-  // a stable callback that triggers a re-render. We preserve the direct
-  // mutation of dashboard.annotations.list because annotations are not yet
-  // in Redux (per the original code's comment).
-  const forceUpdate = useForceUpdate();
 
   const onAnnotationStateChanged = useCallback(
     (updatedAnnotation: AnnotationQuery<DataQuery>) => {
@@ -52,55 +56,32 @@ const SubMenuInternal = ({ dashboard, links, annotations }: Props) => {
       dashboard.startRefresh();
       forceUpdate();
     },
-    [dashboard, forceUpdate]
+    [dashboard]
   );
 
-  const styles = useStyles2(getStyles);
+  const disableSubmitOnEnter = useCallback((e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+  }, []);
+
   const readOnlyVariables = dashboard.meta.isSnapshot ?? false;
 
   return (
     <div className={styles.submenu}>
-      {/*
-       * The original class wrapped the variable picker in a raw <form> with a
-       * no-op onSubmit handler to: (a) provide an accessible group with
-       * aria-label for screen readers, and (b) ensure that pressing Enter in
-       * any variable picker did not bubble up and submit a containing form
-       * (e.g., the dashboard settings form). We migrate to the @grafana/ui
-       * Form composition: react-hook-form's internal handleSubmit always
-       * invokes event.preventDefault() before calling onSubmit, which
-       * preserves the "block submit-on-Enter" behavior. The no-op onSubmit
-       * matches the original's lack of submit action.
-       */}
-      <Form<EmptyFormValues>
-        onSubmit={noopOnSubmit}
+      <form
         aria-label={t('dashboard.sub-menu-un-connected.aria-label-template-variables', 'Template variables')}
         className={styles.formStyles}
-        maxWidth="none"
+        onSubmit={disableSubmitOnEnter}
       >
-        {() => <SubMenuItems variables={variables} readOnly={readOnlyVariables} />}
-      </Form>
-      <Annotations
-        annotations={annotations}
-        onAnnotationChanged={onAnnotationStateChanged}
-        events={dashboard.events}
-      />
+        <SubMenuItems variables={variables} readOnly={readOnlyVariables} />
+      </form>
+      <Annotations annotations={annotations} onAnnotationChanged={onAnnotationStateChanged} events={dashboard.events} />
       <div className={styles.spacer} />
       {dashboard && <DashboardLinks dashboard={dashboard} links={links} />}
     </div>
   );
-};
+});
 
-// SubMenu's Form is a semantic wrapper for the variable picker — it has no
-// form fields, so its data shape is the empty object. Declared as a named
-// type here (rather than an inline `{}`) to satisfy
-// `@typescript-eslint/ban-types` style guidance and keep the Form generic
-// argument self-documenting.
-type EmptyFormValues = Record<string, never>;
-
-// Module-scope no-op handler so its identity is stable across renders; passing
-// a fresh inline arrow each render would not trigger re-renders, but module
-// scope makes the intent (no-action submit handler) explicit.
-const noopOnSubmit = () => {};
+SubMenu.displayName = 'SubMenu';
 
 const getStyles = (theme: GrafanaTheme2) => ({
   formStyles: css({
@@ -120,11 +101,3 @@ const getStyles = (theme: GrafanaTheme2) => ({
     flexGrow: 1,
   }),
 });
-
-// Preserve the original PureComponent shallow-skip optimization with React.memo
-// (default shallowEqual). SubMenu is re-rendered each time the parent
-// DashboardPage updates, so referential-equality skip is important to avoid
-// re-rendering the variable picker on every dashboard render.
-export const SubMenu = memo(SubMenuInternal);
-
-SubMenu.displayName = 'SubMenu';
