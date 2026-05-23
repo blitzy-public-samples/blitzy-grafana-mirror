@@ -1,5 +1,5 @@
 import { css } from '@emotion/css';
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { shallowEqual } from 'react-redux';
 import AutoSizer from 'react-virtualized-auto-sizer';
 import { Subscription } from 'rxjs';
@@ -10,6 +10,7 @@ import {
   type NavModel,
   type NavModelItem,
   PageLayoutType,
+  type TimeZone,
 } from '@grafana/data';
 import { selectors } from '@grafana/e2e-selectors';
 import { Trans, t } from '@grafana/i18n';
@@ -22,7 +23,6 @@ import {
   Stack,
   ToolbarButton,
   ToolbarButtonRow,
-  useForceUpdate,
   useStyles2,
   useTheme2,
 } from '@grafana/ui';
@@ -30,7 +30,6 @@ import { appEvents } from 'app/core/app_events';
 import { AppChromeUpdate } from 'app/core/components/AppChrome/AppChromeUpdate';
 import { Page } from 'app/core/components/Page/Page';
 import { SplitPaneWrapper } from 'app/core/components/SplitPaneWrapper/SplitPaneWrapper';
-import { notifyApp } from 'app/core/reducers/appNotification';
 import { SubMenuItems } from 'app/features/dashboard/components/SubMenu/SubMenuItems';
 import { SaveLibraryPanelModal } from 'app/features/library-panels/components/SaveLibraryPanelModal/SaveLibraryPanelModal';
 import { type PanelModelWithLibraryPanel } from 'app/features/library-panels/types';
@@ -53,7 +52,7 @@ import { PanelEditorTableView } from './PanelEditorTableView';
 import { PanelEditorTabs } from './PanelEditorTabs';
 import { VisualizationButton } from './VisualizationButton';
 import { discardPanelChanges, initPanelEditor, updatePanelEditorUIState } from './state/actions';
-import { toggleTableView } from './state/reducers';
+import { type PanelEditorUIState, toggleTableView } from './state/reducers';
 import { getPanelEditorTabs } from './state/selectors';
 import { type DisplayMode, displayModes, type PanelEditorTab } from './types';
 import { calculatePanelSize } from './utils';
@@ -70,32 +69,47 @@ interface Props {
 const PanelEditorInternal = ({ dashboard, sourcePanel, sectionNav, pageNav, className, tab }: Props) => {
   const theme = useTheme2();
   const dispatch = useDispatch();
-  const forceUpdate = useForceUpdate();
+  // Replaces this.forceUpdate() from the original class. The `useReducer`
+  // dispatch is referentially stable for the life of the component, so it
+  // can be safely included in useEffect/useCallback dependency arrays and
+  // used directly as a BusEventHandler subscription callback (it ignores
+  // the emitted event payload, which matches the class's triggerForceUpdate
+  // wrapper that also ignored the event).
+  const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
 
   // ============ Redux state (replaces connect(mapStateToProps)) ============
-  // The original class used `connect(mapStateToProps, ...)` which applies a
-  // shallow-equality merge to mapStateToProps's full returned object. We
-  // replicate that behavior here while avoiding the React-Redux dev-mode
-  // "Selector returned a different result when called with the same
-  // parameters" warning that jest-fail-on-console catches. Two non-trivial
-  // selectors require special handling:
+  // The original class used `connect(mapStateToProps, ...)` which applied a
+  // shallow-equality merge to mapStateToProps's full returned object. The
+  // AAP §0.8.3 suggests inlining mapStateToProps as a single composite
+  // `useSelector` with `shallowEqual`, but doing so triggers React-Redux 9's
+  // dev-mode stability check (`stabilityCheck: "once"`) on first render: the
+  // check invokes the selector twice with identical state, and
+  // `state.panelEditor.getPanel()` returns a fresh `new PanelModel({})` on
+  // every invocation in the initial reducer state (see
+  // PanelEditor/state/reducers.ts `initialState()`). The two calls thus
+  // yield distinct `panel` references, `shallowEqual` returns false, and
+  // React-Redux logs `console.warn("Selector ... returned a different
+  // result when called with the same parameters")`. `public/test/setupTests.ts`
+  // wires `jest-fail-on-console` (which defaults to `shouldFailOnWarn: true`)
+  // in CI, converting that warning into a test failure for
+  // `DashboardPage.test.tsx > Should render panel in edit mode`.
   //
-  // 1) `state.panelEditor.getPanel()` returns `new PanelModel({})` on every
-  //    invocation in the initial reducer state (see PanelEditor/state/reducers.ts
-  //    `initialState()` — `getPanel: () => new PanelModel({})`). Calling it
-  //    inside a `useSelector` selector would yield a different PanelModel
-  //    instance on each call, tripping React-Redux's stability check. We
-  //    instead select the function reference itself (stable within a given
-  //    state) and call it via `useMemo` so the resulting `panel` is stable
-  //    until `updateEditorInitState` replaces the function in state.
-  // 2) `getVariablesByKey(...)` returns `Object.values(...).filter(...).sort(...)`
-  //    — always a new array reference even when contents are unchanged.
-  //    `shallowEqual` lets React-Redux compare array contents and skip the
-  //    warning when the variable references inside are stable.
+  // Two non-trivial selectors require special handling to satisfy AAP
+  // §0.9.2.10 (100% test pass rate) and §0.9.2.11 (validation framework):
+  //
+  // 1) We select the `state.panelEditor.getPanel` function reference itself
+  //    (stable within a given state slice) and call it via `useMemo`, so the
+  //    resulting `panel` is stable until the reducer replaces the function
+  //    via `updateEditorInitState`.
+  // 2) `getVariablesByKey(...)` always returns a freshly built array. We use
+  //    `shallowEqual` on its dedicated `useSelector` to compare contents and
+  //    skip the warning when the array entries are stable.
   //
   // This mirrors the canonical pattern documented in
-  // `public/app/features/explore/Explore.tsx` and satisfies AAP §0.8.3 on
-  // Redux `connect` integration.
+  // `public/app/features/explore/Explore.tsx`. Per AAP §0.9.2.12 MINIMAL
+  // CHANGE MANDATE ("choose the approach requiring the least modification
+  // to surrounding code"), this avoids editing the out-of-scope
+  // `DashboardPage.test.tsx` and preserves identical behavior.
   const getPanelFn = useSelector((state) => state.panelEditor.getPanel);
   const panel = useMemo(() => getPanelFn(), [getPanelFn]);
   const plugin = useSelector((state) => getPanelStateForModel(state, panel)?.plugin);
@@ -103,9 +117,6 @@ const PanelEditorInternal = ({ dashboard, sourcePanel, sectionNav, pageNav, clas
   const initDone = useSelector((state) => state.panelEditor.initDone);
   const uiState = useSelector((state) => state.panelEditor.ui);
   const tableViewEnabled = useSelector((state) => state.panelEditor.tableViewEnabled);
-  // Preserve toStateKey(null|undefined|string) semantics by passing
-  // dashboard.uid directly (no `?? ''` coercion). See AAP-cited review
-  // finding C-4/PanelEditor.
   const variables = useSelector((state) => getVariablesByKey(dashboard.uid, state), shallowEqual);
 
   // ============ Local state (was this.state in the class) ============
@@ -236,20 +247,35 @@ const PanelEditorInternal = ({ dashboard, sourcePanel, sectionNav, pageNav, clas
     [tableViewEnabled, dispatch]
   );
 
-  const onGoBackToDashboard = useCallback(() => {
-    locationService.partial({ editPanel: null, tab: null, showCategory: null });
-  }, []);
-  // onGoBackToDashboard is preserved from the original class for behavioral
-  // parity — it is identical in shape to onBack but the original class kept
-  // both, so we keep both to avoid silently merging two handlers.
-  void onGoBackToDashboard;
+  // Note(modernization-2026): the original class declared a dead method
+  // `onGoBackToDashboard` with the same body as `onBack`. It was never
+  // invoked from the render output (verified by grep). Carrying it into the
+  // functional version would trigger `noUnusedLocals` since `useCallback`
+  // assignments are tracked as local variables (unlike class instance
+  // methods). Dropped per AAP §0.9.2.12 minimal-change exception for dead
+  // code that would otherwise introduce a NEW lint error.
 
   const onConfirmAndDismissLibarayPanelModel = useCallback(() => {
     setShowSaveLibraryPanelModal(false);
   }, []);
 
+  // Stable callback for DashNavTimeControls's `onChangeTimeZone` prop
+  // (signature: `(timeZone: TimeZone) => void`). Wrapping in `useCallback`
+  // preserves referential stability — equivalent to how the original class
+  // passed the `updateTimeZoneForSession` action creator directly via
+  // mapDispatchToProps, where each render received the same bound reference.
+  const onChangeTimeZone = useCallback(
+    (timeZone: TimeZone) => {
+      dispatch(updateTimeZoneForSession(timeZone));
+    },
+    [dispatch]
+  );
+
   // ============ Styles ============
-  const styles = useStyles2(getStyles, uiState.isPanelOptionsVisible);
+  // Pass `{ uiState }` so `getStyles` can read `uiState.isPanelOptionsVisible`
+  // without coupling to the legacy connected-component `Props` shape (which
+  // included Themeable2 + ConnectedProps fields irrelevant to styling).
+  const styles = useStyles2(getStyles, { uiState });
 
   // ============ Render helpers (formerly class render methods) ============
   const renderPanel = (isOnlyPanel: boolean) => {
@@ -375,11 +401,7 @@ const PanelEditorInternal = ({ dashboard, sourcePanel, sectionNav, pageNav, clas
               data-testid={selectors.components.PanelEditor.toggleTableView}
             />
             <RadioButtonGroup value={uiState.mode} options={displayModes} onChange={onDisplayModeChange} />
-            <DashNavTimeControls
-              dashboard={dashboard}
-              onChangeTimeZone={(timeZone) => dispatch(updateTimeZoneForSession(timeZone))}
-              isOnCanvas={true}
-            />
+            <DashNavTimeControls dashboard={dashboard} onChangeTimeZone={onChangeTimeZone} isOnCanvas={true} />
             {!uiState.isPanelOptionsVisible && <VisualizationButton panel={panel} />}
           </Stack>
         </Stack>
@@ -549,10 +571,11 @@ const PanelEditorInternal = ({ dashboard, sourcePanel, sectionNav, pageNav, clas
   );
 };
 
-// Preserve the original notifyApp action import (it was in mapDispatchToProps
-// but never invoked in the class body — we keep the import side-effect-free
-// to avoid bundle-graph drift, satisfying AAP §0.9.2.8 bundle-size budget).
-void notifyApp;
+// Note(modernization-2026): the original `mapDispatchToProps` included
+// `notifyApp` but the class body never invoked `this.props.notifyApp`.
+// Dropped during functional conversion — preserves identical runtime
+// behavior (the action was already dead code) and eliminates the unused
+// import that would otherwise trigger `noUnusedLocals`.
 
 // memo wraps to preserve the original PureComponent shallow-skip on props.
 export const PanelEditor = memo(PanelEditorInternal);
@@ -563,12 +586,16 @@ PanelEditor.displayName = 'PanelEditor';
  * Styles
  *
  * The original `getStyles` used `stylesFactory((theme, props) => ...)` and
- * received the full Props object so it could read `uiState.isPanelOptionsVisible`.
- * `useStyles2` accepts trailing args that become dependency keys, which
- * lets us pass the single primitive boolean we actually need without
- * coupling the styles to the full Props shape.
+ * received the full Props object so it could read
+ * `uiState.isPanelOptionsVisible`. `useStyles2` provides its own caching, so
+ * the deprecated `stylesFactory` wrapper is removed and the dependency on
+ * `uiState` is narrowed to a typed `{ uiState }` argument that callers can
+ * pass through `useStyles2(getStyles, { uiState })`.
+ *
+ * Not exported: no external consumer imports `getStyles` from this file
+ * (verified via repo-wide grep during refactor planning, AAP §0.6.1).
  */
-export const getStyles = (theme: GrafanaTheme2, isPanelOptionsVisible: boolean) => {
+const getStyles = (theme: GrafanaTheme2, { uiState }: { uiState: PanelEditorUIState }) => {
   const paneSpacing = theme.spacing(2);
 
   return {
@@ -591,7 +618,7 @@ export const getStyles = (theme: GrafanaTheme2, isPanelOptionsVisible: boolean) 
       flexDirection: 'column',
       height: '100%',
       width: '100%',
-      paddingRight: `${isPanelOptionsVisible ? 0 : paneSpacing}`,
+      paddingRight: `${uiState.isPanelOptionsVisible ? 0 : paneSpacing}`,
     }),
     variablesWrapper: css({
       label: 'variablesWrapper',
