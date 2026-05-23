@@ -65,10 +65,18 @@ export const TemplatesTable = ({ alertManagerName, templates }: Props) => {
       },
       {
         id: 'actions',
-        // The actions column has no header label (matches the original raw <table>, which used
-        // a permission-gated <th>Actions</th>; here we keep the column always present and gate
-        // the cell content via <Authorize>, producing functionally equivalent behavior:
-        // if the user has none of the relevant permissions, the cell renders nothing).
+        // The actions column header reproduces the original raw <table>'s <th>Actions</th>
+        // label using the same `alerting.templates-table.actions` i18n key, but renders the
+        // text inside an `sr-only` <span> so the visual layout (an empty header cell above the
+        // right-aligned action icons) remains identical to the previous design-system state
+        // while the column is properly labeled for assistive technology. The cell-level
+        // permission gating via <Authorize> in `TemplateActionsCell` is unchanged: this only
+        // restores the accessible header label, not the per-cell permission behavior.
+        header: () => (
+          <span className="sr-only">
+            <Trans i18nKey="alerting.templates-table.actions">Actions</Trans>
+          </span>
+        ),
         disableGrow: true,
         cell: ({ row: { original: notificationTemplate } }) => (
           <TemplateActionsCell

@@ -23,6 +23,8 @@ import {
   type GrafanaChannelMap,
   type GrafanaChannelValues,
   type ReceiverFormValues,
+  type ReceiverSettingValue,
+  type ReceiverSettings,
 } from '../types/receiver-form';
 
 export function grafanaReceiverToFormValues(
@@ -141,20 +143,27 @@ export function convertJiraFieldToJson(object: Record<string, unknown>) {
   return objectCopy;
 }
 
-export function convertJsonToJiraField(object: Record<string, unknown>) {
-  // Only for cloud alert manager. Convert JSON back to nested Jira fields option.
-
+/**
+ * Only for cloud alert manager. Convert JSON back to nested Jira fields option.
+ *
+ * Accepts and returns {@link ReceiverSettings}-compatible shapes so the result
+ * can be spread directly into a `ChannelValues.settings` slot without losing
+ * type safety. Nested object values inside `fields` are stringified; primitive
+ * values are left unchanged.
+ */
+export function convertJsonToJiraField(object: ReceiverSettings): ReceiverSettings {
   const objectCopy = structuredClone(object);
 
-  if (typeof objectCopy.fields === 'object' && objectCopy.fields !== null) {
-    for (const [optionName, optionValue] of Object.entries(objectCopy.fields)) {
-      let valueForField;
-      if (typeof optionValue === 'object') {
+  const fields = objectCopy.fields;
+  if (typeof fields === 'object' && fields !== null && !Array.isArray(fields)) {
+    for (const [optionName, optionValue] of Object.entries(fields)) {
+      let valueForField: ReceiverSettingValue;
+      if (typeof optionValue === 'object' && optionValue !== null) {
         valueForField = JSON.stringify(optionValue);
       } else {
         valueForField = optionValue;
       }
-      Object.assign(objectCopy.fields, { [optionName]: valueForField });
+      Object.assign(fields, { [optionName]: valueForField });
     }
   }
 

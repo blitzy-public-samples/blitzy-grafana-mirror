@@ -51,11 +51,7 @@ export const AnnotationTooltip2Cluster = ({
       );
 
       const text = annoVals.text?.[i] ?? '';
-      // Extract to const so TypeScript narrows `unknown` to `{}` via the truthy
-      // check; loop-mutable index access (`annoVals.data[i]`) inside a let-bound
-      // for-loop does not retain narrowing across the `?.[i]` truthy check.
-      const dataItem = annoVals.data?.[i];
-      const alertText = dataItem ? alertDef.getAlertAnnotationText(dataItem) : '';
+      const alertText = annoVals.data?.[i] ? alertDef.getAlertAnnotationText(annoVals.data[i]) : '';
       const title = annoVals.title?.[i] ?? '';
       const annotationId = annoVals.id?.[i];
 

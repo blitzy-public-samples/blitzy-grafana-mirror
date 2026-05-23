@@ -480,7 +480,21 @@ describe('grafanaReceiverToFormValues', () => {
 
     expect(formValues.items[0].settings.api_url).toBe('https://sns.example.com/');
     expect(formValues.items[0].settings.phone_number).toBe('+1234567890');
-    expect(formValues.items[0].settings.sigv4.region).toBe('us-east-1');
+
+    // `settings` is typed as the recursive `ReceiverSettings` map in
+    // `public/app/features/alerting/unified/types/receiver-form.ts`. The
+    // `sigv4` value is a nested settings object whose static type is the
+    // `ReceiverSettingValue` union; narrowing it to `ReceiverSettings` here
+    // (after asserting the runtime is an object) lets us access `.region`
+    // without `any`. Behavior matches the original assertion.
+    const sigv4 = formValues.items[0].settings.sigv4;
+    expect(typeof sigv4).toBe('object');
+    expect(sigv4).not.toBeNull();
+    expect(Array.isArray(sigv4)).toBe(false);
+    if (typeof sigv4 === 'object' && sigv4 !== null && !Array.isArray(sigv4)) {
+      expect(sigv4.region).toBe('us-east-1');
+    }
+
     expect(formValues.items[0].secureFields['sigv4.access_key']).toBe(true);
     expect(formValues.items[0].secureFields['sigv4.secret_key']).toBe(true);
   });

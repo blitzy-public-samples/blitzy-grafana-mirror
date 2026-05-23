@@ -1,9 +1,10 @@
 import { set } from 'lodash';
 import { useCallback } from 'react';
-import { type FieldArrayPath, type FieldPath, type FieldValues, type UseFormReturn } from 'react-hook-form';
+import { type FieldArrayPath, type FieldValues } from 'react-hook-form';
 
 /**
- * Subset of the {@link UseFormReturn} surface consumed by {@link useControlledFieldArray}.
+ * Subset of the react-hook-form `UseFormReturn` surface consumed by
+ * `useControlledFieldArray`.
  *
  * Declared with method syntax (rather than function-property syntax) so that, under
  * `strictFunctionTypes`, a caller-supplied `UseFormReturn<SpecificForm>` is assignable
@@ -16,9 +17,7 @@ import { type FieldArrayPath, type FieldPath, type FieldValues, type UseFormRetu
  * type-assertion casts at the use sites — `consistent-type-assertions: 'never'` forbids
  * `as`-style casts in this codebase. `R` here is the *item* type of the array field
  * watched by `name`; `TFieldValues` is the *whole-form* type used by `reset`/`getValues`.
- * The {@link FieldPath} import is preserved because it ships with the underlying
- * `UseFormReturn` and is part of the public path-typing vocabulary documented here —
- * `FieldArrayPath<TFieldValues>` (used on `Options.name`) is a subset of
+ * `FieldArrayPath<TFieldValues>` (used on `Options.name`) is a subset of react-hook-form's
  * `FieldPath<TFieldValues>` at runtime even though the static types are distinct.
  */
 interface FormAPI<R, TFieldValues extends FieldValues> {

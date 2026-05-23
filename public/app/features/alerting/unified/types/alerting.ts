@@ -208,7 +208,22 @@ export interface NotificationChannelOption {
 export interface NotificationChannelState {
   notificationChannelTypes: NotificationChannelType[];
   notifiers: NotifierDTO[];
-  notificationChannel: NotificationChannelDTO;
+  /**
+   * The currently-selected notification channel.
+   *
+   * Typed as `Partial<NotificationChannelDTO>` to faithfully model the
+   * state-machine: on store initialization no channel is selected (initial
+   * state is `{}`, see `initialChannelState` in
+   * `public/app/features/alerting/state/reducers.ts`). Once a channel is
+   * loaded via the `notificationChannelLoaded` reducer, every required field
+   * is populated and reads (such as the `state.notificationChannel.id`
+   * lookup in `getNotificationChannel`) behave identically to the original
+   * `NotificationChannelDTO`-typed shape — `id === channelId` evaluates to
+   * `false` for `undefined === <number>`, preserving the prior null return
+   * from the selector. Runtime behavior is unchanged; only the static type
+   * is widened to admit the empty initial value without an `as` cast.
+   */
+  notificationChannel: Partial<NotificationChannelDTO>;
 }
 
 export interface NotifierStatus {

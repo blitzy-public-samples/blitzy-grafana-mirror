@@ -1,9 +1,9 @@
 import { css } from '@emotion/css';
-import { useMemo } from 'react';
+import { useId, useMemo } from 'react';
 
 import { type DataFrame } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
-import { type Column, Icon, InteractiveTable, Stack, TagList, Text, Tooltip, useStyles2 } from '@grafana/ui';
+import { Box, type Column, Icon, InteractiveTable, Stack, TagList, Text, Tooltip, useStyles2 } from '@grafana/ui';
 
 import { labelsToTags } from '../../utils/labels';
 import { AlertStateTag } from '../rules/AlertStateTag';
@@ -23,6 +23,12 @@ interface CloudAlertPreviewProps {
 export function CloudAlertPreview({ preview }: CloudAlertPreviewProps) {
   const styles = useStyles2(getStyles);
   const alertPreview = mapDataFrameToAlertPreview(preview);
+  // Stable unique id that associates the preview heading + supporting copy
+  // (the original raw `<table><caption>` content) with the `InteractiveTable`
+  // section wrapper via `aria-labelledby`. `InteractiveTable` does not expose
+  // a `caption` prop or forward arbitrary HTML attributes, so the accessible
+  // labeling has to live on the wrapper element rather than the table itself.
+  const captionId = useId();
 
   // Column definitions are memoized per the InteractiveTable contract
   // ("Table's columns definition. Must be memoized.").
@@ -58,23 +64,25 @@ export function CloudAlertPreview({ preview }: CloudAlertPreviewProps) {
   );
 
   return (
-    <Stack direction="column" gap={1}>
-      <Stack direction="column" gap={0}>
-        <Text>
-          <Trans i18nKey="alerting.cloud-alert-preview.alerts-preview">Alerts preview</Trans>
-        </Text>
-        <Text variant="bodySmall" color="secondary">
-          <Trans i18nKey="alerting.cloud-alert-preview.running-query-preview">
-            Preview based on the result of running the query for this moment.
-          </Trans>
-        </Text>
+    <Box element="section" aria-labelledby={captionId}>
+      <Stack direction="column" gap={1}>
+        <Stack direction="column" gap={0}>
+          <Text id={captionId}>
+            <Trans i18nKey="alerting.cloud-alert-preview.alerts-preview">Alerts preview</Trans>
+          </Text>
+          <Text variant="bodySmall" color="secondary">
+            <Trans i18nKey="alerting.cloud-alert-preview.running-query-preview">
+              Preview based on the result of running the query for this moment.
+            </Trans>
+          </Text>
+        </Stack>
+        <InteractiveTable
+          columns={columns}
+          data={alertPreview.instances}
+          getRowId={(_row, index) => String(index)}
+        />
       </Stack>
-      <InteractiveTable
-        columns={columns}
-        data={alertPreview.instances}
-        getRowId={(_row, index) => String(index)}
-      />
-    </Stack>
+    </Box>
   );
 }
 
