@@ -39,6 +39,7 @@ import {
 import { AnnotationEditor } from './components/AnnotationEditor';
 import { prepareAnnotation } from './migrations';
 import {
+  type OpenTsdbAnnotation,
   type OpenTsdbApiRequest,
   type OpenTsdbFilter,
   type OpenTsdbInternalQuery,
@@ -249,7 +250,9 @@ export default class OpenTsDatasource extends DataSourceWithBackend<OpenTsdbQuer
       this.performTimeSeriesQuery(queries, start, end).pipe(
         map((results) => {
           if (results.data[0]) {
-            let annotationObject = results.data[0].annotations;
+            // Explicit annotation makes the OpenTsdbAnnotation[] shape visible at the point of use;
+            // it is otherwise inferred from OpenTsdbMetricData.{annotations,globalAnnotations}.
+            let annotationObject: OpenTsdbAnnotation[] | undefined = results.data[0].annotations;
             if (annotation.isGlobal) {
               annotationObject = results.data[0].globalAnnotations;
             }
