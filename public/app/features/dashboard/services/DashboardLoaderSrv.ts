@@ -10,7 +10,7 @@ import impressionSrv from 'app/core/services/impression_srv';
 import kbn from 'app/core/utils/kbn';
 import { getDashboardScenePageStateManager } from 'app/features/dashboard-scene/pages/DashboardScenePageStateManager';
 import { getDatasourceSrv } from 'app/features/plugins/datasource_srv';
-import { type DashboardDTO } from 'app/types/dashboard';
+import { type DashboardDataDTO, type DashboardDTO } from 'app/types/dashboard';
 
 import { appEvents } from '../../../core/app_events';
 import { ResponseTransformers } from '../api/ResponseTransformers';
@@ -43,10 +43,10 @@ abstract class DashboardLoaderSrvBase<T> implements DashboardLoaderSrvLike<T> {
     const url = 'public/dashboards/' + file.replace(/\.(?!js)/, '/') + '?' + new Date().getTime();
 
     return getBackendSrv()
-      .get(url, undefined, undefined, { validatePath: true })
+      .get<string>(url, undefined, undefined, { validatePath: true })
       .then(this.executeScript.bind(this))
       .then(
-        (result: any) => {
+        (result: { data: DashboardDataDTO }) => {
           return {
             meta: {
               fromScript: true,
@@ -68,7 +68,7 @@ abstract class DashboardLoaderSrvBase<T> implements DashboardLoaderSrvLike<T> {
       );
   }
 
-  private executeScript(result: any) {
+  private executeScript(result: string) {
     const services = {
       dashboardSrv: getDashboardSrv(),
       datasourceSrv: getDatasourceSrv(),
@@ -101,8 +101,8 @@ abstract class DashboardLoaderSrvBase<T> implements DashboardLoaderSrvLike<T> {
 
     // Handle async dashboard scripts
     if (isFunction(scriptResult)) {
-      return new Promise((resolve) => {
-        scriptResult((dashboard: any) => {
+      return new Promise<{ data: DashboardDataDTO }>((resolve) => {
+        scriptResult((dashboard: DashboardDataDTO) => {
           resolve({ data: dashboard });
         });
       });
