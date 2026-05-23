@@ -210,9 +210,9 @@ describe('dashboardLibraryApi', () => {
       expect(mockLogInfo).toHaveBeenCalledWith('Fetched community dashboards', {
         searchParams: expect.stringContaining('page=2'),
         dataSourceType: 'prometheus',
-        total: 2,
-        page: 2,
-        pages: 5,
+        total: '2',
+        page: '2',
+        pages: '5',
       });
     });
 
