@@ -13,59 +13,60 @@ interface Props {
 }
 
 /**
- * Compute the user-facing alert name for an Alertmanager alert. The original
- * raw-table implementation preferred `__alert_rule_title__` over `alertname`
- * (the last matching reduce wins), so this helper preserves that order.
- */
-function getAlertName(alert: AlertmanagerAlert): string {
-  return Object.entries(alert.labels).reduce((name, [labelKey, labelValue]) => {
-    if (labelKey === 'alertname' || labelKey === '__alert_rule_title__') {
-      return labelValue;
-    }
-    return name;
-  }, '');
-}
-
-/**
  * Renders silenced alerts in an `InteractiveTable` with one expandable row per
  * alert. The expanded row reveals the alert's full label set via `AlertLabels`,
  * matching the prior per-row collapse behavior. `InteractiveTable` provides
  * its own expand toggle column, so the previous manual `CollapseToggle` column
  * is replaced and the dedicated `SilencedAlertsTableRow.tsx` is no longer
- * required.
+ * imported here.
  *
  * Returning `null` when no silenced alerts exist preserves the original
  * short-circuit behavior used by `SilenceViewContent` and `SilenceDetails`.
  */
 const SilencedAlertsTable = ({ silencedAlerts }: Props) => {
-  // Memoize columns - `InteractiveTable` JSDoc explicitly requires a stable
-  // reference (otherwise it re-creates internal react-table instances on every
-  // render). The cell renderers are all stateless and close over no parent
-  // state, so the dependency array is empty.
-  const columns = useMemo<Array<Column<AlertmanagerAlert>>>(
+  // The `columns` array MUST be memoized (per `InteractiveTable`'s JSDoc:
+  // "Table's columns definition. Must be memoized."). The cell renderers close
+  // over no parent-component state — they only read `row.original` and stable
+  // module-level imports — so the dependency array is empty.
+  const columns: Array<Column<AlertmanagerAlert>> = useMemo(
     () => [
       {
         id: 'state',
         header: t('silences-table.header.state', 'State'),
-        cell: ({ row: { original: alert } }) => <AmAlertStateTag state={alert.status.state} />,
+        cell: ({ row }) => <AmAlertStateTag state={row.original.status.state} />,
+        disableGrow: true,
       },
       {
         id: 'duration',
-        header: t('alerting.silenced-alerts-table.header.duration', 'Duration'),
-        cell: ({ row: { original: alert } }) => {
+        // Header intentionally omitted to preserve the original raw <table>'s
+        // empty <th /> semantics for this column. Introducing a new translated
+        // header here would create a new i18n key that did not exist in the
+        // source file and would alter the rendered output.
+        cell: ({ row }) => {
           const duration = intervalToAbbreviatedDurationString({
-            start: new Date(alert.startsAt),
-            end: new Date(alert.endsAt),
+            start: new Date(row.original.startsAt),
+            end: new Date(row.original.endsAt),
           });
-          return (
-            <Trans i18nKey="alerting.silenced-alerts-table-row.silenced-for">for {{ duration }}</Trans>
-          );
+          return <Trans i18nKey="alerting.silenced-alerts-table-row.silenced-for">for {{ duration }}</Trans>;
         },
+        disableGrow: true,
       },
       {
-        id: 'name',
+        id: 'alertName',
         header: t('silences-table.header.alert-name', 'Alert name'),
-        cell: ({ row: { original: alert } }) => <>{getAlertName(alert)}</>,
+        cell: ({ row }) => {
+          // Resolve the user-facing alert name from the alert's labels. This
+          // matches the original logic from `SilencedAlertsTableRow.tsx`: a
+          // reduce over `Object.entries(labels)` where the LAST matching key
+          // (`alertname` or `__alert_rule_title__`) wins.
+          const alertName = Object.entries(row.original.labels).reduce((name, [labelKey, labelValue]) => {
+            if (labelKey === 'alertname' || labelKey === '__alert_rule_title__') {
+              name = labelValue;
+            }
+            return name;
+          }, '');
+          return alertName;
+        },
       },
     ],
     []
@@ -76,7 +77,7 @@ const SilencedAlertsTable = ({ silencedAlerts }: Props) => {
   }
 
   return (
-    <InteractiveTable<AlertmanagerAlert>
+    <InteractiveTable
       columns={columns}
       data={silencedAlerts}
       getRowId={(alert) => alert.fingerprint}
