@@ -2218,11 +2218,6 @@
       "count": 3
     }
   },
-  "public/app/plugins/datasource/opentsdb/datasource.d.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "public/app/plugins/datasource/parca/QueryEditor/QueryOptions.tsx": {
     "no-restricted-syntax": {
       "count": 1
