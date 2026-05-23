@@ -30,7 +30,7 @@ const InviteesTable = memo(({ invitees }: Props) => {
         id: 'actions-copy',
         disableGrow: true,
         cell: ({ row: { original } }: CellProps<Invitee>) => (
-          // eslint-disable-next-line @grafana/i18n/no-untranslated-strings -- preserves the untranslated literal verbatim from the prior InviteeRow.tsx implementation per the minimal-change mandate
+          // eslint-disable-next-line @grafana/i18n/no-untranslated-strings -- preserves the untranslated literal "Copy Invite" verbatim from the prior raw-table implementation per the minimal-change mandate (AAP §0.9.2.12)
           <ClipboardButton icon="copy" variant="secondary" size="sm" getText={() => original.url}>
             Copy Invite
           </ClipboardButton>
