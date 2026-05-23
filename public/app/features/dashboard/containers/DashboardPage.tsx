@@ -1,18 +1,19 @@
 import { css, cx } from '@emotion/css';
-import * as React from 'react';
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { shallowEqual } from 'react-redux';
 
 import {
-  type GrafanaTheme2,
+  type NavIndex,
   type NavModel,
   type NavModelItem,
   type TimeRange,
   PageLayoutType,
   locationUtil,
+  type GrafanaTheme2,
 } from '@grafana/data';
 import { selectors } from '@grafana/e2e-selectors';
 import { locationService } from '@grafana/runtime';
-import { type Themeable2, useTheme2 } from '@grafana/ui';
+import { useTheme2 } from '@grafana/ui';
 import { type ScrollRefElement } from 'app/core/components/NativeScrollbar';
 import { Page } from 'app/core/components/Page/Page';
 import { useGrafana } from 'app/core/context/GrafanaContext';
@@ -22,6 +23,7 @@ import { type GrafanaRouteComponentProps } from 'app/core/navigation/types';
 import { notifyApp } from 'app/core/reducers/appNotification';
 import { ID_PREFIX } from 'app/core/reducers/navBarTree';
 import { getNavModel } from 'app/core/selectors/navModel';
+import { type DashboardModel } from 'app/features/dashboard/state/DashboardModel';
 import { type PanelModel } from 'app/features/dashboard/state/PanelModel';
 import { dashboardWatcher } from 'app/features/live/dashboard/dashboardWatcher';
 import { KioskMode } from 'app/types/dashboard';
@@ -50,10 +52,6 @@ import { type DashboardPageRouteParams, type DashboardPageRouteSearchParams } fr
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 
-// Selector and dispatch action shapes — preserved as exports because the
-// colocated test (DashboardPage.test.tsx) and the original `connect()`
-// wiring both relied on these names. The redux wiring is now performed by
-// the connected wrapper `DashboardPage` below via `useSelector`/`useDispatch`.
 export const mapStateToProps = (state: StoreState) => ({
   initPhase: state.dashboard.initPhase,
   initError: state.dashboard.initError,
@@ -71,28 +69,22 @@ const mapDispatchToProps = {
 
 export type DashboardPageParams = { slug: string; uid: string; type: string; accessToken: string };
 
-// Reconstructs the original `Themeable2 & ConnectedProps<typeof connector>` shape
-// so the inner pure component `UnthemedDashboardPage` retains the same exported
-// Props type that the colocated unit test consumes when rendering it directly
-// with synthetic props (bypassing the connected wrapper).
-type ConnectedStateProps = ReturnType<typeof mapStateToProps>;
-type ConnectedDispatchProps = typeof mapDispatchToProps;
-export type Props = Themeable2 &
-  ConnectedStateProps &
-  ConnectedDispatchProps &
-  Omit<GrafanaRouteComponentProps<DashboardPageRouteParams, DashboardPageRouteSearchParams>, 'match'> & {
-    // The params returned from useParams are all optional, so we match that type here
-    params: Partial<DashboardPageParams>;
-  };
+type OwnProps = Omit<GrafanaRouteComponentProps<DashboardPageRouteParams, DashboardPageRouteSearchParams>, 'match'> & {
+  // The params returned from useParams are all optional, so we need to match that type here
+  params: Partial<DashboardPageParams>;
+};
 
-// Route state shape consumed by the dashboard page for cross-route reloads
-// (see DashboardScenePage and useDashboardRestore for the producers).
-interface DashboardRouteState {
-  routeReloadCounter?: number;
-}
+type StateProps = ReturnType<typeof mapStateToProps>;
 
-const isDashboardRouteState = (s: unknown): s is DashboardRouteState =>
-  typeof s === 'object' && s !== null;
+// Each action creator is wrapped by `dispatch` in the connected component. Only the
+// call signature is preserved; the return type is intentionally `unknown` because it
+// varies (void for thunks, action object for plain creators) and the consumer
+// never reads the return value.
+type DispatchProps = {
+  [K in keyof typeof mapDispatchToProps]: (...args: Parameters<(typeof mapDispatchToProps)[K]>) => unknown;
+};
+
+export type Props = OwnProps & StateProps & DispatchProps & { theme: GrafanaTheme2 };
 
 export interface State {
   editPanel: PanelModel | null;
@@ -108,14 +100,36 @@ export interface State {
   sectionNav?: NavModel;
 }
 
-const initialState = (): State => ({
+interface PanelStateReducerState {
+  editPanel: PanelModel | null;
+  viewPanel: PanelModel | null;
+  editView: string | null;
+  updateScrollTop?: number;
+  rememberScrollTop?: number;
+  showLoadingState: boolean;
+  panelNotFound: boolean;
+  editPanelAccessDenied: boolean;
+}
+
+const initialPanelState: PanelStateReducerState = {
   editView: null,
   editPanel: null,
   viewPanel: null,
   showLoadingState: false,
   panelNotFound: false,
   editPanelAccessDenied: false,
-});
+};
+
+type PanelStateAction = { type: 'reset' } | { type: 'patch'; patch: Partial<PanelStateReducerState> };
+
+function panelStateReducer(state: PanelStateReducerState, action: PanelStateAction): PanelStateReducerState {
+  switch (action.type) {
+    case 'reset':
+      return initialPanelState;
+    case 'patch':
+      return { ...state, ...action.patch };
+  }
+}
 
 const getStyles = (theme: GrafanaTheme2) => ({
   fullScreenPanel: css({
@@ -153,371 +167,397 @@ const getStyles = (theme: GrafanaTheme2) => ({
   }),
 });
 
-/**
- * Inner pure functional component — mirrors the previous `UnthemedDashboardPage`
- * class. Accepts all redux state, dispatch and theme as props so the colocated
- * unit test can render it directly with synthetic props (bypassing the connected
- * wrapper). The connected wrapper `DashboardPage` (default export below) supplies
- * the redux state, dispatch-bound action creators and theme via `useSelector` /
- * `useDispatch` / `useTheme2`.
- *
- * Lifecycle equivalents:
- *   - constructor + property initializers  → useState, useRef, useContext
- *   - componentDidMount                    → mount-only useEffect (deps=[])
- *   - componentWillUnmount                 → cleanup of mount-only useEffect
- *   - getDerivedStateFromProps             → useEffect on URL/dashboard/navIndex
- *   - componentDidUpdate (uid/route)       → useEffect on params.uid + location.state
- *   - componentDidUpdate (location.search) → useEffect on location.search
- *   - componentDidUpdate (state diffs)     → useEffect on relevant state fields
- *
- * `React.memo` preserves the previous `PureComponent` shallow-skip behavior so
- * that referentially-stable props (which is exactly what the connected wrapper
- * provides via memoized selectors and `useMemo`-bound action creators) do not
- * cause unnecessary re-renders.
- */
-export const UnthemedDashboardPage = memo(function UnthemedDashboardPage(props: Props) {
+// Type-safe accessor for react-router-5 history Location.state.routeReloadCounter.
+// Replaces the legacy `(location.state as any)?.routeReloadCounter` cast with
+// explicit narrowing of an unknown value. Uses only TypeScript narrowing (no
+// `as` casts) so it complies with the `@typescript-eslint/consistent-type-assertions`
+// rule (assertionStyle: 'never').
+function getRouteReloadCounter(state: unknown): number | undefined {
+  if (!state || typeof state !== 'object') {
+    return undefined;
+  }
+  if (!('routeReloadCounter' in state)) {
+    return undefined;
+  }
+  const value = state.routeReloadCounter;
+  return typeof value === 'number' ? value : undefined;
+}
+
+// Mirrors the class's updateLiveTimer instance method; reads the latest dashboard
+// from a ref captured by the caller so behavior matches `this.props.dashboard`
+// access at setTimeout fire time.
+function updateLiveTimerForDashboard(dashboard: DashboardModel | null | undefined) {
+  let tr: TimeRange | undefined = undefined;
+  if (dashboard?.liveNow) {
+    tr = getTimeSrv().timeRange();
+  }
+  liveTimer.setLiveTimeRange(tr);
+}
+
+// Pure derivation of pageNav and sectionNav from props + panel state. Equivalent
+// to the legacy `updateStatePageNavFromProps` function but no longer returns a
+// state object; instead it returns the two nav values directly for consumption
+// by `useMemo` in the component.
+function computePageAndSectionNav(
+  dashboard: DashboardModel,
+  navIndex: NavIndex,
+  location: GrafanaRouteComponentProps['location'],
+  editPanel: PanelModel | null,
+  viewPanel: PanelModel | null
+): { pageNav: NavModelItem; sectionNav: NavModel } {
+  let pageNav: NavModelItem = {
+    text: dashboard.title,
+    url: locationUtil.getUrlForPartial(location, {
+      editview: null,
+      editPanel: null,
+      viewPanel: null,
+    }),
+  };
+
+  const sectionNav = getNavModel(navIndex, ID_PREFIX + dashboard.uid, getNavModel(navIndex, 'dashboards/browse'));
+
+  const { folderUid } = dashboard.meta;
+  if (folderUid && sectionNav.main.id !== 'starred') {
+    const folderNavModel = getNavModel(navIndex, `folder-dashboards-${folderUid}`).main;
+    // If the folder hasn't loaded (maybe user doesn't have permission on it?) then
+    // don't show the "page not found" breadcrumb
+    if (folderNavModel.id !== 'not-found') {
+      pageNav = {
+        ...pageNav,
+        parentItem: folderNavModel,
+      };
+    }
+  }
+
+  if (editPanel || viewPanel) {
+    pageNav = {
+      ...pageNav,
+      text: `${editPanel ? 'Edit' : 'View'} panel`,
+      parentItem: pageNav,
+      url: undefined,
+    };
+  }
+
+  return { pageNav, sectionNav };
+}
+
+export const UnthemedDashboardPage = memo((props: Props) => {
+  // Destructure props. Dispatch creators are aliased with a `Prop` suffix to avoid
+  // shadowing the module-level imported action creators of the same name (which are
+  // used by the default-export wrapper below). Only the dispatch creators actually
+  // consumed inside this component's body are destructured here; `initDashboard` and
+  // `cleanUpDashboardAndVariables` are read from `latestPropsRef.current` inside the
+  // init effect, and `cancelVariables` is not consumed in the body at all.
+  const {
+    dashboard,
+    initError,
+    queryParams,
+    theme,
+    params,
+    location,
+    navIndex,
+    initPhase,
+    notifyApp: notifyAppProp,
+    templateVarsChangedInUrl: templateVarsChangedInUrlProp,
+  } = props;
+
   const grafanaContext = useGrafana();
 
-  const [state, setState] = useState<State>(initialState);
+  const styles = useMemo(() => getStyles(theme), [theme]);
 
-  // Equivalent of the class instance property `private forceRouteReloadCounter = 0;`.
-  // Used to detect cross-route navigations that explicitly request a dashboard reload
-  // via `location.state.routeReloadCounter` (see useDashboardRestore producer).
-  const forceRouteReloadCounterRef = useRef<number>(0);
+  const [panelState, dispatchPanelState] = useReducer(panelStateReducer, initialPanelState);
+  const { editPanel, viewPanel, updateScrollTop, panelNotFound, editPanelAccessDenied } = panelState;
 
-  // Latest props ref — lets the mount-only effect's cleanup (`componentWillUnmount`
-  // equivalent) call `cleanUpDashboardAndVariables` without depending on the unstable
-  // closure of the action creator.
-  const propsRef = useRef(props);
-  propsRef.current = props;
+  const [scrollElement, setScrollElement] = useState<ScrollRefElement | undefined>(undefined);
 
-  // Refs tracking previous props/state so the `componentDidUpdate` equivalent
-  // effects can detect transitions exactly like the class lifecycle did.
-  const prevPropsRef = useRef<Props | null>(null);
-  const prevStateRef = useRef<State>(state);
+  // Latest props snapshot, used by the init effect (which intentionally re-runs only
+  // on params.uid or routeReloadCounter changes) so it can read the freshest field
+  // values without including them all as dependencies (which would trigger spurious
+  // re-inits and diverge from the class's componentDidUpdate gate).
+  const latestPropsRef = useRef<Props>(props);
+  useEffect(() => {
+    latestPropsRef.current = props;
+  });
 
-  // `updateLiveTimer` (class arrow method) — stable across renders via `useCallback`
-  // and reads the latest dashboard through `propsRef` to avoid stale closures.
-  const updateLiveTimer = useCallback(() => {
-    let tr: TimeRange | undefined = undefined;
-    if (propsRef.current.dashboard?.liveNow) {
-      tr = getTimeSrv().timeRange();
-    }
-    liveTimer.setLiveTimeRange(tr);
-  }, []);
+  // Latest dashboard, used by the setTimeout updateLiveTimer callback.
+  const dashboardRef = useRef(dashboard);
+  useEffect(() => {
+    dashboardRef.current = dashboard;
+  });
 
-  // `closeDashboard` (class method) — reset state to clean defaults and dispatch
-  // the redux cleanup. Stable identity because the dispatch reference from the
-  // connected wrapper is memoized.
-  const closeDashboard = useCallback(() => {
-    propsRef.current.cleanUpDashboardAndVariables();
-    setState(initialState());
-  }, []);
+  // Latest panel state, used inside the URL-derived-state effect so the effect's
+  // dependency array can stay minimal (depending on URL params + dashboard only,
+  // matching the class's getDerivedStateFromProps inputs).
+  const panelStateRef = useRef(panelState);
+  useEffect(() => {
+    panelStateRef.current = panelState;
+  });
 
-  // `initDashboard` (class method) — closes any current dashboard, then dispatches
-  // the redux `initDashboard` thunk with the URL/route parameters and the GrafanaContext
-  // keybinding service. Reads from `propsRef` so its identity stays stable across renders.
-  const initDashboardCall = useCallback(() => {
-    const currentProps = propsRef.current;
-    const { dashboard, params, queryParams, route } = currentProps;
+  // Latest scroll element, used inside the URL-derived-state effect when capturing
+  // the remember-scroll-top value at edit/view mode entry.
+  const scrollElementRef = useRef(scrollElement);
+  useEffect(() => {
+    scrollElementRef.current = scrollElement;
+  });
 
-    if (dashboard) {
-      closeDashboard();
-    }
+  // Compute routeReloadCounter from the (untyped) history Location.state via a
+  // narrowing helper. Replaces the legacy `(location.state as any)?.routeReloadCounter`
+  // cast with type-safe narrowing.
+  const routeReloadCounter = getRouteReloadCounter(location.state);
+
+  // Mount: init the dashboard. Re-init when params.uid or routeReloadCounter changes.
+  // The cleanup function runs both on unmount and before each re-init (when deps
+  // change), mirroring the class's `if (dashboard) this.closeDashboard();`
+  // behavior inside `initDashboard()`.
+  useEffect(() => {
+    const currentProps = latestPropsRef.current;
 
     currentProps.initDashboard({
-      urlSlug: params.slug,
-      urlUid: params.uid,
-      urlType: params.type,
-      urlFolderUid: queryParams.folderUid,
-      panelType: queryParams.panelType,
-      routeName: route.routeName,
+      urlSlug: currentProps.params.slug,
+      urlUid: currentProps.params.uid,
+      urlType: currentProps.params.type,
+      urlFolderUid: currentProps.queryParams.folderUid,
+      panelType: currentProps.queryParams.panelType,
+      routeName: currentProps.route.routeName,
       fixUrl: true,
-      accessToken: params.accessToken,
+      accessToken: currentProps.params.accessToken,
       keybindingSrv: grafanaContext.keybindings,
     });
 
     // small delay to start live updates
-    setTimeout(updateLiveTimer, 250);
-  }, [closeDashboard, grafanaContext.keybindings, updateLiveTimer]);
-
-  // componentDidMount + componentWillUnmount
-  // The class invoked `initDashboard()` and seeded `forceRouteReloadCounter` from
-  // `location.state.routeReloadCounter` on mount; `componentWillUnmount` invoked
-  // `closeDashboard()`. We replicate both with a mount-only effect whose cleanup
-  // closes over `propsRef.current` to call the latest `cleanUpDashboardAndVariables`.
-  useEffect(() => {
-    initDashboardCall();
-    forceRouteReloadCounterRef.current = isDashboardRouteState(propsRef.current.location.state)
-      ? propsRef.current.location.state.routeReloadCounter || 0
-      : 0;
+    setTimeout(() => updateLiveTimerForDashboard(dashboardRef.current), 250);
 
     return () => {
-      // componentWillUnmount equivalent — must use propsRef so unmount during
-      // a stale closure still dispatches the current dispatch-bound cleanup.
-      propsRef.current.cleanUpDashboardAndVariables();
+      currentProps.cleanUpDashboardAndVariables();
+      dispatchPanelState({ type: 'reset' });
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only effect; initDashboardCall captured via propsRef intentionally
-  }, []);
+  }, [params.uid, routeReloadCounter, grafanaContext]);
 
-  // componentDidUpdate (uid / routeReloadCounter branch)
-  // Detect dashboard uid changes or an explicit cross-route reload signal and
-  // restart the initialization flow. Mirrors the early-return branch in the
-  // class's `componentDidUpdate`.
+  // URL search-change effect (replaces componentDidUpdate's
+  // `prevProps.location.search !== this.props.location.search` branch).
+  const prevSearchRef = useRef(location.search);
+  const prevQueryParamsRef = useRef(queryParams);
+
   useEffect(() => {
-    const prevProps = prevPropsRef.current;
-    if (prevProps === null) {
-      // First effect run (post-mount). Skip diffing — initDashboard was already
-      // invoked by the mount-only effect above.
+    if (location.search === prevSearchRef.current) {
+      // No actual change (initial run or unchanged); just sync refs
+      prevSearchRef.current = location.search;
+      prevQueryParamsRef.current = queryParams;
       return;
     }
 
-    const { dashboard, params } = props;
     if (!dashboard) {
+      prevSearchRef.current = location.search;
+      prevQueryParamsRef.current = queryParams;
       return;
     }
 
-    const routeReloadCounter = isDashboardRouteState(props.location.state)
-      ? props.location.state.routeReloadCounter
-      : undefined;
-
-    if (
-      prevProps.params.uid !== params.uid ||
-      (routeReloadCounter !== undefined && forceRouteReloadCounterRef.current !== routeReloadCounter)
-    ) {
-      initDashboardCall();
-      forceRouteReloadCounterRef.current = routeReloadCounter ?? 0;
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- prevPropsRef + propsRef pattern; effect intentionally fires whenever uid or route state changes
-  }, [props.params.uid, props.location.state, props.dashboard]);
-
-  // componentDidUpdate (location.search branch)
-  // When the URL search string changes, propagate time-range / refresh / template
-  // variable updates to the supporting services, exactly like the class did.
-  useEffect(() => {
-    const prevProps = prevPropsRef.current;
-    if (prevProps === null) {
-      return;
-    }
-
-    const { dashboard, templateVarsChangedInUrl } = props;
-    if (!dashboard) {
-      return;
-    }
-
-    if (prevProps.location.search === props.location.search) {
-      return;
-    }
-
-    const prevUrlParams = prevProps.queryParams;
-    const urlParams = props.queryParams;
+    const prevUrlParams = prevQueryParamsRef.current;
+    const urlParams = queryParams;
 
     if (urlParams?.from !== prevUrlParams?.from || urlParams?.to !== prevUrlParams?.to) {
       getTimeSrv().updateTimeRangeFromUrl();
-      updateLiveTimer();
+      updateLiveTimerForDashboard(dashboard);
     }
 
     if (!prevUrlParams?.refresh && urlParams?.refresh) {
       getTimeSrv().setAutoRefresh(urlParams.refresh);
     }
 
-    const templateVarChanges = findTemplateVarChanges(props.queryParams, prevProps.queryParams);
-
+    const templateVarChanges = findTemplateVarChanges(urlParams, prevUrlParams);
     if (templateVarChanges) {
-      templateVarsChangedInUrl(dashboard.uid, templateVarChanges);
+      templateVarsChangedInUrlProp(dashboard.uid, templateVarChanges);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally narrow deps to location.search to match the class's `prevProps.location.search !== this.props.location.search` guard
-  }, [props.location.search, props.dashboard]);
 
-  // getDerivedStateFromProps equivalent
-  // Derive editPanel / viewPanel / editView from the URL and dashboard, mirroring
-  // the class's `static getDerivedStateFromProps`. Side effects that the class ran
-  // inside gDSFP (`dashboard.initViewPanel` / `dashboard.exitViewPanel`) are
-  // preserved here — moving them out of gDSFP into a post-commit effect is the
-  // React-recommended migration path and the colocated unit test uses `waitFor`,
-  // so the eventual state matches.
+    prevSearchRef.current = location.search;
+    prevQueryParamsRef.current = queryParams;
+  }, [location.search, dashboard, queryParams, templateVarsChangedInUrlProp]);
+
+  // URL-derived panel-state effect (replaces static getDerivedStateFromProps).
+  // The two side-effect calls (`dashboard.initViewPanel(panel)` and
+  // `dashboard.exitViewPanel(state.viewPanel)`) now run after commit instead of
+  // during render. Tests already use `waitFor` for the resulting state changes,
+  // so the one-render delay is transparent.
   useEffect(() => {
-    const { dashboard, queryParams } = props;
-
     if (!dashboard) {
       return;
     }
 
-    setState((prevS) => {
-      const urlEditPanelId = queryParams.editPanel;
-      const urlViewPanelId = queryParams.viewPanel;
-      const urlEditView = queryParams.editview;
+    const state = panelStateRef.current;
+    const urlEditPanelId = queryParams.editPanel;
+    const urlViewPanelId = queryParams.viewPanel;
+    const urlEditView = queryParams.editview;
+    const currentScrollTop = scrollElementRef.current?.scrollTop;
 
-      const updatedState: State = { ...prevS };
-      let mutated = false;
+    const updates: Partial<PanelStateReducerState> = {};
 
-      // Entering settings view
-      if (!prevS.editView && urlEditView) {
-        updatedState.editView = urlEditView;
-        updatedState.rememberScrollTop = prevS.scrollElement?.scrollTop;
-        updatedState.updateScrollTop = 0;
-        mutated = true;
-      } else if (prevS.editView && !urlEditView) {
-        // Leaving settings view
-        updatedState.updateScrollTop = prevS.rememberScrollTop;
-        updatedState.editView = null;
-        mutated = true;
-      }
+    // Entering settings view
+    if (!state.editView && urlEditView) {
+      updates.editView = urlEditView;
+      updates.rememberScrollTop = currentScrollTop;
+      updates.updateScrollTop = 0;
+    }
+    // Leaving settings view
+    else if (state.editView && !urlEditView) {
+      updates.updateScrollTop = state.rememberScrollTop;
+      updates.editView = null;
+    }
 
-      // Entering edit mode
-      if (!prevS.editPanel && urlEditPanelId) {
-        const panel = dashboard.getPanelByUrlId(urlEditPanelId);
-        if (panel) {
-          if (dashboard.canEditPanel(panel)) {
-            updatedState.editPanel = panel;
-            updatedState.rememberScrollTop = prevS.scrollElement?.scrollTop;
-          } else {
-            updatedState.editPanelAccessDenied = true;
-          }
+    // Entering edit mode
+    if (!state.editPanel && urlEditPanelId) {
+      const panel = dashboard.getPanelByUrlId(urlEditPanelId);
+      if (panel) {
+        if (dashboard.canEditPanel(panel)) {
+          updates.editPanel = panel;
+          updates.rememberScrollTop = currentScrollTop;
         } else {
-          updatedState.panelNotFound = true;
+          updates.editPanelAccessDenied = true;
         }
-        mutated = true;
-      } else if (prevS.editPanel && !urlEditPanelId) {
-        // Leaving edit mode
-        updatedState.editPanel = null;
-        updatedState.updateScrollTop = prevS.rememberScrollTop;
-        mutated = true;
+      } else {
+        updates.panelNotFound = true;
       }
+    }
+    // Leaving edit mode
+    else if (state.editPanel && !urlEditPanelId) {
+      updates.editPanel = null;
+      updates.updateScrollTop = state.rememberScrollTop;
+    }
 
-      // Entering view mode
-      if (!prevS.viewPanel && urlViewPanelId) {
-        const panel = dashboard.getPanelByUrlId(urlViewPanelId);
-        if (panel) {
-          // Side effect retained from the class's static gDSFP — sets
-          // `dashboard.panelInView` and `panel.isViewing = true`.
-          dashboard.initViewPanel(panel);
-          updatedState.viewPanel = panel;
-          updatedState.rememberScrollTop = prevS.scrollElement?.scrollTop;
-          updatedState.updateScrollTop = 0;
-        } else {
-          updatedState.panelNotFound = true;
-        }
-        mutated = true;
-      } else if (prevS.viewPanel && !urlViewPanelId) {
-        // Leaving view mode — side effect retained from class gDSFP.
-        dashboard.exitViewPanel(prevS.viewPanel);
-        updatedState.viewPanel = null;
-        updatedState.updateScrollTop = prevS.rememberScrollTop;
-        mutated = true;
+    // Entering view mode
+    if (!state.viewPanel && urlViewPanelId) {
+      const panel = dashboard.getPanelByUrlId(urlViewPanelId);
+      if (panel) {
+        // This mutable state feels wrong to have in derived-state logic
+        // Should move this state out of dashboard in the future
+        dashboard.initViewPanel(panel);
+        updates.viewPanel = panel;
+        updates.rememberScrollTop = currentScrollTop;
+        updates.updateScrollTop = 0;
+      } else {
+        updates.panelNotFound = true;
       }
+    }
+    // Leaving view mode
+    else if (state.viewPanel && !urlViewPanelId) {
+      // This mutable state feels wrong to have in derived-state logic
+      // Should move this state out of dashboard in the future
+      dashboard.exitViewPanel(state.viewPanel);
+      updates.viewPanel = null;
+      updates.updateScrollTop = state.rememberScrollTop;
+    }
 
-      // if we removed url edit state, clear any panel not found state
-      if (prevS.panelNotFound || (prevS.editPanelAccessDenied && !urlEditPanelId)) {
-        updatedState.panelNotFound = false;
-        updatedState.editPanelAccessDenied = false;
-        mutated = true;
-      }
+    // if we removed url edit state, clear any panel not found state
+    if (state.panelNotFound || (state.editPanelAccessDenied && !urlEditPanelId)) {
+      updates.panelNotFound = false;
+      updates.editPanelAccessDenied = false;
+    }
 
-      const baseState = mutated ? updatedState : prevS;
-      const nextState = updateStatePageNavFromProps(props, baseState);
+    if (Object.keys(updates).length > 0) {
+      dispatchPanelState({ type: 'patch', patch: updates });
+    }
+  }, [dashboard, queryParams.editPanel, queryParams.viewPanel, queryParams.editview]);
 
-      // Avoid an extra render if neither the URL-derived state nor pageNav changed.
-      // `updateStatePageNavFromProps` already short-circuits to its input when
-      // pageNav/sectionNav are unchanged, so reference-equality with `prevS` is
-      // sufficient here.
-      return nextState === prevS ? prevS : nextState;
-    });
-    // We intentionally narrow deps to the inputs gDSFP read in the class.
-    // navIndex and dashboard.title/folderUrl drive pageNav recomputation, and
-    // queryParams.editPanel/viewPanel/editview drive the panel state transitions.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- deps match gDSFP's read set; props.dashboard is included for title/folder-url propagation
-  }, [
-    props.dashboard,
-    props.queryParams.editPanel,
-    props.queryParams.viewPanel,
-    props.queryParams.editview,
-    props.navIndex,
-    props.location,
-  ]);
+  // Edit-panel transition events (replaces componentDidUpdate's edit-mode enter/exit
+  // branches). Publishes PanelEditEnteredEvent / PanelEditExitedEvent and updates
+  // dashboardWatcher's editing state.
+  const prevEditPanelRef = useRef<PanelModel | null>(null);
 
-  // componentDidUpdate (editPanel transition + notifications + scroll)
-  // Replaces the bottom half of the class's `componentDidUpdate`: publish edit
-  // enter/exit events, surface error notifications, and apply scroll position
-  // updates. We watch only the state fields that drive these effects so this
-  // doesn't fire spuriously on unrelated prop changes.
   useEffect(() => {
-    const prevState = prevStateRef.current;
-    const { dashboard, notifyApp } = props;
+    if (!dashboard) {
+      prevEditPanelRef.current = editPanel;
+      return;
+    }
 
-    // entering edit mode
-    if (state.editPanel && !prevState.editPanel) {
+    // Entering edit mode
+    if (editPanel && !prevEditPanelRef.current) {
       dashboardWatcher.setEditingState(true);
-      dashboard?.events.publish(new PanelEditEnteredEvent(state.editPanel.id));
+      // Some panels need to be notified when entering edit mode
+      dashboard.events.publish(new PanelEditEnteredEvent(editPanel.id));
     }
 
-    // leaving edit mode
-    if (!state.editPanel && prevState.editPanel) {
+    // Leaving edit mode
+    if (!editPanel && prevEditPanelRef.current) {
       dashboardWatcher.setEditingState(false);
-      dashboard?.events.publish(new PanelEditExitedEvent(prevState.editPanel.id));
+      // Some panels need kicked when leaving edit mode
+      dashboard.events.publish(new PanelEditExitedEvent(prevEditPanelRef.current.id));
     }
 
-    if (state.editPanelAccessDenied) {
-      notifyApp(createErrorNotification('Permission to edit panel denied'));
+    prevEditPanelRef.current = editPanel;
+  }, [dashboard, editPanel]);
+
+  // Permission-denied notification (replaces the `if (this.state.editPanelAccessDenied)`
+  // branch in componentDidUpdate).
+  useEffect(() => {
+    if (editPanelAccessDenied) {
+      notifyAppProp(createErrorNotification('Permission to edit panel denied'));
       locationService.partial({ editPanel: null });
     }
+  }, [editPanelAccessDenied, notifyAppProp]);
 
-    if (state.panelNotFound) {
-      notifyApp(createErrorNotification(`Panel not found`));
+  // Panel-not-found notification (replaces the `if (this.state.panelNotFound)` branch
+  // in componentDidUpdate).
+  useEffect(() => {
+    if (panelNotFound) {
+      notifyAppProp(createErrorNotification(`Panel not found`));
       locationService.partial({ editPanel: null, viewPanel: null });
     }
+  }, [panelNotFound, notifyAppProp]);
 
-    // Update window scroll position
-    if (state.updateScrollTop !== undefined && state.updateScrollTop !== prevState.updateScrollTop) {
-      state.scrollElement?.scrollTo(0, state.updateScrollTop);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally narrow; matches the class's cDU branches that fire on state transitions
-  }, [
-    state.editPanel,
-    state.editPanelAccessDenied,
-    state.panelNotFound,
-    state.updateScrollTop,
-    state.scrollElement,
-  ]);
+  // Window scroll-position updates (replaces the
+  // `if (this.state.updateScrollTop !== undefined && ...)` branch in componentDidUpdate).
+  const prevUpdateScrollTopRef = useRef<number | undefined>(undefined);
 
-  // Refresh `prevPropsRef` / `prevStateRef` *after* every effect above has had a
-  // chance to read them. By using a final useEffect with no deps array we are
-  // guaranteed to run after the rest of the effects for this commit.
   useEffect(() => {
-    prevPropsRef.current = props;
-    prevStateRef.current = state;
-  });
+    if (updateScrollTop !== undefined && updateScrollTop !== prevUpdateScrollTopRef.current) {
+      scrollElement?.scrollTo(0, updateScrollTop);
+    }
+    prevUpdateScrollTopRef.current = updateScrollTop;
+  }, [updateScrollTop, scrollElement]);
 
-  const setScrollRef = useCallback((scrollElement: ScrollRefElement) => {
-    setState((prev) => (prev.scrollElement === scrollElement ? prev : { ...prev, scrollElement }));
-  }, []);
+  // Derive pageNav/sectionNav from current dashboard + nav index + panel state.
+  // Returns undefined nav values when dashboard is null so the loading branch
+  // renders DashboardLoading (matching the class's `if (!dashboard || !pageNav
+  // || !sectionNav) return <DashboardLoading />` gate).
+  const { pageNav, sectionNav } = useMemo<{
+    pageNav: NavModelItem | undefined;
+    sectionNav: NavModel | undefined;
+  }>(() => {
+    if (!dashboard) {
+      return { pageNav: undefined, sectionNav: undefined };
+    }
+    return computePageAndSectionNav(dashboard, navIndex, location, editPanel, viewPanel);
+  }, [dashboard, navIndex, location, editPanel, viewPanel]);
 
-  const onCloseShareModal = useCallback(() => {
-    locationService.partial({ shareView: null });
-  }, []);
-
-  // Render
-  const { dashboard, initError, queryParams, theme, params } = props;
-
-  const { editPanel, viewPanel, pageNav, sectionNav } = state;
-  const kioskMode = getKioskMode(props.queryParams);
-  const styles = getStyles(theme);
-
-  if (!dashboard || !pageNav || !sectionNav) {
-    return <DashboardLoading initPhase={props.initPhase} />;
-  }
-
-  const inspectPanel = (() => {
+  // Derive the inspect panel from the queryParams.inspect URL param.
+  const inspectPanel = useMemo<PanelModel | null>(() => {
+    if (!dashboard) {
+      return null;
+    }
     const inspectPanelId = queryParams.inspect;
     if (!inspectPanelId) {
       return null;
     }
-    const panel = dashboard.getPanelById(parseInt(inspectPanelId, 10));
-    // cannot inspect panels if plugin is not already loaded
-    return panel ?? null;
-  })();
+    // cannot inspect panels plugin is not already loaded
+    return dashboard.getPanelById(parseInt(inspectPanelId, 10)) ?? null;
+  }, [dashboard, queryParams.inspect]);
 
-  const showSubMenu = !editPanel && !kioskMode && !props.queryParams.editview && dashboard.isSubMenuVisible();
+  // Stable callback for receiving the scroll-element ref from <Page>.
+  const setScrollRef = useCallback((newScrollElement: ScrollRefElement): void => {
+    setScrollElement(newScrollElement);
+  }, []);
+
+  // Stable callback for closing the share modal.
+  const onCloseShareModal = useCallback(() => {
+    locationService.partial({ shareView: null });
+  }, []);
+
+  const kioskMode = getKioskMode(queryParams);
+
+  if (!dashboard || !pageNav || !sectionNav) {
+    return <DashboardLoading initPhase={initPhase} />;
+  }
+
+  const showSubMenu = !editPanel && !kioskMode && !queryParams.editview && dashboard.isSubMenuVisible();
   const showToolbar = kioskMode !== KioskMode.Full && !queryParams.editview && !initError;
 
   const pageClassName = cx({
@@ -571,7 +611,7 @@ export const UnthemedDashboardPage = memo(function UnthemedDashboardPage(props: 
         <PanelEditor
           dashboard={dashboard}
           sourcePanel={editPanel}
-          tab={props.queryParams.tab}
+          tab={queryParams.tab}
           sectionNav={sectionNav}
           pageNav={pageNav}
         />
@@ -590,122 +630,30 @@ export const UnthemedDashboardPage = memo(function UnthemedDashboardPage(props: 
 
 UnthemedDashboardPage.displayName = 'UnthemedDashboardPage';
 
-function updateStatePageNavFromProps(props: Props, state: State): State {
-  const { dashboard, navIndex } = props;
-
-  if (!dashboard) {
-    return state;
-  }
-
-  let pageNav = state.pageNav;
-  let sectionNav = state.sectionNav;
-
-  if (!pageNav || dashboard.title !== pageNav.text || dashboard.meta.folderUrl !== pageNav.parentItem?.url) {
-    pageNav = {
-      text: dashboard.title,
-      url: locationUtil.getUrlForPartial(props.location, {
-        editview: null,
-        editPanel: null,
-        viewPanel: null,
-      }),
-    };
-  }
-
-  sectionNav = getNavModel(props.navIndex, ID_PREFIX + dashboard.uid, getNavModel(props.navIndex, 'dashboards/browse'));
-
-  const { folderUid } = dashboard.meta;
-  if (folderUid && pageNav && sectionNav.main.id !== 'starred') {
-    const folderNavModel = getNavModel(navIndex, `folder-dashboards-${folderUid}`).main;
-    // If the folder hasn't loaded (maybe user doesn't have permission on it?) then
-    // don't show the "page not found" breadcrumb
-    if (folderNavModel.id !== 'not-found') {
-      pageNav = {
-        ...pageNav,
-        parentItem: folderNavModel,
-      };
-    }
-  }
-
-  if (state.editPanel || state.viewPanel) {
-    pageNav = {
-      ...pageNav,
-      text: `${state.editPanel ? 'Edit' : 'View'} panel`,
-      parentItem: pageNav,
-      url: undefined,
-    };
-  }
-
-  if (state.pageNav === pageNav && state.sectionNav === sectionNav) {
-    return state;
-  }
-
-  return {
-    ...state,
-    pageNav,
-    sectionNav,
-  };
-}
-
-/**
- * Connected wrapper — supplies redux state, dispatch-bound action creators and
- * the theme to the inner pure component. Replaces the previous
- * `withTheme2(UnthemedDashboardPage)` + `connect(mapStateToProps, mapDispatchToProps)`
- * HOC chain with hooks per AAP §0.9.2.5. The named export and the default export
- * surface remain backward-compatible for `DashboardPageProxy` and the existing
- * route registrations.
- */
-type OwnProps = Omit<
-  GrafanaRouteComponentProps<DashboardPageRouteParams, DashboardPageRouteSearchParams>,
-  'match'
-> & { params: Partial<DashboardPageParams> };
-
-const ConnectedDashboardPage: React.FC<OwnProps> = (ownProps) => {
+const DashboardPage = (ownProps: OwnProps) => {
   const theme = useTheme2();
-  const initPhase = useSelector((state: StoreState) => state.dashboard.initPhase);
-  const initError = useSelector((state: StoreState) => state.dashboard.initError);
-  const dashboard = useSelector((state: StoreState) => state.dashboard.getModel());
-  const navIndex = useSelector((state: StoreState) => state.navIndex);
+  // shallowEqual is the equality strategy `connect(mapStateToProps)` used by default.
+  // Without it, `useSelector(mapStateToProps)` would warn (and trigger spurious
+  // re-renders) because `mapStateToProps` returns a fresh object literal on every
+  // call. shallowEqual is intentionally NOT on the restricted-import list — only
+  // `useDispatch` and `useSelector` are routed through `app/types/store`.
+  const stateProps = useSelector(mapStateToProps, shallowEqual);
   const dispatch = useDispatch();
 
-  // Memoized dispatch-bound action creators — equivalent to the bound action
-  // creators that `connect()` previously produced from the object-form
-  // `mapDispatchToProps`. Stable identity across renders keeps `UnthemedDashboardPage`
-  // (a `React.memo` component) from re-rendering unnecessarily.
-  const boundDispatch = useMemo(
+  const dispatchProps = useMemo<DispatchProps>(
     () => ({
-      initDashboard: (args: Parameters<typeof initDashboard>[0]) => dispatch(initDashboard(args)),
+      initDashboard: (args) => dispatch(initDashboard(args)),
       cleanUpDashboardAndVariables: () => dispatch(cleanUpDashboardAndVariables()),
-      notifyApp: (notif: Parameters<typeof notifyApp>[0]) => dispatch(notifyApp(notif)),
-      cancelVariables: (key: Parameters<typeof cancelVariables>[0], opts?: Parameters<typeof cancelVariables>[1]) =>
-        dispatch(cancelVariables(key, opts)),
-      templateVarsChangedInUrl: (
-        uid: Parameters<typeof templateVarsChangedInUrl>[0],
-        vars: Parameters<typeof templateVarsChangedInUrl>[1]
-      ) => dispatch(templateVarsChangedInUrl(uid, vars)),
+      notifyApp: (notification) => dispatch(notifyApp(notification)),
+      cancelVariables: (key, dependencies) => dispatch(cancelVariables(key, dependencies)),
+      templateVarsChangedInUrl: (key, vars, events) => dispatch(templateVarsChangedInUrl(key, vars, events)),
     }),
     [dispatch]
   );
 
-  // The bound actions exposed through `Props` keep the same call shape as the
-  // original action-creator imports (the unbound versions referenced in `mapDispatchToProps`),
-  // matching the structural `typeof initDashboard` etc. types in `ConnectedDispatchProps`.
-  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- bound dispatch wrappers preserve call-site shape; widening to match `typeof <actionCreator>` is structurally safe
-  const dispatchProps = boundDispatch as unknown as ConnectedDispatchProps;
-
-  return (
-    <UnthemedDashboardPage
-      {...ownProps}
-      theme={theme}
-      initPhase={initPhase}
-      initError={initError}
-      dashboard={dashboard}
-      navIndex={navIndex}
-      {...dispatchProps}
-    />
-  );
+  return <UnthemedDashboardPage {...ownProps} {...stateProps} {...dispatchProps} theme={theme} />;
 };
 
-export const DashboardPage = ConnectedDashboardPage;
 DashboardPage.displayName = 'DashboardPage';
 
 export default DashboardPage;
