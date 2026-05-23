@@ -20,7 +20,7 @@ import { extractLabelMatchers, fixSummariesMetadata, toPromLikeQuery } from './l
 import { promqlGrammar } from './promql';
 import { buildVisualQueryFromString } from './querybuilder/parsing';
 import { LabelsApiClient, type ResourceApiClient, SeriesApiClient } from './resource_clients';
-import { type PromMetricsMetadata, type PromQuery } from './types';
+import { type PromMetricsMetadata, type PromMetricsMetadataItem, type PromQuery } from './types';
 
 interface PrometheusBaseLanguageProvider {
   datasource: PrometheusDatasource;
@@ -31,7 +31,11 @@ interface PrometheusBaseLanguageProvider {
    */
   start: (timeRange?: TimeRange) => Promise<unknown[]>;
 
-  request: (url: string, params?: any, options?: Partial<BackendSrvRequest>) => Promise<any>;
+  request: <T = unknown>(
+    url: string,
+    params?: Record<string, unknown>,
+    options?: Partial<BackendSrvRequest>
+  ) => Promise<T | undefined>;
 
   fetchSuggestions: (
     timeRange?: TimeRange,
@@ -126,7 +130,11 @@ export class PrometheusLanguageProvider implements PrometheusLanguageProviderInt
     this.datasource = datasource;
   }
 
-  request = async (url: string, params = {}, options?: Partial<BackendSrvRequest>) => {
+  request = async <T = unknown>(
+    url: string,
+    params: Record<string, unknown> = {},
+    options?: Partial<BackendSrvRequest>
+  ): Promise<T | undefined> => {
     try {
       const res = await this.datasource.metadataRequest(url, params, options);
       return res.data.data;
@@ -183,7 +191,7 @@ export class PrometheusLanguageProvider implements PrometheusLanguageProviderInt
   private _queryMetadata = async (limit?: number): Promise<PromMetricsMetadata> => {
     const secondsInDay = 86400;
     const headers = buildCacheHeaders(getDaysToCacheMetadata(this.datasource.cacheLevel) * secondsInDay);
-    const metadata = await this.request(
+    const metadata = await this.request<{ [metric: string]: PromMetricsMetadataItem[] }>(
       `/api/v1/metadata`,
       { limit: limit ?? this.datasource.seriesLimit },
       {
@@ -191,7 +199,7 @@ export class PrometheusLanguageProvider implements PrometheusLanguageProviderInt
         ...headers,
       }
     );
-    return fixSummariesMetadata(metadata);
+    return fixSummariesMetadata(metadata!);
   };
 
   /**
@@ -325,7 +333,7 @@ export class PrometheusLanguageProvider implements PrometheusLanguageProviderInt
 
     const url = '/suggestions';
     const timeParams = this.datasource.getAdjustedInterval(timeRange);
-    const value = await this.request(
+    const value = await this.request<string[]>(
       url,
       {
         labelName,

@@ -157,11 +157,6 @@
       "count": 8
     }
   },
-  "packages/grafana-prometheus/src/language_provider.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    }
-  },
   "packages/grafana-prometheus/src/language_utils.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1
