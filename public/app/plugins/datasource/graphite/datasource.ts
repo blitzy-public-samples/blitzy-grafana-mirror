@@ -207,7 +207,9 @@ export class GraphiteDatasource
       {
         ...query,
         target: query.target || '',
+        targetFull: query.targetFull ?? '',
         textEditor: false,
+        paused: false,
       },
       this.templateSrv
     );
