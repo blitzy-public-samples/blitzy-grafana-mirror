@@ -1290,12 +1290,17 @@ function upgradeValueMappings(
               type: MappingType.SpecialValue,
               options: {
                 match: SpecialValueMatch.Null,
-                result: { text: old.text ?? '', color },
+                // Preserve original runtime behavior: when the legacy entry omits `text`,
+                // emit `undefined` (the `ValueMappingResult.text` field is optional). The
+                // prior implementation passed `old.text` through as-is via the `any` typing,
+                // and downstream consumers distinguish `undefined` from `''`. See AAP §0.9.2.12.
+                result: { text: old.text, color },
               },
             });
           } else {
             valueMaps.options[String(old.value)] = {
-              text: old.text ?? '',
+              // Preserve original runtime behavior: pass through `undefined` for missing `text`.
+              text: old.text,
               color,
             };
           }
@@ -1305,9 +1310,14 @@ function upgradeValueMappings(
         newMappings.push({
           type: MappingType.RangeToText,
           options: {
-            from: +(old.from ?? 0),
-            to: +(old.to ?? 0),
-            result: { text: old.text ?? '', color },
+            // Preserve original runtime behavior: `Number(undefined) === NaN`, matching the
+            // prior `+old.from` / `+old.to` semantics under the `any` typing. Coercing missing
+            // bounds to `0` would silently alter migrations of malformed legacy dashboards.
+            // `RangeMapOptions.from` / `to` are typed `number | null` which accepts `NaN`.
+            from: Number(old.from),
+            to: Number(old.to),
+            // Preserve original runtime behavior: pass through `undefined` for missing `text`.
+            result: { text: old.text, color },
           },
         });
         break;

@@ -1230,6 +1230,71 @@ describe('DashboardModel', () => {
     });
   });
 
+  describe('when migrating malformed legacy value mappings', () => {
+    // Regression coverage: when legacy value mapping entries omit `text`/`from`/`to`,
+    // the historical runtime behavior (under the prior `any` typing) was:
+    //   - `text: old.text`           → emits `undefined` for missing text
+    //   - `from: +old.from`          → emits `NaN` for missing numeric bound
+    //   - `to:   +old.to`            → emits `NaN` for missing numeric bound
+    // The any-elimination pass must preserve this exact behavior. Coercing to
+    // `''` / `0` instead would silently alter the migration output for malformed
+    // legacy dashboards.
+    it('should preserve undefined text and NaN numeric-bound semantics', () => {
+      const model = new DashboardModel({
+        panels: [
+          {
+            id: 1,
+            type: 'timeseries',
+            fieldConfig: {
+              defaults: {
+                mappings: [
+                  {
+                    id: 0,
+                    // @ts-expect-error legacy schema: numeric type discriminator (no `text`)
+                    type: 1,
+                    value: 'up',
+                  },
+                  {
+                    id: 1,
+                    // @ts-expect-error legacy schema: ValueToText 'null' special case
+                    type: 1,
+                    value: 'null',
+                  },
+                  {
+                    id: 2,
+                    // @ts-expect-error legacy schema: RangeToText with missing bounds
+                    type: 2,
+                  },
+                ],
+                overrides: [],
+              },
+            },
+          },
+        ],
+        schemaVersion: 16,
+      });
+
+      const mappings = model.panels[0].fieldConfig.defaults.mappings ?? [];
+
+      // ValueToText with missing `text` collapses into the unified ValueToText map.
+      const valueToText = mappings.find((m) => m.type === MappingType.ValueToText);
+      expect(valueToText).toBeDefined();
+      expect(valueToText!.options.up.text).toBeUndefined();
+
+      // SpecialValue (null match) preserves undefined `text`.
+      const specialValue = mappings.find((m) => m.type === MappingType.SpecialValue);
+      expect(specialValue).toBeDefined();
+      expect(specialValue!.options.result.text).toBeUndefined();
+
+      // RangeToText with missing bounds preserves NaN (legacy runtime behavior).
+      const rangeToText = mappings.find((m) => m.type === MappingType.RangeToText);
+      expect(rangeToText).toBeDefined();
+      expect(Number.isNaN(rangeToText!.options.from)).toBe(true);
+      expect(Number.isNaN(rangeToText!.options.to)).toBe(true);
+      expect(rangeToText!.options.result.text).toBeUndefined();
+    });
+  });
+
   describe('when migrating tooltipOptions to tooltip', () => {
     it('should rename options.tooltipOptions to options.tooltip', () => {
       const model = new DashboardModel({
