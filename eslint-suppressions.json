@@ -82,11 +82,6 @@
       "count": 1
     }
   },
-  "packages/grafana-data/src/types/annotations.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 6
-    }
-  },
   "packages/grafana-data/src/types/app.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 3
