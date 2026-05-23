@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect } from 'react';
 
-import { useDispatch, useSelector } from 'app/types/store';
+import { type StoreState, useDispatch, useSelector } from 'app/types/store';
 
 import { initPanelState } from '../../panel/state/actions';
 import { setPanelInstanceState } from '../../panel/state/reducers';
@@ -24,11 +24,53 @@ export interface OwnProps {
   hideMenu?: boolean;
 }
 
-// Props remains exported under its original name for downstream consumers and
-// existing tests (PanelStateWrapper compositions referenced this type alias).
-export type Props = OwnProps;
+// Preserved selector definition. Although the converted functional component
+// performs its own per-field useSelector calls (see DashboardPanelInternal
+// below), keeping the selector at module scope lets `Props` continue to be
+// derived from its return type, matching the original
+// `Props = OwnProps & ConnectedProps<typeof connector>` contract.
+const mapStateToProps = (state: StoreState, props: OwnProps) => {
+  const panelState = state.panels[props.stateKey];
+  if (!panelState) {
+    return { plugin: undefined };
+  }
 
-const DashboardPanelInternal = (props: Props) => {
+  return {
+    plugin: panelState.plugin,
+    instanceState: panelState.instanceState,
+  };
+};
+
+type StateProps = ReturnType<typeof mapStateToProps>;
+
+// Preserved dispatch contract — the original `mapDispatchToProps` was an
+// object-form binding `{ initPanelState, setPanelInstanceState }`, which the
+// `connect` HOC merged into the connected component's props as
+// already-dispatch-wrapped action creators. The functional version dispatches
+// each action inline, but the `Props` type still surfaces the same shape so
+// downstream consumers (e.g. SoloPanelPage.test.tsx's jest mock typed via
+// `import { type Props as DashboardPanelProps }`) continue to compile
+// unchanged.
+interface DispatchProps {
+  initPanelState: typeof initPanelState;
+  setPanelInstanceState: typeof setPanelInstanceState;
+}
+
+// Public API: `Props` retains the same OwnProps + state-slice + dispatch
+// shape that the historical `connect(...)`-wrapped class component carried.
+// Externally, the memoized `DashboardPanel` only requires `OwnProps` at the
+// call site (state and dispatch fields are supplied internally via hooks),
+// but the exported type alias remains shape-equivalent for any consumer
+// importing it.
+export type Props = OwnProps & StateProps & DispatchProps;
+
+// The functional component itself only requires `OwnProps`: state-slice
+// values (`plugin`, `instanceState`) and dispatch-bound action creators
+// (`initPanelState`, `setPanelInstanceState`) are sourced via hooks below
+// rather than being injected as props by `connect`. Consumers therefore
+// continue to pass exactly the same OwnProps-shape they did before this
+// refactor (see `DashboardGrid.renderPanel`, `SoloPanelPage`, `PanelEditor`).
+const DashboardPanelInternal = (props: OwnProps) => {
   const {
     panel,
     stateKey,
