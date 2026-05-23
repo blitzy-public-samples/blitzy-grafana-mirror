@@ -18,6 +18,7 @@ import { useTheme2 } from '../../themes/ThemeContext';
 import { Icon } from '../Icon/Icon';
 import { Stack } from '../Layout/Stack/Stack';
 import { getPortalContainer } from '../Portal/Portal';
+import { Text } from '../Text/Text';
 
 import { CustomInput } from './CustomInput';
 import { DropdownIndicator } from './DropdownIndicator';
@@ -425,11 +426,11 @@ function defaultFormatCreateLabel(input: string) {
   return (
     <Stack direction="row" gap={1} alignItems="center" justifyContent="space-between">
       <div>{input}</div>
-      <div className="muted small">
+      <Text variant="bodySmall" color="secondary">
         <Stack direction="row" gap={1} alignItems="center">
           <Trans i18nKey="grafana-ui.select.default-create-label">Hit enter to add</Trans>
         </Stack>
-      </div>
+      </Text>
     </Stack>
   );
 }
