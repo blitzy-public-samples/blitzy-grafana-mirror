@@ -1,8 +1,8 @@
 import { css } from '@emotion/css';
 import { DragDropContext, Droppable, type DropResult } from '@hello-pangea/dnd';
-import classNames from 'classnames';
 import { type ReactElement } from 'react';
 
+import { type GrafanaTheme2 } from '@grafana/data';
 import { selectors } from '@grafana/e2e-selectors';
 import { Trans, t } from '@grafana/i18n';
 import { reportInteraction } from '@grafana/runtime';
@@ -60,47 +60,49 @@ export function VariableEditorList({
     <EmptyVariablesList onAdd={onVariableAdd} />
   ) : (
     <Stack direction="column" gap={3}>
-      <table
-        className={classNames('filter-table', 'filter-table--hover', styles.tableContainer)}
-        data-testid={selectors.pages.Dashboard.Settings.Variables.List.table}
-        role="grid"
-      >
-        <thead>
-          <tr>
-            <th>
-              <Trans i18nKey="dashboard-scene.variable-editor-list.variable">Variable</Trans>
-            </th>
-            <th>
-              <Trans i18nKey="dashboard-scene.variable-editor-list.definition">Definition</Trans>
-            </th>
-            <th colSpan={5} />
-          </tr>
-        </thead>
-        <DragDropContext onDragEnd={onDragEnd}>
-          <Droppable droppableId="variables-list" direction="vertical">
-            {(provided) => (
-              <tbody ref={provided.innerRef} {...provided.droppableProps}>
-                {editableVariables.map((variableScene, index) => {
-                  const variableState = variableScene.state;
-                  return (
-                    <VariableEditorListRow
-                      index={index}
-                      key={`${variableState.name}-${index}`}
-                      variable={variableScene}
-                      onDelete={onDelete}
-                      onDuplicate={onDuplicate}
-                      onEdit={onEdit}
-                      usageTree={usages}
-                      usagesNetwork={usagesNetwork}
-                    />
-                  );
-                })}
-                {provided.placeholder}
-              </tbody>
-            )}
-          </Droppable>
-        </DragDropContext>
-      </table>
+      <div className={styles.tableContainer}>
+        <table
+          className={styles.filterTable}
+          data-testid={selectors.pages.Dashboard.Settings.Variables.List.table}
+          role="grid"
+        >
+          <thead>
+            <tr>
+              <th>
+                <Trans i18nKey="dashboard-scene.variable-editor-list.variable">Variable</Trans>
+              </th>
+              <th>
+                <Trans i18nKey="dashboard-scene.variable-editor-list.definition">Definition</Trans>
+              </th>
+              <th colSpan={5} />
+            </tr>
+          </thead>
+          <DragDropContext onDragEnd={onDragEnd}>
+            <Droppable droppableId="variables-list" direction="vertical">
+              {(provided) => (
+                <tbody ref={provided.innerRef} {...provided.droppableProps}>
+                  {editableVariables.map((variableScene, index) => {
+                    const variableState = variableScene.state;
+                    return (
+                      <VariableEditorListRow
+                        index={index}
+                        key={`${variableState.name}-${index}`}
+                        variable={variableScene}
+                        onDelete={onDelete}
+                        onDuplicate={onDuplicate}
+                        onEdit={onEdit}
+                        usageTree={usages}
+                        usagesNetwork={usagesNetwork}
+                      />
+                    );
+                  })}
+                  {provided.placeholder}
+                </tbody>
+              )}
+            </Droppable>
+          </DragDropContext>
+        </table>
+      </div>
       <Stack>
         <VariablesDependenciesButton variables={variables} />
         <Button
@@ -152,8 +154,43 @@ function EmptyVariablesList({ onAdd }: { onAdd: () => void }) {
   );
 }
 
-const getStyles = () => ({
+// Theme-aware replacement for the legacy `filter-table` / `filter-table--hover`
+// global Emotion class rules defined in
+// packages/grafana-ui/src/themes/GlobalStyles/filterTable.ts. Ported to a
+// file-local `useStyles2(getStyles)` block per AAP §0.4.3 + §0.6.1 (Cohort 6).
+// Mirrors the canonical pattern from
+// public/app/features/variables/editor/VariableEditorList.tsx so the visual
+// rendering of the Variables editor table is preserved end-to-end.
+const getStyles = (theme: GrafanaTheme2) => ({
   tableContainer: css({
-    overflow: 'auto',
+    overflow: 'scroll',
+    width: '100%',
+  }),
+  filterTable: css({
+    width: '100%',
+    borderCollapse: 'separate',
+    '*': {
+      boxSizing: 'border-box',
+    },
+    'tbody tr:nth-of-type(odd)': {
+      background: theme.colors.emphasize(theme.colors.background.primary, 0.02),
+    },
+    'tbody tr:hover': {
+      background: theme.colors.emphasize(theme.colors.background.primary, 0.05),
+    },
+    th: {
+      width: 'auto',
+      padding: theme.spacing(0.5, 1),
+      textAlign: 'left',
+      lineHeight: '30px',
+      height: '30px',
+      whiteSpace: 'nowrap',
+    },
+    td: {
+      padding: theme.spacing(0.5, 1),
+      lineHeight: '30px',
+      height: '30px',
+      whiteSpace: 'nowrap',
+    },
   }),
 });

@@ -46,14 +46,31 @@ jest.mock('react-virtualized-auto-sizer', () => {
     });
 });
 
+// `initDashboard` is mocked as a `jest.fn()` spy that returns a no-op thunk
+// (`() => {}`). Returning a thunk (rather than `undefined`) is required so that
+// `dispatch(initDashboard(...))` from `PublicDashboardPage` succeeds against
+// the real test store — `redux-thunk` middleware accepts a function and runs
+// it with `(dispatch, getState)`, here producing no side effects. The spy
+// shape preserves the `expect(initDashboard).toBeCalledWith(...)` assertion
+// pattern used by the "Should call initDashboard on mount" tests below.
+//
+// NOTE: A previous `jest.mock('app/types/store', ...)` block here overrode
+// `useDispatch` with a no-op (`() => jest.fn()`). That mock was inert when
+// DashboardPanel was a `connect(mapDispatchToProps)`-wrapped class (because
+// `connect` injected its own dispatch directly into the connected component's
+// props), but became a regression once DashboardPanel was converted to a
+// functional component that reads dispatch via `useDispatch()` and uses it to
+// fire `initPanelState(panel)` from `LazyLoader`'s `onLoad` callback. With the
+// no-op `useDispatch` mock in place, `initPanelState` never reached the store,
+// `state.panels[stateKey]?.plugin` stayed undefined, and the "Should render
+// panels" / "Should render panel with hover widget…" tests below could not
+// observe panel content in the DOM. The mock has been removed so the real
+// `useDispatch` flows through to the test's `configureStore(initialState)`
+// store — matching the working pattern in DashboardPage.test.tsx, which also
+// does not mock `app/types/store`.
 jest.mock('app/features/dashboard/state/initDashboard', () => ({
   ...jest.requireActual('app/features/dashboard/state/initDashboard'),
-  initDashboard: jest.fn(),
-}));
-
-jest.mock('app/types/store', () => ({
-  ...jest.requireActual('app/types/store'),
-  useDispatch: () => jest.fn(),
+  initDashboard: jest.fn(() => () => {}),
 }));
 
 const setup = (propOverrides?: Partial<Props>, initialState?: Partial<StoreState>) => {
