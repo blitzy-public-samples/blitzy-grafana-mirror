@@ -39,10 +39,11 @@ describe('InviteesTable', () => {
     setup();
 
     const tableBody = screen.getByTestId('InviteesTable-body');
-    const rows = within(tableBody).getAllByRole('row');
-    expect(rows.length).toEqual(6);
+    // InteractiveTable renders a header row followed by data rows; skip the header to assert against the 6 data rows.
+    const dataRows = within(tableBody).getAllByRole('row').slice(1);
+    expect(dataRows.length).toEqual(6);
 
-    rows.forEach((row) => {
+    dataRows.forEach((row) => {
       expect(within(row).getByRole('button', { name: 'Copy Invite' })).toBeInTheDocument();
     });
   });
@@ -51,10 +52,11 @@ describe('InviteesTable', () => {
     setup();
 
     const tableBody = screen.getByTestId('InviteesTable-body');
-    const rows = within(tableBody).getAllByRole('row');
-    expect(rows.length).toEqual(6);
+    // InteractiveTable renders a header row followed by data rows; skip the header to assert against the 6 data rows.
+    const dataRows = within(tableBody).getAllByRole('row').slice(1);
+    expect(dataRows.length).toEqual(6);
 
-    rows.forEach((row) => {
+    dataRows.forEach((row) => {
       expect(within(row).getByRole('button', { name: 'Revoke invite' })).toBeInTheDocument();
     });
   });
