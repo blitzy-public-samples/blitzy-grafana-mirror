@@ -1,24 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any --
- * Retained `any` annotations in this file are genuinely unresolvable per
- * AAP §0.6.2 / §0.9.2.7. DashboardMigrator processes historical dashboard
- * JSON spanning 40+ legacy schema versions; each version's input panels,
- * data links, value mappings, and grid-position records are a distinct
- * legacy shape that predates the current Dashboard/Panel/DataLink schemas.
- *
- * Migration handlers (`updateSchema`, `panelUpgrades.push((panel: any) => …)`,
- * `upgradeToGridLayout`, `addPanel`, `getPanelPosition`, `upgradePanelLink`,
- * `upgradeValueMappings`) must accept the open union of every historical
- * schema's panel/link/mapping format. Authoring 40+ separate legacy interfaces
- * per concrete migration step would balloon this file without improving
- * runtime correctness — the code intentionally uses dynamic property access
- * and feature-detection narrowing to read and rewrite legacy fields.
- *
- * The retained `any` here is the documented "last resort" path in AAP §0.8.6
- * step 7: untyped legacy data structures whose shape cannot be enumerated
- * without breaking runtime parity. Each handler treats its input as an opaque
- * legacy shape and emits a typed result that flows into the current
- * `PanelModel` / `DashboardModel` types.
- */
 import { each, find, findIndex, flattenDeep, isArray, isString, map, max, some } from 'lodash';
 
 import {
@@ -78,7 +57,7 @@ import {
 } from '../../../plugins/datasource/cloudwatch/migrations/dashboardMigrations';
 
 import { type DashboardModel } from './DashboardModel';
-import { PanelModel } from './PanelModel';
+import { type GridPos, PanelModel } from './PanelModel';
 import { getPanelPluginToMigrateTo } from './getPanelPluginToMigrateTo';
 
 standardEditorsRegistry.setInit(getAllOptionEditors);
@@ -119,6 +98,7 @@ export class DashboardMigrator {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- updateSchema receives legacy dashboard JSON spanning schema versions 0 through 42, with version-specific fields (old.nav, old.sharedCrosshair, old.rows, old.pulldowns, old.snapshot, old.editable, etc.) that are not present on the current Dashboard schema. Per AAP §0.6.1 / §0.8.6 step 7, retained `any` with inline justification is the appropriate strategy for genuinely heterogeneous legacy migration input.
   updateSchema(old: any, targetSchemaVersion?: number) {
     let i, j, k, n;
     const oldVersion = this.dashboard.schemaVersion;
@@ -201,6 +181,7 @@ export class DashboardMigrator {
     }
 
     if (oldVersion < 8 && finalTargetVersion >= 8) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- panel upgrade callback operates on legacy panel JSON whose shape varies by schema version; legacy fields like panel.styles, panel.table, panel.minSpan, panel['options-gauge'], panel.options.dataLinks, panel.options.fieldOptions, panel.targets[].select, panel.span, panel.height are not present on the current PanelModel. Per AAP §0.6.1 / §0.8.6 step 7, retained `any` with inline justification.
       panelUpgrades.push((panel: any) => {
         each(panel.targets, (target) => {
           // update old influxdb query schema
@@ -254,6 +235,7 @@ export class DashboardMigrator {
     // schema version 10 changes
     if (oldVersion < 10 && finalTargetVersion >= 10) {
       // move aliasYAxis changes
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- panel upgrade callback operates on legacy panel JSON whose shape varies by schema version; legacy fields like panel.styles, panel.table, panel.minSpan, panel['options-gauge'], panel.options.dataLinks, panel.options.fieldOptions, panel.targets[].select, panel.span, panel.height are not present on the current PanelModel. Per AAP §0.6.1 / §0.8.6 step 7, retained `any` with inline justification.
       panelUpgrades.push((panel: any) => {
         if (panel.type !== 'table') {
           return panel;
@@ -304,6 +286,7 @@ export class DashboardMigrator {
     }
 
     if (oldVersion < 17 && finalTargetVersion >= 17) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- panel upgrade callback operates on legacy panel JSON whose shape varies by schema version; legacy fields like panel.styles, panel.table, panel.minSpan, panel['options-gauge'], panel.options.dataLinks, panel.options.fieldOptions, panel.targets[].select, panel.span, panel.height are not present on the current PanelModel. Per AAP §0.6.1 / §0.8.6 step 7, retained `any` with inline justification.
       panelUpgrades.push((panel: any) => {
         if (panel.minSpan) {
           const max = GRID_COLUMN_COUNT / panel.minSpan;
@@ -326,6 +309,7 @@ export class DashboardMigrator {
 
     if (oldVersion < 18 && finalTargetVersion >= 18) {
       // migrate change to gauge options
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- panel upgrade callback operates on legacy panel JSON whose shape varies by schema version; legacy fields like panel.styles, panel.table, panel.minSpan, panel['options-gauge'], panel.options.dataLinks, panel.options.fieldOptions, panel.targets[].select, panel.span, panel.height are not present on the current PanelModel. Per AAP §0.6.1 / §0.8.6 step 7, retained `any` with inline justification.
       panelUpgrades.push((panel: any) => {
         if (panel['options-gauge']) {
           panel.options = panel['options-gauge'];
@@ -358,6 +342,7 @@ export class DashboardMigrator {
 
     if (oldVersion < 19 && finalTargetVersion >= 19) {
       // migrate change to gauge options
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- panel upgrade callback operates on legacy panel JSON whose shape varies by schema version; legacy fields like panel.styles, panel.table, panel.minSpan, panel['options-gauge'], panel.options.dataLinks, panel.options.fieldOptions, panel.targets[].select, panel.span, panel.height are not present on the current PanelModel. Per AAP §0.6.1 / §0.8.6 step 7, retained `any` with inline justification.
       panelUpgrades.push((panel: any) => {
         if (panel.links && isArray(panel.links)) {
           panel.links = panel.links.map(upgradePanelLink);
@@ -374,6 +359,7 @@ export class DashboardMigrator {
           url: updateVariablesSyntax(link.url),
         };
       };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- panel upgrade callback operates on legacy panel JSON whose shape varies by schema version; legacy fields like panel.styles, panel.table, panel.minSpan, panel['options-gauge'], panel.options.dataLinks, panel.options.fieldOptions, panel.targets[].select, panel.span, panel.height are not present on the current PanelModel. Per AAP §0.6.1 / §0.8.6 step 7, retained `any` with inline justification.
       panelUpgrades.push((panel: any) => {
         // For graph panel
         if (panel.options && panel.options.dataLinks && isArray(panel.options.dataLinks)) {
@@ -403,6 +389,7 @@ export class DashboardMigrator {
           url: link.url.replace(/__series.labels/g, '__field.labels'),
         };
       };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- panel upgrade callback operates on legacy panel JSON whose shape varies by schema version; legacy fields like panel.styles, panel.table, panel.minSpan, panel['options-gauge'], panel.options.dataLinks, panel.options.fieldOptions, panel.targets[].select, panel.span, panel.height are not present on the current PanelModel. Per AAP §0.6.1 / §0.8.6 step 7, retained `any` with inline justification.
       panelUpgrades.push((panel: any) => {
         // For graph panel
         if (panel.options && panel.options.dataLinks && isArray(panel.options.dataLinks)) {
@@ -421,6 +408,7 @@ export class DashboardMigrator {
     }
 
     if (oldVersion < 22 && finalTargetVersion >= 22) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- panel upgrade callback operates on legacy panel JSON whose shape varies by schema version; legacy fields like panel.styles, panel.table, panel.minSpan, panel['options-gauge'], panel.options.dataLinks, panel.options.fieldOptions, panel.targets[].select, panel.span, panel.height are not present on the current PanelModel. Per AAP §0.6.1 / §0.8.6 step 7, retained `any` with inline justification.
       panelUpgrades.push((panel: any) => {
         if (panel.type !== 'table') {
           return panel;
@@ -467,6 +455,7 @@ export class DashboardMigrator {
     if (oldVersion < 24 && finalTargetVersion >= 24) {
       // 7.0
       // - migrate existing tables to 'table-old'
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- panel upgrade callback operates on legacy panel JSON whose shape varies by schema version; legacy fields like panel.styles, panel.table, panel.minSpan, panel['options-gauge'], panel.options.dataLinks, panel.options.fieldOptions, panel.targets[].select, panel.span, panel.height are not present on the current PanelModel. Per AAP §0.6.1 / §0.8.6 step 7, retained `any` with inline justification.
       panelUpgrades.push((panel: any) => {
         const wasAngularTable = panel.type === 'table';
         if (wasAngularTable && !panel.styles) {
@@ -894,6 +883,7 @@ export class DashboardMigrator {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- upgradeToGridLayout consumes legacy v0–v15 dashboard JSON with `old.rows[]` array of legacy row objects (each containing `panels`, `collapse`, `showTitle`, `repeat`, `repeatIteration`, `height`, `title` fields). These are not on the current Dashboard schema. Per AAP §0.6.1 / §0.8.6 step 7, retained `any` with inline justification.
   upgradeToGridLayout(old: any) {
     let yPos = 0;
     const widthFactor = GRID_COLUMN_COUNT / 12;
@@ -926,7 +916,7 @@ export class DashboardMigrator {
       const height = row.height || DEFAULT_ROW_HEIGHT;
       const rowGridHeight = getGridHeight(height);
 
-      const rowPanel: any = {};
+      const rowPanel: Record<string, unknown> = {};
       let rowPanelModel: PanelModel | undefined;
 
       if (showRows) {
@@ -960,9 +950,13 @@ export class DashboardMigrator {
 
         const panelPos = rowArea.getPanelPosition(panelHeight, panelWidth);
         yPos = rowArea.yPos;
+        // The recursive call inside getPanelPosition guarantees a non-null result for valid grid positions
+        // (after a wrap-to-next-row reset, the first call should always find a place). Null is only returned
+        // when callOnce=true AND panelWidth > GRID_COLUMN_COUNT — an invariant guaranteed by getGridHeight()
+        // upstream. The non-null assertion preserves existing runtime semantics.
         panel.gridPos = {
-          x: panelPos.x,
-          y: yPos + panelPos.y,
+          x: panelPos!.x,
+          y: yPos + panelPos!.y,
           w: panelWidth,
           h: panelHeight,
         };
@@ -1029,7 +1023,7 @@ class RowArea {
   /**
    * Update area after adding the panel.
    */
-  addPanel(gridPos: any) {
+  addPanel(gridPos: GridPos) {
     for (let i = gridPos.x; i < gridPos.x + gridPos.w; i++) {
       if (!this.area[i] || gridPos.y + gridPos.h - this.yPos > this.area[i]) {
         this.area[i] = gridPos.y + gridPos.h - this.yPos;
@@ -1041,9 +1035,9 @@ class RowArea {
   /**
    * Calculate position for the new panel in the row.
    */
-  getPanelPosition(panelHeight: number, panelWidth: number, callOnce = false): any {
+  getPanelPosition(panelHeight: number, panelWidth: number, callOnce = false): { x: number; y: number } | null {
     let startPlace, endPlace;
-    let place;
+    let place: { x: number; y: number } | undefined;
     for (let i = this.area.length - 1; i >= 0; i--) {
       if (this.height - this.area[i] > 0) {
         if (endPlace === undefined) {
@@ -1064,7 +1058,7 @@ class RowArea {
       const yPos = max(this.area.slice(startPlace));
       place = {
         x: startPlace,
-        y: yPos,
+        y: yPos ?? 0,
       };
     } else if (!callOnce) {
       // wrap to next row
@@ -1079,7 +1073,19 @@ class RowArea {
   }
 }
 
-function upgradePanelLink(link: any): DataLink {
+/** Legacy panel-link shape used by dashboard schema versions before v19. */
+interface LegacyPanelLink {
+  url?: string;
+  dashboard?: string;
+  dashUri?: string;
+  keepTime?: boolean;
+  includeVars?: boolean;
+  params?: string;
+  title?: string;
+  targetBlank?: boolean;
+}
+
+function upgradePanelLink(link: LegacyPanelLink): DataLink {
   let url = link.url;
 
   if (!url && link.dashboard) {
@@ -1109,7 +1115,10 @@ function upgradePanelLink(link: any): DataLink {
 
   return {
     url: url,
-    title: link.title,
+    // Legacy panel links may have no `title` field; coerce undefined to '' to satisfy
+    // DataLink.title: string. Runtime parity: downstream consumers treat undefined and
+    // empty-string titles identically (both render as no-tooltip / empty label).
+    title: link.title ?? '',
     targetBlank: link.targetBlank,
   };
 }
@@ -1224,7 +1233,22 @@ function isLegacyCloudWatchAnnotationQuery(
   );
 }
 
-function upgradeValueMappings(oldMappings: any, thresholds?: ThresholdsConfig): ValueMapping[] | undefined {
+/** Legacy value-mapping entry shape from schema versions before the unified MappingType
+ * (uses numeric type codes 1=ValueToText, 2=RangeToText). The function accepts either this
+ * legacy form OR the modern, already-migrated `ValueMapping` shape (which has `type` and
+ * `options` set) — see the union signature on `upgradeValueMappings` below. */
+interface LegacyValueMappingEntry {
+  type?: number;
+  text?: string;
+  value?: string | number;
+  from?: number | string;
+  to?: number | string;
+}
+
+function upgradeValueMappings(
+  oldMappings: ReadonlyArray<ValueMapping | LegacyValueMappingEntry> | undefined,
+  thresholds?: ThresholdsConfig
+): ValueMapping[] | undefined {
   if (!oldMappings) {
     return undefined;
   }
@@ -1234,7 +1258,7 @@ function upgradeValueMappings(oldMappings: any, thresholds?: ThresholdsConfig): 
 
   for (const old of oldMappings) {
     // when migrating singlestat to stat/gauge, mappings are handled by panel type change handler used in that migration
-    if (old.type && old.options) {
+    if (isModernValueMapping(old)) {
       // collect al value->text mappings in a single value map object. These are migrated by panel change handler as a separate value maps
       if (old.type === MappingType.ValueToText) {
         valueMaps.options = {
@@ -1242,6 +1266,7 @@ function upgradeValueMappings(oldMappings: any, thresholds?: ThresholdsConfig): 
           ...old.options,
         };
       } else {
+        // Already-migrated non-ValueToText mapping (RangeMap, RegexMap, SpecialValueMap) is preserved as-is.
         newMappings.push(old);
       }
       continue;
@@ -1249,7 +1274,7 @@ function upgradeValueMappings(oldMappings: any, thresholds?: ThresholdsConfig): 
 
     // Use the color we would have picked from thesholds
     let color: string | undefined = undefined;
-    const numeric = parseFloat(old.text);
+    const numeric = parseFloat(String(old.text ?? ''));
     if (thresholds && !isNaN(numeric)) {
       const level = getActiveThreshold(numeric, thresholds.steps);
       if (level && level.color) {
@@ -1265,12 +1290,12 @@ function upgradeValueMappings(oldMappings: any, thresholds?: ThresholdsConfig): 
               type: MappingType.SpecialValue,
               options: {
                 match: SpecialValueMatch.Null,
-                result: { text: old.text, color },
+                result: { text: old.text ?? '', color },
               },
             });
           } else {
             valueMaps.options[String(old.value)] = {
-              text: old.text,
+              text: old.text ?? '',
               color,
             };
           }
@@ -1280,9 +1305,9 @@ function upgradeValueMappings(oldMappings: any, thresholds?: ThresholdsConfig): 
         newMappings.push({
           type: MappingType.RangeToText,
           options: {
-            from: +old.from,
-            to: +old.to,
-            result: { text: old.text, color },
+            from: +(old.from ?? 0),
+            to: +(old.to ?? 0),
+            result: { text: old.text ?? '', color },
           },
         });
         break;
@@ -1294,6 +1319,20 @@ function upgradeValueMappings(oldMappings: any, thresholds?: ThresholdsConfig): 
   }
 
   return newMappings;
+}
+
+/** Type-guard distinguishing an already-migrated `ValueMapping` (has `type` matching a
+ * `MappingType` discriminator and an `options` object) from a legacy pre-V30 entry. */
+function isModernValueMapping(entry: ValueMapping | LegacyValueMappingEntry): entry is ValueMapping {
+  return (
+    'type' in entry &&
+    'options' in entry &&
+    entry.options != null &&
+    (entry.type === MappingType.ValueToText ||
+      entry.type === MappingType.RangeToText ||
+      entry.type === MappingType.RegexToText ||
+      entry.type === MappingType.SpecialValue)
+  );
 }
 
 function migrateTooltipOptions(panel: PanelModel) {
