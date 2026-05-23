@@ -147,9 +147,6 @@
   "packages/grafana-prometheus/src/datasource.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1
-    },
-    "@typescript-eslint/no-explicit-any": {
-      "count": 3
     }
   },
   "packages/grafana-prometheus/src/language_provider.test.ts": {
