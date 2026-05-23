@@ -388,10 +388,7 @@
   },
   "packages/grafana-ui/src/components/Table/TableRT/FooterRow.tsx": {
     "@typescript-eslint/consistent-type-assertions": {
-      "count": 1
-    },
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
+      "count": 2
     }
   },
   "packages/grafana-ui/src/components/Table/TableRT/Table.tsx": {
