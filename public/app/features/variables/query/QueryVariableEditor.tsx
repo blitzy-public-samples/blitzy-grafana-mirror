@@ -1,16 +1,16 @@
-import { type FormEvent, useCallback, useEffect, useRef } from 'react';
+import { type FormEvent, useEffect, useRef } from 'react';
 
 import {
   type DataSourceInstanceSettings,
-  type DataSourceRef,
   getDataSourceRef,
+  type DataSourceRef,
   type QueryVariableModel,
   type SelectableValue,
   type VariableRefresh,
   type VariableSort,
 } from '@grafana/data';
 import { QueryVariableEditorForm } from 'app/features/dashboard-scene/settings/variables/components/QueryVariableForm';
-import { useDispatch, useSelector } from 'app/types/store';
+import { type StoreState, useDispatch, useSelector } from 'app/types/store';
 
 import { getTimeSrv } from '../../dashboard/services/TimeSrv';
 import { initialVariableEditorState } from '../editor/reducer';
@@ -23,199 +23,117 @@ import { toKeyedVariableIdentifier } from '../utils';
 
 import { changeQueryVariableDataSource, changeQueryVariableQuery, initQueryVariableEditor } from './actions';
 
-/**
- * Component-level type alias for the heterogeneous query-variable query shape.
- *
- * Datasource plugins (Prometheus, Loki, SQL, Elasticsearch, ...) each serialise
- * a different concrete query type into `QueryVariableModel.query`. The source
- * definition in `packages/grafana-data/src/types/templateVars.ts` documents
- * this with an inline `eslint-disable-next-line @typescript-eslint/no-explicit-any`
- * justification. Reusing `QueryVariableModel['query']` here lets the variable
- * editor surface the same documented contract without re-introducing a bare
- * `any` token at the call sites — replacing the two un-justified `any`
- * annotations the original class component carried at lines 87 and 93.
- */
-type QueryVariableQuery = QueryVariableModel['query'];
-
-export interface OwnProps extends VariableEditorProps<QueryVariableModel> {}
-
-/**
- * Shape of the connected `extended` slice consumed by the editor — the same
- * `QueryVariableEditorState | null` derived from `getQueryVariableEditorState`.
- * Declared inline as a structural type alias so that `Props` (re-exported for
- * the unconnected component's test) stays stable across refactors.
- */
-/**
- * Shape of the props consumed by the unconnected component. The four action
- * creators are typed in their *bound* form (return `void`) rather than as the
- * raw `typeof <thunk>` (which would return `ThunkResult<void>`): once
- * `useDispatch`-bound, the consumer-visible return type is whatever `dispatch`
- * returns, which here collapses to `void`. This mirrors the shape that the
- * historical `bindActionCreators(...)` produced for the original `connect`
- * wrapping, and is what the test file already passes via `jest.fn()`.
- */
-export interface Props extends OwnProps {
+interface StateProps {
   extended: ReturnType<typeof getQueryVariableEditorState>;
+}
+
+// Auto-unwrapped thunk action creator signatures matching what `connect`'s object-form
+// `mapDispatchToProps` previously injected via `ConnectedProps<typeof connector>`. Each
+// dispatched thunk resolves to `void`, so the bound prop signature drops the
+// `ThunkResult<void>` return and exposes the call as `(...args) => void`.
+interface DispatchProps {
   initQueryVariableEditor: (identifier: KeyedVariableIdentifier) => void;
-  changeQueryVariableDataSource: (identifier: KeyedVariableIdentifier, datasource: DataSourceRef | null) => void;
+  changeQueryVariableDataSource: (identifier: KeyedVariableIdentifier, name: DataSourceRef | null) => void;
   changeQueryVariableQuery: (
     identifier: KeyedVariableIdentifier,
-    query: QueryVariableQuery,
+    query: QueryVariableModel['query'],
     definition?: string
   ) => void;
   changeVariableMultiValue: (identifier: KeyedVariableIdentifier, multi: boolean) => void;
 }
 
-/**
- * Unconnected, functional QueryVariableEditor.
- *
- * Converted from a `PureComponent` to a hooks-based functional component per
- * AAP Cohort 1. The unconnected export is preserved as a named export
- * (`QueryVariableEditorUnConnected`) so that
- * `public/app/features/variables/query/QueryVariableEditor.test.tsx` can render
- * the component with mock action creators supplied as props. The test still
- * passes `initQueryVariableEditor: jest.fn()` etc. as props, and the component
- * must continue to invoke them directly (rather than going through
- * `useDispatch`) so that the assertion `expect(props.initQueryVariableEditor).
- * toHaveBeenCalledWith(...)` continues to fire.
- *
- * Lifecycle translation per AAP Cohort 1 / §0.8.2:
- * - `componentDidMount` -> `useEffect(fn, [])` invoking `initQueryVariableEditor`.
- * - `componentDidUpdate` with `prevProps.variable.datasource` diffing -> a
- *   `useEffect` guarded by a `useRef` mirror of the previous datasource so the
- *   mount-time effect does NOT dispatch `changeQueryVariableDataSource`
- *   (matching the original class semantics — class `componentDidUpdate` does
- *   not run on mount whereas `useEffect` does).
- * - Instance methods -> `useCallback` handlers; their dependencies match the
- *   data they read (`variable`, the prop-typed action creators).
- *
- * Typing migration: the two `any` parameters at the original class's lines 87
- * and 93 are now typed `QueryVariableQuery` (= `QueryVariableModel['query']`),
- * inheriting the documented `any` contract from `packages/grafana-data` rather
- * than reintroducing a bare `any` token.
- */
-export function QueryVariableEditorUnConnected(props: Props) {
+export interface OwnProps extends VariableEditorProps<QueryVariableModel> {}
+
+export type Props = OwnProps & StateProps & DispatchProps;
+
+export interface State {
+  regex: string | null;
+  tagsQuery: string | null;
+  tagValuesQuery: string | null;
+}
+
+export const QueryVariableEditorUnConnected = (props: Props) => {
   const {
     variable,
     extended,
     onPropChange,
-    initQueryVariableEditor: initEditor,
-    changeQueryVariableDataSource: changeDataSource,
-    changeQueryVariableQuery: changeQuery,
+    initQueryVariableEditor,
+    changeQueryVariableDataSource,
+    changeQueryVariableQuery,
   } = props;
 
-  // Replaces `componentDidMount`. The original class invoked
-  // `initQueryVariableEditor(toKeyedVariableIdentifier(this.props.variable))`
-  // exactly once with the mount-time prop values. Capturing both inputs in
-  // refs lets the effect run with an empty dependency array (matching the
-  // class's "mount only" semantics that the colocated test asserts via
-  // `expect(props.initQueryVariableEditor).toHaveBeenCalledTimes(1)`) without
-  // tripping the `react-hooks/exhaustive-deps` lint rule. Reading `.current`
-  // inside an effect is permitted by the rule and is the canonical Grafana
-  // pattern for preserving componentDidMount semantics during conversion.
-  const mountIdentifierRef = useRef(toKeyedVariableIdentifier(variable));
-  const mountInitEditorRef = useRef(initEditor);
+  // componentDidMount equivalent: dispatch init exactly once on mount.
+  // Uses a ref gate so the effect remains lint-clean with exhaustive deps.
+  const hasInitializedRef = useRef(false);
   useEffect(() => {
-    mountInitEditorRef.current(mountIdentifierRef.current);
-  }, []);
-
-  // Replaces `componentDidUpdate(prevProps)` with a previous-value ref. The
-  // ref is initialised to the mount-time datasource so the effect does NOT
-  // fire on the first render — preserving the class semantics in which
-  // `componentDidUpdate` is skipped at mount.
-  const prevDatasourceRef = useRef<DataSourceRef | null | undefined>(variable.datasource);
-  useEffect(() => {
-    if (prevDatasourceRef.current !== variable.datasource) {
-      changeDataSource(toKeyedVariableIdentifier(variable), variable.datasource);
+    if (hasInitializedRef.current) {
+      return;
     }
-    prevDatasourceRef.current = variable.datasource;
-  }, [variable, changeDataSource]);
+    hasInitializedRef.current = true;
+    initQueryVariableEditor(toKeyedVariableIdentifier(variable));
+  }, [initQueryVariableEditor, variable]);
 
-  const onDataSourceChange = useCallback(
-    (dsSettings: DataSourceInstanceSettings) => {
-      onPropChange({
-        propName: 'datasource',
-        propValue: dsSettings.isDefault ? null : getDataSourceRef(dsSettings),
-      });
-    },
-    [onPropChange]
-  );
+  // componentDidUpdate equivalent: dispatch only when variable.datasource changes,
+  // not on initial mount. Tracked via useRef to preserve the prevProps comparison semantic.
+  const prevDataSourceRef = useRef(variable.datasource);
+  useEffect(() => {
+    if (prevDataSourceRef.current !== variable.datasource) {
+      changeQueryVariableDataSource(toKeyedVariableIdentifier(variable), variable.datasource);
+      prevDataSourceRef.current = variable.datasource;
+    }
+  }, [variable, changeQueryVariableDataSource]);
 
-  // Replaces `this.onLegacyQueryChange`. Typed `QueryVariableQuery` instead of
-  // bare `any` — see `QueryVariableQuery` definition above.
-  const onLegacyQueryChange = useCallback(
-    async (query: QueryVariableQuery, definition: string) => {
-      if (variable.query !== query) {
-        changeQuery(toKeyedVariableIdentifier(variable), query, definition);
+  const onDataSourceChange = (dsSettings: DataSourceInstanceSettings) => {
+    onPropChange({
+      propName: 'datasource',
+      propValue: dsSettings.isDefault ? null : getDataSourceRef(dsSettings),
+    });
+  };
+
+  const onLegacyQueryChange = async (query: QueryVariableModel['query'], definition: string) => {
+    if (variable.query !== query) {
+      changeQueryVariableQuery(toKeyedVariableIdentifier(variable), query, definition);
+    }
+  };
+
+  const onQueryChange = async (query: QueryVariableModel['query']) => {
+    if (variable.query !== query) {
+      let definition = '';
+
+      if (query && query.hasOwnProperty('query') && typeof query.query === 'string') {
+        definition = query.query;
       }
-    },
-    [variable, changeQuery]
-  );
 
-  // Replaces `this.onQueryChange`. Typed `QueryVariableQuery` instead of bare
-  // `any` — see `QueryVariableQuery` definition above. The runtime narrowing
-  // for object-shaped queries with a `query` field is preserved verbatim
-  // (`hasOwnProperty` + `typeof === 'string'`) so the resulting `definition`
-  // string matches the previous implementation exactly.
-  const onQueryChange = useCallback(
-    async (query: QueryVariableQuery) => {
-      if (variable.query !== query) {
-        let definition = '';
+      changeQueryVariableQuery(toKeyedVariableIdentifier(variable), query, definition);
+    }
+  };
 
-        if (query && Object.prototype.hasOwnProperty.call(query, 'query') && typeof query.query === 'string') {
-          definition = query.query;
-        }
+  const onRegExBlur = async (event: FormEvent<HTMLTextAreaElement>) => {
+    const regex = event.currentTarget.value;
+    if (variable.regex !== regex) {
+      onPropChange({ propName: 'regex', propValue: regex, updateOptions: true });
+    }
+  };
 
-        changeQuery(toKeyedVariableIdentifier(variable), query, definition);
-      }
-    },
-    [variable, changeQuery]
-  );
+  const onRefreshChange = (option: VariableRefresh) => {
+    onPropChange({ propName: 'refresh', propValue: option });
+  };
 
-  const onRegExBlur = useCallback(
-    async (event: FormEvent<HTMLTextAreaElement>) => {
-      const regex = event.currentTarget.value;
-      if (variable.regex !== regex) {
-        onPropChange({ propName: 'regex', propValue: regex, updateOptions: true });
-      }
-    },
-    [variable, onPropChange]
-  );
+  const onSortChange = async (option: SelectableValue<VariableSort>) => {
+    onPropChange({ propName: 'sort', propValue: option.value, updateOptions: true });
+  };
 
-  const onRefreshChange = useCallback(
-    (option: VariableRefresh) => {
-      onPropChange({ propName: 'refresh', propValue: option });
-    },
-    [onPropChange]
-  );
+  const onMultiChange = (event: FormEvent<HTMLInputElement>) => {
+    onPropChange({ propName: 'multi', propValue: event.currentTarget.checked });
+  };
 
-  const onSortChange = useCallback(
-    async (option: SelectableValue<VariableSort>) => {
-      onPropChange({ propName: 'sort', propValue: option.value, updateOptions: true });
-    },
-    [onPropChange]
-  );
+  const onIncludeAllChange = (event: FormEvent<HTMLInputElement>) => {
+    onPropChange({ propName: 'includeAll', propValue: event.currentTarget.checked });
+  };
 
-  const onMultiChange = useCallback(
-    (event: FormEvent<HTMLInputElement>) => {
-      onPropChange({ propName: 'multi', propValue: event.currentTarget.checked });
-    },
-    [onPropChange]
-  );
-
-  const onIncludeAllChange = useCallback(
-    (event: FormEvent<HTMLInputElement>) => {
-      onPropChange({ propName: 'includeAll', propValue: event.currentTarget.checked });
-    },
-    [onPropChange]
-  );
-
-  const onAllValueChange = useCallback(
-    (event: FormEvent<HTMLInputElement>) => {
-      onPropChange({ propName: 'allValue', propValue: event.currentTarget.value });
-    },
-    [onPropChange]
-  );
+  const onAllValueChange = (event: FormEvent<HTMLInputElement>) => {
+    onPropChange({ propName: 'allValue', propValue: event.currentTarget.value });
+  };
 
   if (!extended || !extended.dataSource) {
     return null;
@@ -250,71 +168,38 @@ export function QueryVariableEditorUnConnected(props: Props) {
       }))}
     />
   );
-}
+};
 
-/**
- * Connected QueryVariableEditor.
- *
- * Replaces the previous `connect(mapStateToProps, mapDispatchToProps)`
- * wrapping with hooks-based wiring per AAP Cohort 1:
- * - `mapStateToProps` (selecting `extended` from the editor state) ->
- *   `useSelector` keyed by `variable.rootStateKey`.
- * - `mapDispatchToProps` (object form of action creators) -> `useDispatch` +
- *   inline binding via stable references.
- *
- * The wrapper forwards all four action creators to `QueryVariableEditorUnConnected`
- * as props, preserving the test contract.
- */
-export function QueryVariableEditor(props: OwnProps) {
+export const QueryVariableEditor = (ownProps: OwnProps) => {
   const dispatch = useDispatch();
-  const extended = useSelector((state) => {
-    const { rootStateKey } = props.variable;
+  const extended = useSelector((state: StoreState) => {
+    const { rootStateKey } = ownProps.variable;
     if (!rootStateKey) {
       console.error('QueryVariableEditor: variable has no rootStateKey');
       return getQueryVariableEditorState(initialVariableEditorState);
     }
+
     const { editor } = getVariablesState(rootStateKey, state);
+
     return getQueryVariableEditorState(editor);
   });
 
-  // Bind dispatch to each action creator once per dispatch identity. `dispatch`
-  // is stable across renders (guaranteed by react-redux), so these wrappers
-  // retain referential identity and `QueryVariableEditorUnConnected` does not
-  // see new prop identities each render. The types match the bound prop shape
-  // declared on `Props` above.
-  const boundInitQueryVariableEditor = useCallback<Props['initQueryVariableEditor']>(
-    (identifier) => {
-      dispatch(initQueryVariableEditor(identifier));
-    },
-    [dispatch]
-  );
-  const boundChangeQueryVariableDataSource = useCallback<Props['changeQueryVariableDataSource']>(
-    (identifier, datasource) => {
-      dispatch(changeQueryVariableDataSource(identifier, datasource));
-    },
-    [dispatch]
-  );
-  const boundChangeQueryVariableQuery = useCallback<Props['changeQueryVariableQuery']>(
-    (identifier, query, definition) => {
-      dispatch(changeQueryVariableQuery(identifier, query, definition));
-    },
-    [dispatch]
-  );
-  const boundChangeVariableMultiValue = useCallback<Props['changeVariableMultiValue']>(
-    (identifier, multi) => {
-      dispatch(changeVariableMultiValue(identifier, multi));
-    },
-    [dispatch]
-  );
-
   return (
     <QueryVariableEditorUnConnected
-      {...props}
+      {...ownProps}
       extended={extended}
-      initQueryVariableEditor={boundInitQueryVariableEditor}
-      changeQueryVariableDataSource={boundChangeQueryVariableDataSource}
-      changeQueryVariableQuery={boundChangeQueryVariableQuery}
-      changeVariableMultiValue={boundChangeVariableMultiValue}
+      initQueryVariableEditor={(id: KeyedVariableIdentifier) => dispatch(initQueryVariableEditor(id))}
+      changeQueryVariableDataSource={(id: KeyedVariableIdentifier, name: DataSourceRef | null) =>
+        dispatch(changeQueryVariableDataSource(id, name))
+      }
+      changeQueryVariableQuery={(
+        id: KeyedVariableIdentifier,
+        query: QueryVariableModel['query'],
+        definition?: string
+      ) => dispatch(changeQueryVariableQuery(id, query, definition))}
+      changeVariableMultiValue={(id: KeyedVariableIdentifier, multi: boolean) =>
+        dispatch(changeVariableMultiValue(id, multi))
+      }
     />
   );
-}
+};
