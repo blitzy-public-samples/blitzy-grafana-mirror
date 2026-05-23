@@ -161,6 +161,17 @@ export const VariableEditorEditor = ({ identifier }: OwnProps) => {
 
   return (
     <>
+      {/*
+       * Design system gap: this form is a controlled wrapper around the
+       * per-variable-type editor injected via `variableAdapters.get(variable.type).editor`
+       * (a heterogeneous renderer registry — not a react-hook-form-compatible field set).
+       * Submission flows through `onHandleSubmit` which calls `dispatch(updateOptions(...))`
+       * and the editor sub-components manage their own validation via Redux. Wrapping this in
+       * `@grafana/ui`'s `<Form>` render-prop primitive would require restructuring the
+       * variable-type adapter API (out of scope per AAP §0.3.2 / §0.9.2.12 minimal-change
+       * mandate). The raw `<form>` element is retained per AAP §0.4.4 / §0.9.2.6 with this
+       * inline gap justification. See `onHandleSubmit` (line 128) for the submission contract.
+       */}
       <form
         aria-label={t(
           'variables.variable-editor-editor-un-connected.aria-label-variable-editor-form',

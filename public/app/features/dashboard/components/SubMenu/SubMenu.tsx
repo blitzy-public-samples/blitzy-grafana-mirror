@@ -67,6 +67,20 @@ export const SubMenu = memo(({ dashboard, links, annotations }: Props) => {
 
   return (
     <div className={styles.submenu}>
+      {/*
+       * Design system gap: a raw <form> element is required here to suppress
+       * native browser submit-on-Enter behavior across the dashboard's template
+       * variable inputs (see `disableSubmitOnEnter`). The form has no submit
+       * action — its only purpose is to intercept Enter keypresses globally for
+       * all child variable controls via the native HTML form-submit contract.
+       * `@grafana/ui`'s `<Form>` render-prop wraps react-hook-form and assumes a
+       * controlled submission flow with a typed values object, which does not
+       * model the "no-op submit interceptor" use case. Migrating would require
+       * either restructuring each variable picker to be react-hook-form-aware
+       * (out of scope) or wrapping each control with its own keydown handler
+       * (a behavior-changing regression risk). The raw <form> is retained per
+       * AAP §0.4.4 / §0.9.2.6 with this inline gap justification.
+       */}
       <form
         aria-label={t('dashboard.sub-menu-un-connected.aria-label-template-variables', 'Template variables')}
         className={styles.formStyles}
