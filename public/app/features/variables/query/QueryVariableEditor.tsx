@@ -100,7 +100,12 @@ export const QueryVariableEditorUnConnected = (props: Props) => {
     if (variable.query !== query) {
       let definition = '';
 
-      if (query && query.hasOwnProperty('query') && typeof query.query === 'string') {
+      // Use Object.prototype.hasOwnProperty.call to safely interrogate untrusted
+      // query shapes — `query` is a heterogeneous data-source-specific object
+      // whose prototype could shadow or override `hasOwnProperty`. The previous
+      // direct `query.hasOwnProperty('query')` would either throw or behave
+      // incorrectly when the prototype is null or has a different definition.
+      if (query && Object.prototype.hasOwnProperty.call(query, 'query') && typeof query.query === 'string') {
         definition = query.query;
       }
 
