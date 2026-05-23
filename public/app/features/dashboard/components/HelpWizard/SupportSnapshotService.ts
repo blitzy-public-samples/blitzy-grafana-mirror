@@ -12,7 +12,7 @@ import { getTimeSrv } from '../../services/TimeSrv';
 import { DashboardModel } from '../../state/DashboardModel';
 import { type PanelModel } from '../../state/PanelModel';
 
-import { getDebugDashboard, getGithubMarkdown } from './utils';
+import { type DebugDashboard, getDebugDashboard, getGithubMarkdown } from './utils';
 
 interface SupportSnapshotState {
   currentTab: SnapshotTab;
@@ -30,17 +30,7 @@ interface SupportSnapshotState {
   panel: PanelModel;
   panelTitle: string;
 
-  /**
-   * The support snapshot wraps an arbitrary `DataFrameJSON`-shaped payload built
-   * from the panel's current scenarios (data, processed data, options, scene
-   * graph); each tab serializer renders this shape differently and external
-   * support-ticket attachments may reflect older snapshot schemas. The runtime
-   * shape is intentionally an opaque dump and is consumed only by readonly
-   * diff/viewers, so a concrete type cannot be authored without regressing
-   * backward compatibility with already-uploaded snapshots.
-   */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- intentionally untyped support-snapshot payload; see JSDoc above
-  snapshot?: any;
+  snapshot?: DebugDashboard;
   snapshotUpdate: number;
   scene?: SceneObject;
 }
@@ -94,11 +84,13 @@ export class SupportSnapshotService extends StateManagerBase<SupportSnapshotStat
     let scene: SceneObject | undefined = undefined;
 
     try {
-      // The narrowed DebugDashboard shape returned by getDebugDashboard does not declare
-      // the `uid` and `title` fields that DashboardDataDTO requires. Both are inert for the
-      // embedded debug dashboard: DashboardModel resolves an empty uid to `null` and the
-      // title is overridden upstream. Spreading here satisfies the typed contract without
-      // mutating the snapshot (which is JSON-serialized above for snapshotText).
+      // DebugDashboard narrowly describes the JSON shape produced by getDebugDashboard();
+      // DashboardModel expects the wider Dashboard structural type and
+      // createDashboardSceneFromDashboardModel expects DashboardDataDTO (which extends
+      // Dashboard with required `uid` and `title`, and widens `panels` to `any[]`).
+      // Building a DashboardDataDTO from the snapshot via spread + explicit uid/title
+      // satisfies both call-site signatures without type assertions or loosening the
+      // public SupportSnapshotState.snapshot type.
       const dashboardData: DashboardDataDTO = { ...snapshot, uid: '', title: snapshot.title ?? '' };
       const oldModel = new DashboardModel(dashboardData, { isEmbedded: true });
       const dash = createDashboardSceneFromDashboardModel(oldModel, dashboardData);
