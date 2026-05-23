@@ -42,9 +42,6 @@
   "packages/grafana-data/src/dataframe/processDataFrame.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 11
-    },
-    "@typescript-eslint/no-explicit-any": {
-      "count": 4
     }
   },
   "packages/grafana-data/src/datetime/moment_wrapper.ts": {

@@ -4,7 +4,14 @@ import { isArray, isBoolean, isNumber, isString } from 'lodash';
 import { isDateTime } from '../datetime/moment_wrapper';
 import { fieldIndexComparer } from '../field/fieldComparers';
 import { getFieldDisplayName } from '../field/fieldState';
-import { type Column, LoadingState, type TableData, type TimeSeries, type TimeSeriesValue } from '../types/data';
+import {
+  type Column,
+  LoadingState,
+  type TableData,
+  type TimeSeries,
+  type TimeSeriesPoints,
+  type TimeSeriesValue,
+} from '../types/data';
 import {
   type DataFrame,
   FieldType,
@@ -69,7 +76,7 @@ function convertTimeSeriesToDataFrame(timeSeries: TimeSeries): DataFrame {
   const values: TimeSeriesValue[] = [];
 
   // Sometimes the points are sent as datapoints
-  const points = timeSeries.datapoints || (timeSeries as any).points;
+  const points = timeSeries.datapoints || (timeSeries as TimeSeries & { points?: TimeSeriesPoints }).points;
   for (const point of points) {
     values.push(point[0]);
     times.push(point[1] as number);
@@ -98,7 +105,7 @@ function convertTimeSeriesToDataFrame(timeSeries: TimeSeries): DataFrame {
   }
 
   return {
-    name: timeSeries.target || (timeSeries as any).name,
+    name: timeSeries.target || (timeSeries as TimeSeries & { name?: string }).name,
     refId: timeSeries.refId,
     meta: timeSeries.meta,
     fields,
@@ -150,7 +157,7 @@ function convertJSONDocumentDataToDataFrame(timeSeries: TimeSeries): DataFrame {
       labels: timeSeries.tags,
       config: {
         unit: timeSeries.unit,
-        filterable: (timeSeries as any).filterable,
+        filterable: (timeSeries as TimeSeries & { filterable?: boolean }).filterable,
       },
       values: [],
     },
@@ -305,6 +312,7 @@ export const isDataFrameWithValue = (data: unknown): data is DataFrameWithValue 
 /**
  * Inspect any object and return the results as a DataFrame
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- `data: any` preserved as foundational heterogeneous-input entry: 39+ call sites pass `DataFrameDTO`, `TimeSeries`, `TableData`, `DataFrameJSON`, arrays, and typed-as-any datasource responses; the function body's structural inspection (`'fields' in data`, `data.hasOwnProperty(...)`, `data.fields[0]?.values`) requires runtime-typed access incompatible with `unknown` narrowing without mass cascade across all callers (per AAP §0.8.6 step 7 LAST RESORT)
 export function toDataFrame(data: any): DataFrame {
   if ('fields' in data) {
     // DataFrameDTO does not have length
