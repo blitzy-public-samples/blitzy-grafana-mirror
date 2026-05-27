@@ -105,6 +105,7 @@ export function DashboardRow({ panel, dashboard }: DashboardRowProps) {
       })}
       data-testid="dashboard-row-container"
     >
+      {/* Design system gap: this row-toggle button uses h5 typography (theme.typography.h5.fontSize, see styles.title) which is not exposed by @grafana/ui's Button size variants (only 'sm' | 'md' | 'lg'). The button is also a complex composition (Icon + dynamic title text + conditional count span) that does not map cleanly onto Button's icon/children/text prop model. Kept as raw <button> per refactor protocol (AAP §0.9.2.6, §0.4.4). */}
       <button
         aria-expanded={!collapsed}
         className={cx(styles.title, styles.pointer)}
@@ -130,6 +131,7 @@ export function DashboardRow({ panel, dashboard }: DashboardRowProps) {
             onUpdate={onUpdate}
             warning={getDashboardRowWarning(panel, dashboard)}
           />
+          {/* Design system gap: this delete button is styled by the parent .actions `button:` nested selector (see styles.actions on line 173-190) which applies coordinated transparent background, no border, and paddingLeft to all child buttons uniformly with its sibling RowOptionsButton. Replacing with @grafana/ui IconButton would cause double-styling conflicts with the parent's button: selector. Kept as raw <button> per refactor protocol (AAP §0.9.2.6, §0.4.4). */}
           <button
             type="button"
             className={styles.pointer}

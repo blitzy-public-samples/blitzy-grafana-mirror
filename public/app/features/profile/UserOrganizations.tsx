@@ -1,8 +1,10 @@
+import { css } from '@emotion/css';
 import { memo, useMemo } from 'react';
 
+import { type GrafanaTheme2 } from '@grafana/data';
 import { selectors } from '@grafana/e2e-selectors';
 import { Trans, t } from '@grafana/i18n';
-import { Button, type Column, InteractiveTable, LoadingPlaceholder } from '@grafana/ui';
+import { Button, type Column, InteractiveTable, LoadingPlaceholder, useStyles2 } from '@grafana/ui';
 import { type UserDTO, type UserOrg } from 'app/types/user';
 
 export interface Props {
@@ -13,6 +15,8 @@ export interface Props {
 }
 
 export const UserOrganizations = memo<Props>(({ isLoading, orgs, user, setUserOrg }) => {
+  const styles = useStyles2(getStyles);
+
   // Column definitions for the InteractiveTable. Memoized so the array identity is stable
   // across renders, satisfying react-table's internal memoization expectations and
   // react-hooks/exhaustive-deps. Declared BEFORE any conditional early-return so the hook
@@ -72,7 +76,7 @@ export const UserOrganizations = memo<Props>(({ isLoading, orgs, user, setUserOr
 
   return (
     <div>
-      <h3 className="page-sub-heading">
+      <h3 className={styles.pageSubHeading}>
         <Trans i18nKey="user-orgs.title">Organizations</Trans>
       </h3>
       {/*
@@ -89,5 +93,11 @@ export const UserOrganizations = memo<Props>(({ isLoading, orgs, user, setUserOr
 });
 
 UserOrganizations.displayName = 'UserOrganizations';
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  pageSubHeading: css({
+    marginBottom: theme.spacing(2),
+  }),
+});
 
 export default UserOrganizations;

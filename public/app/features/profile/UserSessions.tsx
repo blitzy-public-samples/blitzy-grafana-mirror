@@ -1,6 +1,7 @@
 import { css } from '@emotion/css';
 import { memo, useMemo } from 'react';
 
+import { type GrafanaTheme2 } from '@grafana/data';
 import { selectors } from '@grafana/e2e-selectors';
 import { Trans, t } from '@grafana/i18n';
 import { Button, type Column, Icon, InteractiveTable, LoadingPlaceholder, useStyles2 } from '@grafana/ui';
@@ -81,7 +82,7 @@ const UserSessions = memo<Props>(({ isLoading, sessions, revokeUserSession }) =>
     <div className={styles.wrapper}>
       {sessions.length > 0 && (
         <>
-          <h3 className="page-sub-heading">
+          <h3 className={styles.pageSubHeading}>
             <Trans i18nKey="profile.user-sessions.sessions">Sessions</Trans>
           </h3>
           <div data-testid={selectors.components.UserProfile.sessionsTable}>
@@ -95,9 +96,12 @@ const UserSessions = memo<Props>(({ isLoading, sessions, revokeUserSession }) =>
 
 UserSessions.displayName = 'UserSessions';
 
-const getStyles = () => ({
+const getStyles = (theme: GrafanaTheme2) => ({
   wrapper: css({
     maxWidth: '100%',
+  }),
+  pageSubHeading: css({
+    marginBottom: theme.spacing(2),
   }),
 });
 

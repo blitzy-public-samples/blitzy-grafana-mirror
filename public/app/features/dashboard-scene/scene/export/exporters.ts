@@ -40,6 +40,15 @@ export interface Input {
   name: string;
   type: string;
   label: string;
+  // The export-input `value` is heterogeneous: it holds either a templated datasource reference
+  // (string), a constant variable's raw value (string | number | boolean), or an InputUsage
+  // descriptor for library-panel inputs. Narrowing to `unknown` would break the existing
+  // consumer contract in `manage-dashboards` and `dashboard-scene/sharing/ExportButton`, which
+  // assigns DataSource and constant payloads through this shape without runtime guards. The
+  // value's actual type is determined by the sibling `type` discriminator (datasource | constant)
+  // at the consumer side, not at the producer here. Retained `any` per AAP §0.9.2.7 (unresolvable
+  // heterogeneous shape across the dashboard schema v0..v15 migration matrix).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- heterogeneous Input.value union; discriminated by sibling Input.type at consumers
   value: any;
   description: string;
   usage?: InputUsage;
@@ -88,6 +97,15 @@ interface DataSources {
 export interface LibraryElementExport {
   name: string;
   uid: string;
+  // The library-element `model` is the full panel JSON payload as produced by the various
+  // panel plugins (timeseries, table, stat, gauge, custom community plugins, etc.). Each plugin
+  // ships its own untyped schema with plugin-specific `options`, `fieldConfig`, and `targets`
+  // shapes. The exporter's job is only to round-trip this payload without inspecting it; the
+  // shape is determined by the producing plugin and validated downstream during import via the
+  // panel plugin's migration handler. Typing this as `Panel` (from @grafana/schema) would be
+  // wrong because library panels can hold v0..v15 schema variants. Retained `any` per
+  // AAP §0.9.2.7 (cross-plugin schema variance unresolvable at this layer).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- opaque plugin-variant Panel JSON; round-tripped without inspection
   model: any;
   kind: LibraryElementKind;
 }
@@ -107,6 +125,17 @@ export async function makeExportableV1(dashboard: DashboardModel) {
   const inputs: Input[] = [];
   const requires: Requires = {};
   const datasources: DataSources = {};
+  // `variableLookup` is keyed by variable name and stores the full variable model as returned by
+  // `saveModel.getVariables()` — a union of QueryVariableModel, DatasourceVariableModel,
+  // ConstantVariableModel, AdHocVariableModel, CustomVariableModel, IntervalVariableModel,
+  // TextBoxVariableModel, SystemVariable. The downstream consumer in `templateizeDatasourceUsage`
+  // reads `.current.value`, which exists on QueryVariableModel and DatasourceVariableModel but
+  // is shaped differently on each (string vs DataSourceRef vs string[]). Typing this as
+  // `TypedVariableModel` from @grafana/data would force ~12 narrowing branches inside the closure
+  // for `.current.value` access — none of which would change runtime behavior since the closure
+  // already gates by `variable.type === 'query' | 'datasource' | 'adhoc'`. Retained `any` per
+  // AAP §0.9.2.7 (cross-variable-type heterogeneity in `.current.value` access pattern).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- variable model union; `.current.value` has per-type-shape variance
   const variableLookup: { [key: string]: any } = {};
   const libraryPanels: Map<string, LibraryElementExport> = new Map<string, LibraryElementExport>();
 
@@ -116,6 +145,18 @@ export async function makeExportableV1(dashboard: DashboardModel) {
 
   const datasourceVariableRefNameMap: { [key: string]: string } = {};
 
+  // `obj` is a recursive traversal target that may be: a PanelModel (with `.datasource` and
+  // `.targets`), a DataQuery target inside a panel (with `.datasource` of varying shape per
+  // datasource plugin), an annotation definition (AnnotationQuery from @grafana/data), a query
+  // variable model (with `.datasource`), an adhoc variable model (with `.datasource` and
+  // `.filters`), or a library-panel model (an arbitrary panel JSON blob). The function writes
+  // back to `obj.datasource` and `obj.libraryPanel` properties that exist on different shapes
+  // across the input union. Typing this as the union of all six shapes would force `'datasource' in obj`
+  // type guards inside the body for every property access, which would not change runtime
+  // behavior because all six shapes have the `.datasource` property by structural duck-typing.
+  // Retained `any` per AAP §0.9.2.7 (recursive traversal across structurally-similar but
+  // nominally-distinct shapes; type-narrowing would not add safety).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- recursive traversal target union (panel | target | annotation | variable | library-panel-model)
   const templateizeDatasourceUsage = (obj: any, fallback?: DataSourceRef) => {
     if (obj.datasource === undefined) {
       obj.datasource = fallback;
@@ -123,6 +164,12 @@ export async function makeExportableV1(dashboard: DashboardModel) {
     }
 
     let datasource = obj.datasource;
+    // `datasourceVariable` holds the resolved variable model when `obj.datasource.uid` is a
+    // template reference like `${MY_DS_VAR}`. Read from `variableLookup` (typed `any` above) and
+    // accessed for `.current` and `.current.value` — same variable-model union heterogeneity
+    // documented at `variableLookup`. Retained `any` per AAP §0.9.2.7 (variance from
+    // variableLookup propagates here).
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- shares variableLookup's variable-model union heterogeneity
     let datasourceVariable: any = null;
 
     const datasourceUid: string | undefined = datasource?.uid;
@@ -226,6 +273,14 @@ export async function makeExportableV1(dashboard: DashboardModel) {
 
       await templateizeDatasourceUsage(model);
 
+      // `model` here is the library-panel JSON payload as documented at LibraryElementExport.model
+      // (cross-plugin schema variance). The destructure strips the panel's grid position and
+      // numeric id (which are owned by the embedding dashboard, not the library panel itself).
+      // Casting through `any` is necessary because `PanelModel` from `app/features/dashboard/state/PanelModel`
+      // has `gridPos: GridPos | undefined` and `id: number`, but library-panel models in older
+      // schema variants may have these as legacy/missing properties; the cast bypasses the
+      // structural-incompatibility check on the destructure source. Retained per AAP §0.9.2.7.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- library-panel model is plugin-variant; gridPos/id may not exist in older schemas
       const { gridPos, id, ...rest } = model as any;
       if (!libraryPanels.has(uid)) {
         libraryPanels.set(uid, { name, uid, kind: LibraryElementKind.Panel, model: rest });
@@ -294,6 +349,14 @@ export async function makeExportableV1(dashboard: DashboardModel) {
       }
     }
 
+    // lodash's `each` callback receives the DataSources record's value as a structurally-identical
+    // shape to `Input` (name + label + description + type/pluginId/pluginName + usage), but
+    // lodash's type inference for `each<Record<string, V>>` does not propagate V into the
+    // callback parameter. Casting to a concrete `DataSources[string]` would still require a
+    // structural conversion since the produced object's `pluginId`/`pluginName` fields are
+    // mapped to `Input.type` semantically. Retained `any` per AAP §0.9.2.7 (lodash callback
+    // type-inference limitation, push-target shape verified at runtime).
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- lodash each<DataSources> callback param widens to any; push shape matches Input by construction
     each(datasources, (value: any) => {
       inputs.push(value);
     });

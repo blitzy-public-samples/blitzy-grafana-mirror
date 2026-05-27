@@ -75,7 +75,7 @@ export const SignupInvitedPage = () => {
   return (
     <Page navModel={navModel}>
       <Page.Contents>
-        <h3 className="page-sub-heading">
+        <h3 className={styles.pageSubHeading}>
           {greeting
             ? t('invites.signup-invited-page.greeting-custom', 'Hello {{greeting}}.', { greeting })
             : t('invites.signup-invited-page.greeting-default', 'Hello there.')}
@@ -88,7 +88,7 @@ export const SignupInvitedPage = () => {
               values={{ invitedBy, orgName: initFormModel.orgName }}
             >
               <em>{'{{invitedBy}}'}</em> has invited you to join Grafana and the organization{' '}
-              <span className="highlight-word">{'{{orgName}}'}</span>
+              <span className={styles.highlightWord}>{'{{orgName}}'}</span>
             </Trans>
           ) : (
             <Trans
@@ -96,7 +96,7 @@ export const SignupInvitedPage = () => {
               values={{ orgName: initFormModel.orgName }}
             >
               <em>Someone</em> has invited you to join Grafana and the organization{' '}
-              <span className="highlight-word">{'{{orgName}}'}</span>
+              <span className={styles.highlightWord}>{'{{orgName}}'}</span>
             </Trans>
           )}
           <br />
@@ -170,6 +170,12 @@ export const SignupInvitedPage = () => {
 const getStyles = (theme: GrafanaTheme2) => ({
   tagline: css({
     paddingBottom: theme.spacing(3),
+  }),
+  pageSubHeading: css({
+    marginBottom: theme.spacing(2),
+  }),
+  highlightWord: css({
+    color: theme.v1.palette.orange,
   }),
 });
 

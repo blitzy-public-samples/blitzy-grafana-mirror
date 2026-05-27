@@ -6,7 +6,7 @@ import { LoadingState, type PanelData } from '@grafana/data';
 import { selectors } from '@grafana/e2e-selectors';
 import { Trans, t } from '@grafana/i18n';
 import { config, type FetchError, type FetchResponse } from '@grafana/runtime';
-import { Button, ClipboardButton, JSONFormatter, LoadingPlaceholder, Space, Stack } from '@grafana/ui';
+import { Button, ClipboardButton, JSONFormatter, LoadingPlaceholder, Space, Stack, Text } from '@grafana/ui';
 import { backendSrv } from 'app/core/services/backend_srv';
 
 import { getPanelInspectorStyles2 } from './styles';
@@ -273,9 +273,9 @@ export const QueryInspector = ({ instanceId, data, onRefreshQuery }: Props) => {
           <JSONFormatter json={response} open={openNodes} onDidRender={setFormattedJson} />
         )}
         {!isLoading && !haveData && (
-          <p className="muted">
+          <Text element="p" color="secondary">
             <Trans i18nKey="inspector.query.no-data">No request and response collected yet. Hit refresh button</Trans>
-          </p>
+          </Text>
         )}
       </div>
     </div>
