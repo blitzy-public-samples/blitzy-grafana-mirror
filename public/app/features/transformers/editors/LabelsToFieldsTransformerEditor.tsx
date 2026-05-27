@@ -1,7 +1,9 @@
+import { css } from '@emotion/css';
 import { useMemo } from 'react';
 
 import {
   DataTransformerID,
+  type GrafanaTheme2,
   type SelectableValue,
   standardTransformers,
   type TransformerRegistryItem,
@@ -10,7 +12,7 @@ import {
 } from '@grafana/data';
 import { LabelsToFieldsMode, type LabelsToFieldsOptions } from '@grafana/data/internal';
 import { t } from '@grafana/i18n';
-import { InlineField, InlineFieldRow, RadioButtonGroup, Select, FilterPill, Stack } from '@grafana/ui';
+import { InlineField, InlineFieldRow, RadioButtonGroup, Select, FilterPill, Stack, useStyles2 } from '@grafana/ui';
 
 import { getTransformationContent } from '../docs/getTransformationContent';
 import darkImage from '../images/dark/labelsToFields.svg';
@@ -22,6 +24,7 @@ export const LabelsAsFieldsTransformerEditor = ({
   onChange,
 }: TransformerUIProps<LabelsToFieldsOptions>) => {
   const labelWidth = 20;
+  const styles = useStyles2(getStyles);
 
   const modes: Array<SelectableValue<LabelsToFieldsMode>> = [
     {
@@ -132,7 +135,7 @@ export const LabelsAsFieldsTransformerEditor = ({
               options={labelNames}
               value={options?.valueLabel}
               onChange={onValueLabelChange}
-              className="min-width-16"
+              className={styles.valueFieldSelect}
             />
           </InlineField>
         </InlineFieldRow>
@@ -154,4 +157,10 @@ export const getLabelsToFieldsTransformerRegistryItem: () => TransformerRegistry
   help: getTransformationContent(DataTransformerID.labelsToFields).helperDocs,
   imageDark: darkImage,
   imageLight: lightImage,
+});
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  valueFieldSelect: css({
+    minWidth: theme.spacing(32),
+  }),
 });

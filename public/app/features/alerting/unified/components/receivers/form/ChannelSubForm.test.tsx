@@ -12,10 +12,25 @@ import { ChannelSubForm } from './ChannelSubForm';
 import { GrafanaCommonChannelSettings } from './GrafanaCommonChannelSettings';
 import { type Notifier } from './notifiers';
 
+/**
+ * Flat primitive value type used for `TestChannelValues.settings`. Restricting
+ * the value union to non-recursive primitives keeps react-hook-form's
+ * `useForm<TestReceiverFormValues>` `Path<T>` expansion finite (the production
+ * code instead uses a generic `useForm<ReceiverFormValues<R>>`, where the
+ * generic parameter `R` defers the deep expansion). Every primitive in this
+ * union is also a `ReceiverSettingValue`, so `TestChannelValues` is
+ * structurally assignable to `ChannelValues` (whose `settings` is the recursive
+ * `ReceiverSettings` shape used at runtime). The existing test cases only set
+ * string-valued settings (`url`, `title`, `message`, `legacyUrl`), so this
+ * narrower type fully covers them while still permitting future numeric or
+ * boolean values without further changes.
+ */
+type TestSettingsValue = string | number | boolean | null | undefined;
+
 type TestChannelValues = {
   __id: string;
   type: string;
-  settings: Record<string, unknown>;
+  settings: Record<string, TestSettingsValue>;
   secureFields: Record<string, boolean>;
   version?: string;
 };

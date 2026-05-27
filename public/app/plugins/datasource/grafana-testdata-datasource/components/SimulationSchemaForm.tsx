@@ -4,7 +4,12 @@ import { type FormEvent, useState, type ChangeEvent } from 'react';
 import { type DataFrameSchema, type FieldSchema, type GrafanaTheme2 } from '@grafana/data';
 import { useStyles2, TextArea, InlineField, Input, FieldSet, InlineSwitch } from '@grafana/ui';
 
-export type Config = Record<string, any>;
+/**
+ * Simulation config blob whose keys/values are determined dynamically by the
+ * server-supplied `DataFrameSchema`. Values are narrowed to their declared
+ * `FieldSchema['type']` at use sites in `renderInput`.
+ */
+export type Config = Record<string, unknown>;
 
 interface SchemaFormProps {
   config: Config;
@@ -13,38 +18,45 @@ interface SchemaFormProps {
 }
 
 const renderInput = (field: FieldSchema, onChange: SchemaFormProps['onChange'], config: SchemaFormProps['config']) => {
+  const fieldValue = config?.[field.name];
   switch (field.type) {
-    case 'number':
+    case 'number': {
+      const numValue = typeof fieldValue === 'number' ? fieldValue : undefined;
       return (
         <Input
           type="number"
-          defaultValue={config?.[field.name]}
+          defaultValue={numValue}
           onChange={(e: FormEvent<HTMLInputElement>) => {
             const newValue = e.currentTarget.valueAsNumber;
             onChange({ ...config, [field.name]: newValue });
           }}
         />
       );
-    case 'boolean':
+    }
+    case 'boolean': {
+      const boolValue = typeof fieldValue === 'boolean' ? fieldValue : true;
       return (
         <InlineSwitch
-          value={config?.[field.name] ?? true}
+          value={boolValue}
           onChange={() => {
-            onChange({ ...config, [field.name]: !config[field.name] });
+            onChange({ ...config, [field.name]: !fieldValue });
           }}
         />
       );
-    default:
+    }
+    default: {
+      const strValue = typeof fieldValue === 'string' ? fieldValue : undefined;
       return (
         <Input
           type="string"
-          value={config?.[field.name]}
+          value={strValue}
           onChange={(e: ChangeEvent<HTMLInputElement>) => {
             const newValue = e.target.value;
             onChange({ ...config, [field.name]: newValue });
           }}
         />
       );
+    }
   }
 };
 

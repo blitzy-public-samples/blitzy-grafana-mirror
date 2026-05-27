@@ -2,7 +2,7 @@ import { connect, type ConnectedProps } from 'react-redux';
 
 import { type NavModelItem } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
-import { Button, Input, Field, FieldSet } from '@grafana/ui';
+import { Button, Input, Field, FieldSet, Text } from '@grafana/ui';
 import { Form } from 'app/core/components/Form/Form';
 import { Page } from 'app/core/components/Page/Page';
 import { getConfig } from 'app/core/config';
@@ -36,13 +36,13 @@ export const NewOrgPage = ({ createOrganization }: Props) => {
   return (
     <Page navId="global-orgs" pageNav={pageNav}>
       <Page.Contents>
-        <p className="muted">
+        <Text element="p" color="secondary">
           <Trans i18nKey="org.new-org-page.description">
             Each organization contains their own dashboards, data sources, and configuration, which cannot be shared
             shared between organizations. While users might belong to more than one organization, multiple organizations
             are most frequently used in multi-tenant deployments.
           </Trans>
-        </p>
+        </Text>
 
         <Form<CreateOrgFormDTO> onSubmit={createOrg}>
           {({ register, errors }) => {

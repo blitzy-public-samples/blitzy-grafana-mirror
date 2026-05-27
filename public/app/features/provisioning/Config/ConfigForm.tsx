@@ -1,9 +1,10 @@
+import { css } from '@emotion/css';
 import { skipToken } from '@reduxjs/toolkit/query/react';
 import { useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom-v5-compat';
 
-import { AppEvents } from '@grafana/data';
+import { AppEvents, type GrafanaTheme2 } from '@grafana/data';
 import { t } from '@grafana/i18n';
 import { getAppEvents, isFetchError, reportInteraction } from '@grafana/runtime';
 import {
@@ -18,9 +19,12 @@ import {
   SecretInput,
   Stack,
   Switch,
+  useStyles2,
 } from '@grafana/ui';
 import {
+  type ErrorDetails,
   type Repository,
+  type Status,
   useGetFrontendSettingsQuery,
   useGetRepositoryRefsQuery,
 } from 'app/api/clients/provisioning/v0alpha1';
@@ -56,6 +60,7 @@ export interface ConfigFormProps {
   data?: Repository;
 }
 export function ConfigForm({ data }: ConfigFormProps) {
+  const styles = useStyles2(getStyles);
   const repositoryName = data?.metadata?.name;
   const settings = useGetFrontendSettingsQuery();
   const [submitData, request] = useCreateOrUpdateRepository(repositoryName);
@@ -137,7 +142,11 @@ export function ConfigForm({ data }: ConfigFormProps) {
       const spec = dataToSpec(form);
       await submitData(spec, form.token);
     } catch (err) {
-      if (isFetchError(err)) {
+      // Narrow the caught error to a fetch error whose body matches the
+      // shape expected by `getConfigFormErrors`/`extractFormErrors`
+      // (`ErrorDetails[] | Status`). After the runtime-package `any -> unknown`
+      // refactor, `err.data` is `unknown` by default and must be narrowed.
+      if (isFetchError<ErrorDetails[] | Status>(err)) {
         const fieldErrors = getConfigFormErrors(err.data);
 
         if (fieldErrors.length > 0) {
@@ -164,7 +173,20 @@ export function ConfigForm({ data }: ConfigFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} style={{ maxWidth: 700 }}>
+    // Raw <form> retained per AAP §0.6.1. The repository configuration form must remain
+    // raw because:
+    //   1. `reset()` is invoked from outside the form body (the FormPrompt discard
+    //      handler and the post-submit redirect effect), which the deprecated @grafana/ui
+    //      <Form> render-prop wrapper does not facilitate.
+    //   2. `formState.isDirty` is consumed by <FormPrompt> sibling to gate
+    //      confirm-on-redirect behavior across the surrounding page.
+    //   3. The full `useForm` API (register, control, watch, setValue, setError,
+    //      getValues, formState) is needed across the body — the @grafana/ui <Form>
+    //      render-prop wrapper exposes only a subset of these via its FormAPI argument.
+    // Per @grafana/ui's own JSDoc on <Form>: "use the `useForm` hook from
+    // react-hook-form instead" — the pattern below is the recommended replacement.
+    // Inline style={{ maxWidth: 700 }} migrated to useStyles2 per AAP Dimension 3.
+    <form onSubmit={handleSubmit(onSubmit)} className={styles.form}>
       <FormPrompt onDiscard={reset} confirmRedirect={isDirty} />
       <Stack direction="column" gap={2}>
         {submitError && (
@@ -454,3 +476,9 @@ const defaultAlert = () => {
     payload: [t('provisioning.wizard-content.error-save-repository-setting', 'Failed to save repository setting')],
   });
 };
+
+const getStyles = (_theme: GrafanaTheme2) => ({
+  form: css({
+    maxWidth: 700,
+  }),
+});

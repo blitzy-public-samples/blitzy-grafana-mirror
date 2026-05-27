@@ -16,8 +16,8 @@ import { notifyApp } from '../../../../core/reducers/appNotification';
 
 import { type DashboardQueryRunnerWorkerResult } from './types';
 
-export function handleAnnotationQueryRunnerError(err: any): Observable<AnnotationEvent[]> {
-  if (err.cancelled) {
+export function handleAnnotationQueryRunnerError(err: unknown): Observable<AnnotationEvent[]> {
+  if (typeof err === 'object' && err !== null && 'cancelled' in err && err.cancelled) {
     return of([]);
   }
 
@@ -25,7 +25,7 @@ export function handleAnnotationQueryRunnerError(err: any): Observable<Annotatio
   return of([]);
 }
 
-export function handleDatasourceSrvError(err: any): Observable<DataSourceApi | undefined> {
+export function handleDatasourceSrvError(err: unknown): Observable<DataSourceApi | undefined> {
   notifyWithError('Failed to retrieve datasource', err);
   return of(undefined);
 }
@@ -33,8 +33,8 @@ export function handleDatasourceSrvError(err: any): Observable<DataSourceApi | u
 export const emptyResult: () => Observable<DashboardQueryRunnerWorkerResult> = () =>
   of({ annotations: [], alertStates: [] });
 
-export function handleDashboardQueryRunnerWorkerError(err: any): Observable<DashboardQueryRunnerWorkerResult> {
-  if (err.cancelled) {
+export function handleDashboardQueryRunnerWorkerError(err: unknown): Observable<DashboardQueryRunnerWorkerResult> {
+  if (typeof err === 'object' && err !== null && 'cancelled' in err && err.cancelled) {
     return emptyResult();
   }
 
@@ -42,7 +42,7 @@ export function handleDashboardQueryRunnerWorkerError(err: any): Observable<Dash
   return emptyResult();
 }
 
-function notifyWithError(title: string, err: any) {
+function notifyWithError(title: string, err: unknown) {
   const error = toDataQueryError(err);
   console.error('handleAnnotationQueryRunnerError', error);
   const notification = createErrorNotification(title, error.message);

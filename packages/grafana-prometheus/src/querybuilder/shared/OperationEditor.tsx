@@ -8,6 +8,8 @@ import { type DataSourceApi, type GrafanaTheme2, type TimeRange } from '@grafana
 import { Trans, t } from '@grafana/i18n';
 import { Button, Icon, Stack, Tooltip, useStyles2 } from '@grafana/ui';
 
+import { type PromVisualQuery } from '../types';
+
 import { OperationHeader } from './OperationHeader';
 import { getOperationParamEditor } from './OperationParamEditorRegistry';
 import { getOperationParamId } from './param_utils';
@@ -22,7 +24,7 @@ import {
 interface Props {
   operation: QueryBuilderOperation;
   index: number;
-  query: any;
+  query: unknown;
   datasource: DataSourceApi;
   queryModeller: VisualQueryModeller;
   onChange: (index: number, update: QueryBuilderOperation) => void;
@@ -105,7 +107,8 @@ export function OperationEditor({
               value={operation.params[paramIndex]}
               index={paramIndex}
               operationId={operation.id}
-              query={query}
+              // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- query prop is typed `unknown` for variance compatibility with OperationList<T extends QueryWithOperations>; Editor's QueryBuilderOperationParamEditorProps.query is PromVisualQuery, which is the runtime type at all callers (every OperationList<T> is instantiated as OperationList<PromVisualQuery>).
+              query={query as PromVisualQuery}
               datasource={datasource}
               timeRange={timeRange}
               onChange={onParamValueChanged}
@@ -160,7 +163,8 @@ export function OperationEditor({
           />
           <div className={styles.body}>{operationElements}</div>
           {restParam}
-          {index < query.operations.length - 1 && (
+          {/* eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- query prop is typed `unknown` for variance compatibility with OperationList<T extends QueryWithOperations>; PromVisualQuery (the runtime type from every caller) exposes `operations: QueryBuilderOperation[]` required for the .length comparison. */}
+          {index < (query as PromVisualQuery).operations.length - 1 && (
             <div className={styles.arrow}>
               <div className={styles.arrowLine} />
               <div className={styles.arrowArrow} />

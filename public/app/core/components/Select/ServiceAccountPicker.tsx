@@ -1,11 +1,12 @@
+import { css } from '@emotion/css';
 import debounce from 'debounce-promise';
 import { isNil } from 'lodash';
 import { useMemo, useState } from 'react';
 
-import { type SelectableValue } from '@grafana/data';
+import { type GrafanaTheme2, type SelectableValue } from '@grafana/data';
 import { t } from '@grafana/i18n';
 import { getBackendSrv } from '@grafana/runtime';
-import { AsyncSelect } from '@grafana/ui';
+import { AsyncSelect, useStyles2 } from '@grafana/ui';
 import { type ServiceAccountDTO, type ServiceAccountsState } from 'app/types/serviceaccount';
 
 export interface Props {
@@ -15,6 +16,7 @@ export interface Props {
 }
 
 export const ServiceAccountPicker = ({ className, onSelected, inputId }: Props) => {
+  const styles = useStyles2(getStyles);
   const [isLoading, setIsLoading] = useState(false);
 
   const search = useMemo(
@@ -28,8 +30,8 @@ export const ServiceAccountPicker = ({ className, onSelected, inputId }: Props) 
           }
 
           return getBackendSrv()
-            .get(`/api/serviceaccounts/search?query=${query}&perpage=100`)
-            .then((result: ServiceAccountsState) => {
+            .get<ServiceAccountsState>(`/api/serviceaccounts/search?query=${query}&perpage=100`)
+            .then((result) => {
               return result.serviceAccounts.map((sa) => ({
                 id: sa.id,
                 uid: sa.uid,
@@ -50,7 +52,7 @@ export const ServiceAccountPicker = ({ className, onSelected, inputId }: Props) 
   );
 
   return (
-    <div className="service-account-picker" data-testid="serviceAccountPicker">
+    <div className={styles.wrapper} data-testid="serviceAccountPicker">
       <AsyncSelect
         isClearable
         className={className}
@@ -69,3 +71,7 @@ export const ServiceAccountPicker = ({ className, onSelected, inputId }: Props) 
     </div>
   );
 };
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  wrapper: css({}),
+});

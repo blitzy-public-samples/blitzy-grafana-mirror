@@ -1,7 +1,7 @@
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useMemo, useState } from 'react';
 
 import { getTemplateSrv } from '@grafana/runtime';
-import { InlineField, TextArea } from '@grafana/ui';
+import { type Column, InlineField, InteractiveTable, TextArea } from '@grafana/ui';
 
 import { type DerivedFieldConfig } from '../types';
 
@@ -38,34 +38,36 @@ type DebugFieldItemProps = {
   fields: DebugField[];
 };
 const DebugFields = ({ fields }: DebugFieldItemProps) => {
-  return (
-    <table className={'filter-table'}>
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Value</th>
-          <th>Url</th>
-        </tr>
-      </thead>
-      <tbody>
-        {fields.map((field) => {
-          let value: ReactNode = field.value;
-          if (field.error && field.error instanceof Error) {
-            value = field.error.message;
-          } else if (field.href) {
-            value = <a href={field.href}>{value}</a>;
+  const columns: Array<Column<DebugField>> = useMemo(
+    () => [
+      {
+        id: 'name',
+        header: 'Name',
+        cell: ({ row: { original } }) => original.name,
+      },
+      {
+        id: 'value',
+        header: 'Value',
+        cell: ({ row: { original } }) => {
+          let value: ReactNode = original.value;
+          if (original.error && original.error instanceof Error) {
+            value = original.error.message;
+          } else if (original.href) {
+            value = <a href={original.href}>{original.value}</a>;
           }
-          return (
-            <tr key={`${field.name}=${field.value}`}>
-              <td>{field.name}</td>
-              <td>{value}</td>
-              <td>{field.href ? <a href={field.href}>{field.href}</a> : ''}</td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
+          return value;
+        },
+      },
+      {
+        id: 'url',
+        header: 'Url',
+        cell: ({ row: { original } }) => (original.href ? <a href={original.href}>{original.href}</a> : ''),
+      },
+    ],
+    []
   );
+
+  return <InteractiveTable columns={columns} data={fields} getRowId={(field) => `${field.name}=${field.value}`} />;
 };
 
 type DebugField = {

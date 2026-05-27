@@ -1,5 +1,6 @@
 import { type DataQuery, type SelectableValue, type VariableWithMultiSupport } from '@grafana/data';
 import { type DataSourceOptions, type DataSourceSecureJsonData } from '@grafana/google-sdk';
+import { type BackendDataSourceResponse } from '@grafana/runtime';
 
 import { type MetricKind } from '../dataquery.gen';
 
@@ -59,9 +60,7 @@ export interface CustomMetaData {
   alignmentPeriod?: string;
 }
 
-export interface PostResponse {
-  results: Record<string, any>;
-}
+export type PostResponse = BackendDataSourceResponse;
 
 export interface CustomVariableModel extends VariableWithMultiSupport {
   type: 'custom';

@@ -16,7 +16,31 @@ export interface AzureAuthSettings {
   readonly azureSettingsUI?: React.ComponentType<HttpSettingsBaseProps>;
 }
 
-export interface HttpSettingsBaseProps<JSONData extends DataSourceJsonData = any, SecureJSONData = any> {
+/**
+ * Public SDK type consumed by every datasource plugin's config editor.
+ *
+ * `JSONData` and `SecureJSONData` defaults are intentionally typed as `any`
+ * because every concrete datasource plugin extends `DataSourceJsonData` with
+ * its own plugin-specific shape (e.g. `tlsAuth`, `oauthPassThru`,
+ * `tlsAuthWithCACert`, `serverName`, `sigV4Auth`, `keepCookies`, `timeout`,
+ * `azureEndpointResourceId`, `httpMode`, `timeInterval`, ...) and the
+ * @grafana/ui-shipped DataSourceHttpSettings / BasicAuthSettings /
+ * HttpProxySettings / TLSAuthSettings / CustomHeadersSettings components
+ * read those plugin-specific fields directly from `dataSourceConfig.jsonData`
+ * without knowing the concrete shape at compile time. Tightening the default
+ * to `DataSourceJsonData` (or `{}` for `SecureJSONData`) would break every
+ * existing datasource plugin's config-editor TypeScript build that does not
+ * thread an explicit generic argument through every consumer site.
+ *
+ * Per AAP §0.8.6 step 7 (last-resort retained `any` with inline justification)
+ * and §0.8.7 (Public API Surface Preservation Analysis).
+ */
+export interface HttpSettingsBaseProps<
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- HttpSettingsBaseProps is a public SDK type; the default must remain `any` so that consumer datasource plugins reading plugin-specific jsonData fields (tlsAuth, oauthPassThru, etc.) without an explicit generic argument continue to compile (AAP §0.8.7 public API preservation).
+  JSONData extends DataSourceJsonData = any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- HttpSettingsBaseProps is a public SDK type; the default must remain `any` so that consumer datasource plugins reading plugin-specific secureJsonData fields (basicAuthPassword, tlsCACert, tlsClientCert, ...) without an explicit generic argument continue to compile (AAP §0.8.7 public API preservation).
+  SecureJSONData = any,
+> {
   /** The configuration object of the data source */
   dataSourceConfig: DataSourceSettings<JSONData, SecureJSONData>;
   /** Callback for handling changes to the configuration object */

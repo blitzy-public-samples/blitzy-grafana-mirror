@@ -10,10 +10,12 @@ import { Form } from 'app/core/components/Form/Form';
 import { TagFilter } from 'app/core/components/TagFilter/TagFilter';
 import { annotationServer } from 'app/features/annotations/api';
 
+import { type AnnoVals } from '../utils';
+
 import { AnnotationTooltipHeaderCloseIcon } from './AnnotationTooltipHeaderCloseIcon';
 
 interface Props {
-  annoVals: Record<string, any[]>;
+  annoVals: AnnoVals;
   annoIdx: number;
   timeZone: string;
   dismiss: () => void;
@@ -60,12 +62,21 @@ export const AnnotationEditor2 = ({ annoVals, annoIdx, dismiss, timeZone, ...oth
   const operation = isUpdatingAnnotation ? updateAnnotation : createAnnotation;
   const stateIndicator = isUpdatingAnnotation ? updateAnnotationState : createAnnotationState;
   const time = isRegionAnnotation
-    ? `${timeFormatter(annoVals.time[annoIdx])} - ${timeFormatter(annoVals.timeEnd[annoIdx])}`
+    ? // `timeEnd` is guaranteed to be set when `isRegionAnnotation` is true (region annotations
+      // always carry both start and end timestamps from the annotation source).
+      `${timeFormatter(annoVals.time[annoIdx])} - ${timeFormatter(annoVals.timeEnd![annoIdx])}`
     : timeFormatter(annoVals.time[annoIdx]);
 
   const onSubmit = ({ tags, description }: AnnotationEditFormDTO) => {
     operation({
-      id: annoVals.id?.[annoIdx] ?? undefined,
+      // `AnnotationEventUIModel.id` is declared as `string` in @grafana/data but the API
+      // requires a numeric id at runtime — see https://github.com/grafana/grafana/issues/120097.
+      // The AnnoVals interface correctly reflects the runtime type (`number | undefined`); the
+      // cast bridges the documented type-vs-runtime mismatch without converting the value to a
+      // string (which would break the API per the linked issue and the existing test fixtures
+      // that pass `id: 4683` as a bare number).
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+      id: (annoVals.id?.[annoIdx] ?? undefined) as unknown as string | undefined,
       tags,
       description,
       from: Math.round(annoVals.time[annoIdx]!),

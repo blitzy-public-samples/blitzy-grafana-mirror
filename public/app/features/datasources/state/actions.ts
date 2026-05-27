@@ -12,6 +12,7 @@ import {
   config,
   type DataSourceSrv,
   DataSourceWithBackend,
+  type FetchErrorDataProps,
   HealthCheckError,
   type HealthCheckResultDetails,
   isFetchError,
@@ -75,14 +76,22 @@ type parseDataSourceSaveResponse = {
   details?: HealthCheckResultDetails | { message?: string; verboseMessage?: string };
 };
 
-const parseHealthCheckError = (errorResponse: any): parseDataSourceSaveResponse => {
+const parseHealthCheckError = (errorResponse: unknown): parseDataSourceSaveResponse => {
   let message: string | undefined;
-  let details: HealthCheckResultDetails;
+  let details: HealthCheckResultDetails | undefined;
 
-  if (errorResponse.error && errorResponse.error instanceof HealthCheckError) {
+  if (
+    typeof errorResponse === 'object' &&
+    errorResponse !== null &&
+    'error' in errorResponse &&
+    errorResponse.error instanceof HealthCheckError
+  ) {
     message = errorResponse.error.message;
     details = errorResponse.error.details;
-  } else if (isFetchError(errorResponse)) {
+  } else if (
+    // Narrow with the canonical fetch-error body so `errorResponse.data.message` is typed.
+    isFetchError<FetchErrorDataProps>(errorResponse)
+  ) {
     message = errorResponse.data.message ?? `HTTP error ${errorResponse.statusText}`;
   } else if (errorResponse instanceof Error) {
     message = errorResponse.message;
@@ -258,7 +267,7 @@ export function addDataSource(
     } else {
       const result = await api.createDataSource(newInstance);
       uid = result.datasource.uid;
-      version = result.meta?.info?.version;
+      version = result.meta?.info?.version ?? '';
     }
 
     await getDatasourceSrv().reload();

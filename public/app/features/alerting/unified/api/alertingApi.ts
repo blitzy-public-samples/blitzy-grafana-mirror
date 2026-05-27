@@ -63,7 +63,12 @@ export const backendSrvBaseQuery =
     try {
       const modifiedRequestOptions: BackendSrvRequest = {
         ...requestOptions,
-        ...(body && { data: body }),
+        // `body` is typed as `BackendSrvRequest['data']` which is `unknown`
+        // after the runtime-package `any -> unknown` refactor. A `unknown &&`
+        // short-circuit cannot be spread directly (TS2698), so use a ternary
+        // that resolves to either a concrete object or `null` (spreadable as
+        // a no-op).
+        ...(body ? { data: body } : null),
         ...(isBoolean(showSuccessAlert) && { showSuccessAlert }),
         ...(isBoolean(showErrorAlert) && { showErrorAlert }),
         ...(successMessage && { showSuccessAlert: false }),

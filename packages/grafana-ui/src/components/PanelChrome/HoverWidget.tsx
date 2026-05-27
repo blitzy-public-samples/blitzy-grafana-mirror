@@ -21,7 +21,7 @@ interface Props {
 }
 
 export function HoverWidget({ menu, title, dragClass, children, offset = -32, onOpenMenu, onDragStart }: Props) {
-  const styles = useStyles2(getStyles);
+  const styles = useStyles2(getStyles, offset);
   const draggableRef = useRef<HTMLDivElement>(null);
   const selectors = e2eSelectors.components.Panels.Panel.HoverWidget;
   // Capture the pointer to keep the widget visible while dragging
@@ -44,7 +44,6 @@ export function HoverWidget({ menu, title, dragClass, children, offset = -32, on
   return (
     <div
       className={cx(styles.container, 'show-on-hover')}
-      style={{ top: offset === 0 ? -1 : offset }}
       data-testid={selectors.container}
     >
       {dragClass && (
@@ -72,7 +71,7 @@ export function HoverWidget({ menu, title, dragClass, children, offset = -32, on
   );
 }
 
-function getStyles(theme: GrafanaTheme2) {
+function getStyles(theme: GrafanaTheme2, offset: number) {
   return {
     container: css({
       label: 'hover-container-widget',
@@ -83,7 +82,7 @@ function getStyles(theme: GrafanaTheme2) {
       position: 'absolute',
       zIndex: 1,
       right: -1,
-      top: -1,
+      top: offset === 0 ? -1 : offset,
       boxSizing: 'content-box',
       alignItems: 'center',
       background: theme.colors.background.secondary,

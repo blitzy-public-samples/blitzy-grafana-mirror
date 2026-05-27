@@ -1,10 +1,11 @@
-import { cx } from '@emotion/css';
+import { css } from '@emotion/css';
 import { type FormEvent, useMemo, useState } from 'react';
 import { useEffectOnce } from 'react-use';
 
 import { type AzureCredentials } from '@grafana/azure-sdk';
+import { type GrafanaTheme2 } from '@grafana/data';
 import { config } from '@grafana/runtime';
-import { InlineField, InlineFieldRow, InlineSwitch, Input } from '@grafana/ui';
+import { InlineField, InlineFieldRow, InlineSwitch, Input, useStyles2 } from '@grafana/ui';
 import { type HttpSettingsBaseProps } from '@grafana/ui/internal';
 
 import { getAzureCloudOptions, getCredentials, updateCredentials } from './AzureCredentialsConfig';
@@ -12,6 +13,7 @@ import { AzureCredentialsForm } from './AzureCredentialsForm';
 
 export const AzureAuthSettings = (props: HttpSettingsBaseProps) => {
   const { dataSourceConfig, onChange } = props;
+  const styles = useStyles2(getStyles);
 
   const [overrideAudienceAllowed] = useState<boolean>(!!config.featureToggles.prometheusAzureOverrideAudience);
   const [overrideAudienceChecked, setOverrideAudienceChecked] = useState<boolean>(
@@ -64,7 +66,7 @@ export const AzureAuthSettings = (props: HttpSettingsBaseProps) => {
       {overrideAudienceAllowed && (
         <>
           <h6>Azure configuration</h6>
-          <div className="gf-form-group">
+          <div className={styles.formGroup}>
             <InlineFieldRow>
               <InlineField labelWidth={24} label="Override AAD audience" disabled={dataSourceConfig.readOnly}>
                 <InlineSwitch value={overrideAudienceChecked} onChange={onOverrideAudienceChange} />
@@ -74,7 +76,7 @@ export const AzureAuthSettings = (props: HttpSettingsBaseProps) => {
               <InlineFieldRow>
                 <InlineField labelWidth={24} label="Resource ID" disabled={dataSourceConfig.readOnly}>
                   <Input
-                    className={cx('width-20')}
+                    width={40}
                     value={dataSourceConfig.jsonData.azureEndpointResourceId || ''}
                     onChange={onResourceIdChange}
                   />
@@ -89,3 +91,9 @@ export const AzureAuthSettings = (props: HttpSettingsBaseProps) => {
 };
 
 export default AzureAuthSettings;
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  formGroup: css({
+    marginBottom: theme.spacing(2.5),
+  }),
+});

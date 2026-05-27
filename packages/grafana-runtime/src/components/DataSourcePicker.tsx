@@ -1,5 +1,5 @@
 // Libraries
-import { PureComponent } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 
 // Components
 import {
@@ -66,50 +66,68 @@ export interface DataSourcePickerState {
  *
  * @internal
  */
-export class DataSourcePicker extends PureComponent<DataSourcePickerProps, DataSourcePickerState> {
-  dataSourceSrv = getDataSourceSrv();
+const DataSourcePickerComponent = ({
+  onChange: onChangeProp,
+  current,
+  hideTextValue,
+  onBlur,
+  autoFocus = false,
+  openMenuOnFocus = false,
+  placeholder = 'Select data source',
+  tracing,
+  mixed,
+  dashboard,
+  metrics,
+  type,
+  annotations,
+  variables,
+  alerting,
+  pluginId,
+  logs,
+  noDefault,
+  width,
+  inputId,
+  filter,
+  onClear,
+  invalid,
+  disabled = false,
+  isLoading = false,
+}: DataSourcePickerProps) => {
+  const [error, setError] = useState<string | undefined>(undefined);
 
-  static defaultProps: Partial<DataSourcePickerProps> = {
-    autoFocus: false,
-    openMenuOnFocus: false,
-    placeholder: 'Select data source',
-  };
+  const dataSourceSrv = useMemo(() => getDataSourceSrv(), []);
 
-  state: DataSourcePickerState = {};
-
-  constructor(props: DataSourcePickerProps) {
-    super(props);
-  }
-
-  componentDidMount() {
-    const { current } = this.props;
-    const dsSettings = this.dataSourceSrv.getInstanceSettings(current);
+  useEffect(() => {
+    const dsSettings = dataSourceSrv.getInstanceSettings(current);
     if (!dsSettings) {
-      this.setState({ error: 'Could not find data source ' + current });
+      setError('Could not find data source ' + current);
     }
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- preserves componentDidMount-only semantics; current is read on mount only
+  }, []);
 
-  onChange = (item: SelectableValue<string>, actionMeta: ActionMeta) => {
-    if (actionMeta.action === 'clear' && this.props.onClear) {
-      this.props.onClear();
-      return;
-    }
+  const onChange = useCallback(
+    (item: SelectableValue<string>, actionMeta: ActionMeta) => {
+      if (actionMeta.action === 'clear' && onClear) {
+        onClear();
+        return;
+      }
 
-    const dsSettings = this.dataSourceSrv.getInstanceSettings(item.value);
+      const dsSettings = dataSourceSrv.getInstanceSettings(item.value);
 
-    if (dsSettings) {
-      this.props.onChange(dsSettings);
-      this.setState({ error: undefined });
-    }
-  };
+      if (dsSettings) {
+        onChangeProp(dsSettings);
+        setError(undefined);
+      }
+    },
+    [dataSourceSrv, onChangeProp, onClear]
+  );
 
-  private getCurrentValue(): SelectableValue<string> | undefined {
-    const { current, hideTextValue, noDefault } = this.props;
+  const value = useMemo<SelectableValue<string> | undefined>(() => {
     if (!current && noDefault) {
       return;
     }
 
-    const ds = this.dataSourceSrv.getInstanceSettings(current);
+    const ds = dataSourceSrv.getInstanceSettings(current);
 
     if (ds) {
       return {
@@ -133,13 +151,10 @@ export class DataSourcePicker extends PureComponent<DataSourcePickerProps, DataS
       imgUrl: '',
       hideText: hideTextValue,
     };
-  }
+  }, [current, hideTextValue, noDefault, dataSourceSrv]);
 
-  getDataSourceOptions() {
-    const { alerting, tracing, metrics, mixed, dashboard, variables, annotations, pluginId, type, filter, logs } =
-      this.props;
-
-    const options = this.dataSourceSrv
+  const options = useMemo(() => {
+    return dataSourceSrv
       .getList({
         alerting,
         tracing,
@@ -159,65 +174,64 @@ export class DataSourcePicker extends PureComponent<DataSourcePickerProps, DataS
         imgUrl: ds.meta.info.logos.small,
         meta: ds.meta,
       }));
+  }, [
+    alerting,
+    tracing,
+    metrics,
+    logs,
+    dashboard,
+    mixed,
+    variables,
+    annotations,
+    pluginId,
+    filter,
+    type,
+    dataSourceSrv,
+  ]);
 
-    return options;
-  }
+  const isClearable = typeof onClear === 'function';
 
-  render() {
-    const {
-      autoFocus,
-      onBlur,
-      onClear,
-      openMenuOnFocus,
-      placeholder,
-      width,
-      inputId,
-      disabled = false,
-      isLoading = false,
-    } = this.props;
-    const { error } = this.state;
-    const options = this.getDataSourceOptions();
-    const value = this.getCurrentValue();
-    const isClearable = typeof onClear === 'function';
+  return (
+    <div
+      aria-label="Data source picker select container"
+      data-testid={selectors.components.DataSourcePicker.container}
+    >
+      <Select
+        isLoading={isLoading}
+        disabled={disabled}
+        aria-label={'Select a data source'}
+        data-testid={selectors.components.DataSourcePicker.inputV2}
+        inputId={inputId || 'data-source-picker'}
+        className="ds-picker select-container"
+        isMulti={false}
+        isClearable={isClearable}
+        backspaceRemovesValue={false}
+        onChange={onChange}
+        options={options}
+        autoFocus={autoFocus}
+        onBlur={onBlur}
+        width={width}
+        openMenuOnFocus={openMenuOnFocus}
+        maxMenuHeight={500}
+        placeholder={placeholder}
+        noOptionsMessage="No datasources found"
+        value={value ?? null}
+        invalid={Boolean(error) || Boolean(invalid)}
+        getOptionLabel={(o) => {
+          if (o.meta && isUnsignedPluginSignature(o.meta.signature) && o !== value) {
+            return (
+              <Stack alignItems="center" justifyContent="space-between">
+                <span>{o.label}</span> <PluginSignatureBadge status={o.meta.signature} />
+              </Stack>
+            );
+          }
+          return o.label || '';
+        }}
+      />
+    </div>
+  );
+};
 
-    return (
-      <div
-        aria-label="Data source picker select container"
-        data-testid={selectors.components.DataSourcePicker.container}
-      >
-        <Select
-          isLoading={isLoading}
-          disabled={disabled}
-          aria-label={'Select a data source'}
-          data-testid={selectors.components.DataSourcePicker.inputV2}
-          inputId={inputId || 'data-source-picker'}
-          className="ds-picker select-container"
-          isMulti={false}
-          isClearable={isClearable}
-          backspaceRemovesValue={false}
-          onChange={this.onChange}
-          options={options}
-          autoFocus={autoFocus}
-          onBlur={onBlur}
-          width={width}
-          openMenuOnFocus={openMenuOnFocus}
-          maxMenuHeight={500}
-          placeholder={placeholder}
-          noOptionsMessage="No datasources found"
-          value={value ?? null}
-          invalid={Boolean(error) || Boolean(this.props.invalid)}
-          getOptionLabel={(o) => {
-            if (o.meta && isUnsignedPluginSignature(o.meta.signature) && o !== value) {
-              return (
-                <Stack alignItems="center" justifyContent="space-between">
-                  <span>{o.label}</span> <PluginSignatureBadge status={o.meta.signature} />
-                </Stack>
-              );
-            }
-            return o.label || '';
-          }}
-        />
-      </div>
-    );
-  }
-}
+export const DataSourcePicker = memo(DataSourcePickerComponent);
+
+DataSourcePicker.displayName = 'DataSourcePicker';

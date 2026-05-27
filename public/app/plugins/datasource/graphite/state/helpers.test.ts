@@ -18,7 +18,7 @@ describe('handleTargetChanged', () => {
   });
 
   it('should return early if queryModel.error is set', () => {
-    state.queryModel.error = new Error('Some error');
+    state.queryModel.error = 'Some error';
     handleTargetChanged(state);
     expect(state.queryModel.updateModelTarget).not.toHaveBeenCalled();
   });

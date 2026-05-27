@@ -98,6 +98,7 @@ function DashboardOutlineNode({ sceneObject, editPane, isEditing, depth, index }
       aria-selected={isSelected}
       className={styles.container}
       onClick={onNodeClicked}
+      // Design system gap: dynamic CSS custom property required for depth-based indentation; consumed by `styles.indentation` and `styles.nodeChildren::before` below.
       // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
       style={{ '--depth': depth } as React.CSSProperties}
     >
@@ -166,6 +167,7 @@ function DashboardOutlineNode({ sceneObject, editPane, isEditing, depth, index }
               role="treeitem"
               aria-selected={isSelected}
               className={styles.container}
+              // Design system gap: dynamic CSS custom property required for depth-based indentation; consumed by `styles.indentation` and `styles.nodeChildren::before` below.
               // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
               style={{ '--depth': depth + 1 } as React.CSSProperties}
             >

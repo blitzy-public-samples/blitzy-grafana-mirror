@@ -708,10 +708,16 @@ function ReviewStep({ formData, onStartImport, onCancel, dryRunResult, rulesFrom
                 {t('alerting.import-to-gma.review.notifications-title', 'Notification Resources')}
               </Text>
               {willImportNotifications && (
-                <button type="button" className={styles.badgeWithIcon} onClick={handlePreviewNotifications}>
+                <Button
+                  variant="success"
+                  fill="outline"
+                  size="sm"
+                  icon="eye"
+                  type="button"
+                  onClick={handlePreviewNotifications}
+                >
                   {t('alerting.import-to-gma.review.will-import-config', 'Will import this configuration')}
-                  <Icon name="eye" size="sm" />
-                </button>
+                </Button>
               )}
               {formData.step1Skipped && (
                 <span className={styles.badgeSkipped}>{t('alerting.import-to-gma.review.skipped', 'Skipped')}</span>
@@ -758,14 +764,20 @@ function ReviewStep({ formData, onStartImport, onCancel, dryRunResult, rulesFrom
                 {t('alerting.import-to-gma.review.rules-title', 'Alert Rules')}
               </Text>
               {willImportRules && (
-                <button type="button" className={styles.badgeWithIcon} onClick={handlePreviewRules}>
+                <Button
+                  variant="success"
+                  fill="outline"
+                  size="sm"
+                  icon="eye"
+                  type="button"
+                  onClick={handlePreviewRules}
+                >
                   {rulesCount > 0
                     ? t('alerting.import-to-gma.review.will-import-rules-count', 'Will import {{count}} rules', {
                         count: rulesCount,
                       })
                     : t('alerting.import-to-gma.review.will-import-rules', 'Will import rules')}
-                  <Icon name="eye" size="sm" />
-                </button>
+                </Button>
               )}
               {formData.step2Skipped && (
                 <span className={styles.badgeSkipped}>{t('alerting.import-to-gma.review.skipped', 'Skipped')}</span>
@@ -1050,22 +1062,6 @@ const getStyles = (theme: GrafanaTheme2) => ({
     color: theme.colors.warning.text,
     fontSize: theme.typography.bodySmall.fontSize,
     fontWeight: theme.typography.fontWeightMedium,
-  }),
-  badgeWithIcon: css({
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: theme.spacing(0.5),
-    padding: theme.spacing(0.5, 1),
-    borderRadius: theme.shape.radius.default,
-    backgroundColor: theme.colors.success.transparent,
-    color: theme.colors.success.text,
-    fontSize: theme.typography.bodySmall.fontSize,
-    fontWeight: theme.typography.fontWeightMedium,
-    border: 'none',
-    cursor: 'pointer',
-    '&:hover': {
-      backgroundColor: theme.colors.success.shade,
-    },
   }),
 });
 

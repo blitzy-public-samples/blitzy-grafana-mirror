@@ -1,6 +1,23 @@
 import { config } from '@grafana/runtime';
 import { type PanelModel } from 'app/features/dashboard/state/PanelModel';
 
+/**
+ * Shape of each entry pushed into `panel.thresholds` by `alertToGraphThresholds`.
+ *
+ * Locally declared because `PanelModel.thresholds` is typed as `any` in
+ * `public/app/features/dashboard/state/PanelModel.ts` (line 169), which is outside
+ * the scope of this refactor. The values written here match what the legacy
+ * graph panel reads from `panel.thresholds` at runtime.
+ */
+interface GraphThreshold {
+  value: number;
+  op: 'gt' | 'lt' | 'eq' | 'ne' | 'ge' | 'le';
+  visible: boolean;
+  fill?: boolean;
+  line?: boolean;
+  colorMode?: 'critical';
+}
+
 export const hiddenReducerTypes = ['percent_diff', 'percent_diff_abs'];
 export class ThresholdMapper {
   static alertToGraphThresholds(panel: PanelModel) {
@@ -15,7 +32,7 @@ export class ThresholdMapper {
       }
 
       const evaluator = condition.evaluator;
-      const thresholds: any[] = (panel.thresholds = []);
+      const thresholds: GraphThreshold[] = (panel.thresholds = []);
       const visible = hiddenReducerTypes.indexOf(condition.reducer?.type) === -1;
 
       switch (evaluator.type) {

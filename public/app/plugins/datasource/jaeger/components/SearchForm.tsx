@@ -40,7 +40,7 @@ export function SearchForm({ datasource, query, onChange }: Props) {
       setIsLoading((prevValue) => ({ ...prevValue, [loaderOfType]: true }));
 
       try {
-        const values: string[] | null = await datasource.metadataRequest(url);
+        const values: string[] | null = await datasource.metadataRequest<string[] | null>(url);
         if (!values) {
           return [{ label: `No ${loaderOfType} found`, value: `No ${loaderOfType} found` }];
         }

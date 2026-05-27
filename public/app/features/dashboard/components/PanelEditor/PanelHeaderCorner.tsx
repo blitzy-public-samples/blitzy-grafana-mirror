@@ -10,7 +10,7 @@ import {
 } from '@grafana/data';
 import { selectors } from '@grafana/e2e-selectors';
 import { locationService, getTemplateSrv } from '@grafana/runtime';
-import { Tooltip, type PopoverContent, Icon, useStyles2 } from '@grafana/ui';
+import { Tooltip, type PopoverContent, IconButton, useStyles2 } from '@grafana/ui';
 import { type PanelModel } from 'app/features/dashboard/state/PanelModel';
 import { InspectTab } from 'app/features/inspector/types';
 
@@ -115,14 +115,16 @@ function PanelInfoCorner({ infoMode, content, onClick }: PanelInfoCornerProps) {
 
   return (
     <Tooltip content={content} placement="top-start" theme={theme} interactive>
-      <button type="button" className={styles.infoCorner} onClick={onClick} aria-label={ariaLabel}>
-        <Icon
+      <div className={styles.infoCorner}>
+        <IconButton
           name={iconMap[infoMode]}
           size={infoMode === InfoMode.Links ? 'sm' : 'lg'}
+          onClick={onClick}
+          aria-label={ariaLabel}
           className={cx(styles.icon, { [styles.iconLinks]: infoMode === InfoMode.Links })}
         />
         <span className={cx(styles.inner, { [styles.error]: infoMode === InfoMode.Error })} />
-      </button>
+      </div>
     </Tooltip>
   );
 }
@@ -178,10 +180,6 @@ const getStyles = (theme: GrafanaTheme2) => {
       borderLeftColor: theme.colors.error.main,
     }),
     infoCorner: css({
-      background: 'none',
-      border: 'none',
-      color: theme.colors.text.secondary,
-      cursor: 'pointer',
       position: 'absolute',
       left: 0,
       top: 0,

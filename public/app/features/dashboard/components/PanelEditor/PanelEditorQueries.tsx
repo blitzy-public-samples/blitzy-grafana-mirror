@@ -1,4 +1,4 @@
-import { PureComponent } from 'react';
+import { memo, useCallback, useEffect, useReducer } from 'react';
 
 import { type DataQuery, getDataSourceRef } from '@grafana/data';
 import { locationService } from '@grafana/runtime';
@@ -18,45 +18,49 @@ interface Props {
   queries: DataQuery[];
 }
 
-export class PanelEditorQueries extends PureComponent<Props> {
-  constructor(props: Props) {
-    super(props);
-  }
+// store last used datasource in local storage
+const updateLastUsedDatasource = (datasource: QueryGroupDataSource) => {
+  storeLastUsedDataSourceInLocalStorage(datasource);
+};
 
-  // store last used datasource in local storage
-  updateLastUsedDatasource = (datasource: QueryGroupDataSource) => {
-    storeLastUsedDataSourceInLocalStorage(datasource);
+function buildQueryOptions(panel: PanelModel): QueryGroupOptions {
+  const dataSource: QueryGroupDataSource = panel.datasource ?? {
+    default: true,
   };
+  const datasourceSettings = getDatasourceSrv().getInstanceSettings(dataSource);
 
-  buildQueryOptions(panel: PanelModel): QueryGroupOptions {
-    const dataSource: QueryGroupDataSource = panel.datasource ?? {
-      default: true,
-    };
-    const datasourceSettings = getDatasourceSrv().getInstanceSettings(dataSource);
+  // store last datasource used in local storage
+  updateLastUsedDatasource(dataSource);
+  return {
+    cacheTimeout: datasourceSettings?.meta.queryOptions?.cacheTimeout ? panel.cacheTimeout : undefined,
+    dataSource: {
+      default: datasourceSettings?.isDefault,
+      ...(datasourceSettings ? getDataSourceRef(datasourceSettings) : { type: undefined, uid: undefined }),
+    },
+    queryCachingTTL: datasourceSettings?.cachingConfig?.enabled ? panel.queryCachingTTL : undefined,
+    queries: panel.targets,
+    maxDataPoints: panel.maxDataPoints,
+    minInterval: panel.interval,
+    timeRange: {
+      from: panel.timeFrom,
+      shift: panel.timeShift,
+      hide: panel.hideTimeOverride,
+    },
+  };
+}
 
-    // store last datasource used in local storage
-    this.updateLastUsedDatasource(dataSource);
-    return {
-      cacheTimeout: datasourceSettings?.meta.queryOptions?.cacheTimeout ? panel.cacheTimeout : undefined,
-      dataSource: {
-        default: datasourceSettings?.isDefault,
-        ...(datasourceSettings ? getDataSourceRef(datasourceSettings) : { type: undefined, uid: undefined }),
-      },
-      queryCachingTTL: datasourceSettings?.cachingConfig?.enabled ? panel.queryCachingTTL : undefined,
-      queries: panel.targets,
-      maxDataPoints: panel.maxDataPoints,
-      minInterval: panel.interval,
-      timeRange: {
-        from: panel.timeFrom,
-        shift: panel.timeShift,
-        hide: panel.hideTimeOverride,
-      },
-    };
-  }
+// Wrapped with React.memo to preserve the PureComponent shallow-equality optimization.
+// The `queries` prop (declared in `Props`) is intentionally not destructured: its sole purpose
+// per the original PureComponent design is to trigger re-renders when the queries array
+// reference changes from outside. React.memo's default shallow comparison still inspects all
+// props (including `queries`), so the optimization semantics are preserved.
+export const PanelEditorQueries = memo(function PanelEditorQueries({ panel }: Props) {
+  // `forceUpdate` replaces `this.forceUpdate()` from the original PureComponent. The reducer
+  // increments a counter to schedule a re-render whenever the externally mutated `panel`
+  // model needs to be reflected in the view (see onOptionsChange and the mount effect below).
+  const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
 
-  async componentDidMount() {
-    const { panel } = this.props;
-
+  useEffect(() => {
     // If the panel model has no datasource property load the default data source property and update the persisted model
     // Because this part of the panel model is not in redux yet we do a forceUpdate.
     if (!panel.datasource) {
@@ -75,52 +79,53 @@ export class PanelEditorQueries extends PureComponent<Props> {
         ds = getDatasourceSrv().getInstanceSettings(null);
       }
       panel.datasource = getDataSourceRef(ds!);
-      this.forceUpdate();
+      forceUpdate();
     }
-  }
+    // This effect replaces componentDidMount which runs exactly once after the initial mount.
+    // The `panel` model is a mutable instance whose identity does not change across renders,
+    // so the original semantics are preserved with an empty dependency array.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  onRunQueries = () => {
-    this.props.panel.refresh();
-  };
+  const onRunQueries = useCallback(() => {
+    panel.refresh();
+  }, [panel]);
 
-  onOpenQueryInspector = () => {
+  const onOpenQueryInspector = useCallback(() => {
     locationService.partial({
-      inspect: this.props.panel.id,
+      inspect: panel.id,
       inspectTab: 'query',
     });
-  };
+  }, [panel]);
 
-  onOptionsChange = (options: QueryGroupOptions) => {
-    const { panel } = this.props;
+  const onOptionsChange = useCallback(
+    (options: QueryGroupOptions) => {
+      panel.updateQueries(options);
 
-    panel.updateQueries(options);
+      if (options.dataSource.uid !== panel.datasource?.uid) {
+        // trigger queries when changing data source
+        setTimeout(() => panel.refresh(), 10);
+      }
 
-    if (options.dataSource.uid !== panel.datasource?.uid) {
-      // trigger queries when changing data source
-      setTimeout(this.onRunQueries, 10);
-    }
+      forceUpdate();
+    },
+    [panel]
+  );
 
-    this.forceUpdate();
-  };
-
-  render() {
-    const { panel } = this.props;
-
-    // If no panel data soruce set, wait with render. Will be set to default in componentDidMount
-    if (!panel.datasource) {
-      return null;
-    }
-
-    const options = this.buildQueryOptions(panel);
-
-    return (
-      <QueryGroup
-        options={options}
-        queryRunner={panel.getQueryRunner()}
-        onRunQueries={this.onRunQueries}
-        onOpenQueryInspector={this.onOpenQueryInspector}
-        onOptionsChange={this.onOptionsChange}
-      />
-    );
+  // If no panel data soruce set, wait with render. Will be set to default in componentDidMount
+  if (!panel.datasource) {
+    return null;
   }
-}
+
+  const options = buildQueryOptions(panel);
+
+  return (
+    <QueryGroup
+      options={options}
+      queryRunner={panel.getQueryRunner()}
+      onRunQueries={onRunQueries}
+      onOpenQueryInspector={onOpenQueryInspector}
+      onOptionsChange={onOptionsChange}
+    />
+  );
+});

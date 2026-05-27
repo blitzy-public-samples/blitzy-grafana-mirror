@@ -333,6 +333,7 @@ export function NestedFolderPicker({
         ref={refs.setFloating}
         id={overlayId}
         className={styles.tableWrapper}
+        // Design system gap: dynamic positioning and width driven by Floating UI runtime calculations
         style={{
           ...floatingStyles,
           width: elements.domReference?.clientWidth,

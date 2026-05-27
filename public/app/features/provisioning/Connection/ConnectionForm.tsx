@@ -1,11 +1,13 @@
+import { css } from '@emotion/css';
 import { useEffect, useState } from 'react';
 import { Controller, FormProvider, useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom-v5-compat';
 
+import { type GrafanaTheme2 } from '@grafana/data';
 import { t } from '@grafana/i18n';
 import { isFetchError, reportInteraction } from '@grafana/runtime';
-import { Alert, Button, Combobox, Field, Stack } from '@grafana/ui';
-import { type Connection } from 'app/api/clients/provisioning/v0alpha1';
+import { Alert, Button, Combobox, Field, Stack, useStyles2 } from '@grafana/ui';
+import { type Connection, type ErrorDetails, type Status } from 'app/api/clients/provisioning/v0alpha1';
 import { extractErrorMessage } from 'app/api/utils';
 import { FormPrompt } from 'app/core/components/FormPrompt/FormPrompt';
 
@@ -24,6 +26,7 @@ interface ConnectionFormProps {
 const providerOptions = [{ value: 'github', label: 'GitHub' }];
 
 export function ConnectionForm({ data }: ConnectionFormProps) {
+  const styles = useStyles2(getStyles);
   const connectionName = data?.metadata?.name;
   const isEdit = Boolean(connectionName);
   const privateKey = data?.secure?.privateKey;
@@ -91,7 +94,12 @@ export function ConnectionForm({ data }: ConnectionFormProps) {
 
       await submitData(spec, form.privateKey);
     } catch (err) {
-      if (isFetchError(err)) {
+      // Narrow the caught error to a fetch error whose body matches the
+      // shape expected by `getConnectionFormErrors`/`extractFormErrors`
+      // (`ErrorDetails[] | Status`). After the runtime-package `any -> unknown`
+      // refactor, `err.data` is `unknown` by default and must be narrowed before
+      // it can flow into helpers with a stricter parameter type.
+      if (isFetchError<ErrorDetails[] | Status>(err)) {
         const errors = getConnectionFormErrors(err.data);
 
         if (errors.length > 0) {
@@ -118,7 +126,22 @@ export function ConnectionForm({ data }: ConnectionFormProps) {
 
   return (
     <FormProvider {...formMethods}>
-      <form onSubmit={handleSubmit(onSubmit)} style={{ maxWidth: 700 }}>
+      {/*
+       * Raw <form> retained inside a <FormProvider> per AAP §0.6.1. The form must remain
+       * raw because:
+       *   1. <GitHubConnectionFields> nested below relies on `useFormContext()` to read
+       *      `control` from the surrounding FormProvider — wrapping in @grafana/ui's
+       *      <Form> render-prop component would not expose that context to children.
+       *   2. `reset()` is invoked from outside the form body (the FormPrompt discard
+       *      handler and the post-submit redirect effect), which the deprecated <Form>
+       *      wrapper does not facilitate.
+       *   3. `formState.isDirty` is consumed by <FormPrompt> sibling to gate
+       *      confirm-on-redirect behavior across the surrounding page.
+       * Per @grafana/ui's own JSDoc on <Form>: "use the `useForm` hook from
+       * react-hook-form instead" — the pattern below is the recommended replacement.
+       * Inline style={{ maxWidth: 700 }} migrated to useStyles2 per AAP Dimension 3.
+       */}
+      <form onSubmit={handleSubmit(onSubmit)} className={styles.form}>
         <FormPrompt onDiscard={reset} confirmRedirect={isDirty} />
         <Stack direction="column" gap={2}>
           {submitError && <Alert severity="error" title={submitError} />}
@@ -158,3 +181,9 @@ export function ConnectionForm({ data }: ConnectionFormProps) {
     </FormProvider>
   );
 }
+
+const getStyles = (_theme: GrafanaTheme2) => ({
+  form: css({
+    maxWidth: 700,
+  }),
+});

@@ -7,7 +7,7 @@ import { usePrevious } from 'react-use';
 
 import { type GrafanaTheme2 } from '@grafana/data';
 import { t, Trans } from '@grafana/i18n';
-import { InlineFormLabel, RadioButtonGroup, useStyles2 } from '@grafana/ui';
+import { InlineFormLabel, Input, RadioButtonGroup, Stack, useStyles2 } from '@grafana/ui';
 
 import { type PrometheusDatasource } from '../datasource';
 import { type PromQuery } from '../types';
@@ -54,19 +54,21 @@ export const PromExploreExtraField = memo(({ query, datasource, onChange, onRunQ
   const onQueryTypeChange = getQueryTypeChangeHandler(query, onChange);
 
   return (
-    <div
+    <Stack
+      direction="row"
+      alignItems="center"
+      wrap="wrap"
       aria-label={t(
         'grafana-prometheus.components.prom-explore-extra-field.aria-label-prometheus-extra-field',
         'Prometheus extra field'
       )}
-      className="gf-form-inline"
       data-testid={promExploreExtraFieldTestIds.extraFieldEditor}
     >
       {/*Query type field*/}
       <div
         data-testid={promExploreExtraFieldTestIds.queryTypeField}
         className={cx(
-          'gf-form',
+          styles.formRow,
           styles.queryTypeField,
           css({
             flexWrap: 'nowrap',
@@ -91,7 +93,7 @@ export const PromExploreExtraField = memo(({ query, datasource, onChange, onRunQ
       <div
         data-testid={promExploreExtraFieldTestIds.stepField}
         className={cx(
-          'gf-form',
+          styles.formRow,
           css({
             flexWrap: 'nowrap',
           })
@@ -117,9 +119,9 @@ export const PromExploreExtraField = memo(({ query, datasource, onChange, onRunQ
         >
           <Trans i18nKey="grafana-prometheus.components.prom-explore-extra-field.min-step">Min step</Trans>
         </InlineFormLabel>
-        <input
-          type={'text'}
-          className="gf-form-input width-4"
+        <Input
+          type="text"
+          width={8}
           // eslint-disable-next-line @grafana/i18n/no-untranslated-strings
           placeholder="auto"
           onChange={onStepChange}
@@ -129,7 +131,7 @@ export const PromExploreExtraField = memo(({ query, datasource, onChange, onRunQ
       </div>
 
       <PromExemplarField onChange={onExemplarChange} datasource={datasource} query={query} />
-    </div>
+    </Stack>
   );
 });
 
@@ -187,5 +189,9 @@ export const promExploreExtraFieldTestIds = {
 const getStyles = (theme: GrafanaTheme2) => ({
   queryTypeField: css({
     marginRight: theme.spacing(0.5),
+  }),
+  formRow: css({
+    display: 'flex',
+    marginBottom: theme.spacing(0.5),
   }),
 });

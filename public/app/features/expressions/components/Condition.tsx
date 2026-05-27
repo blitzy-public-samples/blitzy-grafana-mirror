@@ -3,7 +3,7 @@ import { type FormEvent } from 'react';
 
 import { type GrafanaTheme2, type SelectableValue } from '@grafana/data';
 import { Trans } from '@grafana/i18n';
-import { Button, ButtonSelect, Icon, InlineFieldRow, Input, Select, useStyles2, Stack } from '@grafana/ui';
+import { Box, Button, ButtonSelect, Icon, InlineFieldRow, Input, Select, useStyles2, Stack } from '@grafana/ui';
 
 import alertDef, { EvalFunction } from '../../alerting/state/alertDef';
 import { type ClassicCondition, type ReducerType } from '../types';
@@ -77,7 +77,7 @@ export const Condition = ({ condition, index, onChange, onRemoveCondition, refId
 
   return (
     <Stack>
-      <div style={{ flex: 1 }}>
+      <Box flex={1}>
         <InlineFieldRow>
           {index === 0 ? (
             <div className={cx(styles.button, buttonWidth)}>
@@ -141,7 +141,7 @@ export const Condition = ({ condition, index, onChange, onRemoveCondition, refId
             />
           ) : null}
         </InlineFieldRow>
-      </div>
+      </Box>
       <Button variant="secondary" type="button" onClick={() => onRemoveCondition(index)}>
         <Icon name="trash-alt" />
       </Button>

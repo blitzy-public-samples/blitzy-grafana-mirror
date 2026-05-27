@@ -781,7 +781,10 @@ describe('panelMenuBehavior', () => {
 
   describe('onCreateAlert', () => {
     beforeEach(() => {
-      jest.spyOn(storeModule, 'dispatch').mockImplementation(() => {});
+      // The overloaded `dispatch` signature requires an Action return value; this test does
+      // not consume the return, so a no-op implementation suffices. Cast scoped to test harness.
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+      (jest.spyOn(storeModule, 'dispatch') as unknown as jest.Mock).mockImplementation(() => {});
       jest.spyOn(locationService, 'push').mockImplementation(() => {});
       jest.spyOn(urlUtil, 'renderUrl').mockImplementation((url, params) => `${url}?${JSON.stringify(params)}`);
     });

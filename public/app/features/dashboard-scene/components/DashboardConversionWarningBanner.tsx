@@ -3,7 +3,7 @@ import { useState } from 'react';
 
 import { type GrafanaTheme2 } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
-import { Alert, Button, useStyles2 } from '@grafana/ui';
+import { Alert, Box, Button, useStyles2 } from '@grafana/ui';
 import { isV2StoredVersion } from 'app/features/dashboard/api/utils';
 
 import { type DashboardScene } from '../scene/DashboardScene';
@@ -27,75 +27,76 @@ export function DashboardConversionWarningBanner({ dashboard }: DashboardConvers
   }
 
   return (
-    <Alert
-      severity="warning"
-      title={t(
-        'dashboard-scene.conversion-warning-banner.message',
-        'The Dynamic Dashboard feature is temporarily disabled'
-      )}
-      style={{ flex: 0 }}
-    >
-      <div>
-        <Trans i18nKey="dashboard-scene.conversion-warning-banner.save-warning">
-          Any dashboard created as or converted to a Dynamic Dashboard will open as a classic dashboard. Saving the
-          dashboard could lead to losing already set up Dynamic Dashboard features.
-        </Trans>
-        {!isExpanded && (
-          <div className={styles.buttonContainer}>
-            <Button
-              variant="secondary"
-              size="sm"
-              fill="text"
-              onClick={() => setIsExpanded(true)}
-              className={styles.linkButton}
-            >
-              <Trans i18nKey="dashboard-scene.conversion-warning-banner.read-more">Read more</Trans>
-            </Button>
-          </div>
+    <Box flex={0}>
+      <Alert
+        severity="warning"
+        title={t(
+          'dashboard-scene.conversion-warning-banner.message',
+          'The Dynamic Dashboard feature is temporarily disabled'
         )}
-        {isExpanded && (
-          <div className={styles.expandedContent}>
-            <Trans i18nKey="dashboard-scene.conversion-warning-banner.details">
-              During this period, please be aware of the following:
-            </Trans>
-            <ul className={styles.detailsList}>
-              <li>
-                <Trans i18nKey="dashboard-scene.conversion-warning-banner.detail-tabs">
-                  All tabs and rows will appear as classic rows
-                </Trans>
-              </li>
-              <li>
-                <Trans i18nKey="dashboard-scene.conversion-warning-banner.detail-grids">
-                  All auto-grids will be shown as custom grids
-                </Trans>
-              </li>
-              <li>
-                <Trans i18nKey="dashboard-scene.conversion-warning-banner.detail-conditional">
-                  Show/hide rules will not work
-                </Trans>
-              </li>
-            </ul>
-            <Trans i18nKey="dashboard-scene.conversion-warning-banner.recommendation">
-              Once the feature is enabled again, your dashboards will render normally in their Dynamic Dashboard format.
-              Because of this, we strongly recommend not making changes to these dashboards until the feature is turned
-              back on, as edits made in classic mode may lead to unexpected results. Alternatively, you can save a copy
-              of the dashboard using the &quot;Save as copy&quot; option, in the save dashboard menu.
-            </Trans>
+      >
+        <div>
+          <Trans i18nKey="dashboard-scene.conversion-warning-banner.save-warning">
+            Any dashboard created as or converted to a Dynamic Dashboard will open as a classic dashboard. Saving the
+            dashboard could lead to losing already set up Dynamic Dashboard features.
+          </Trans>
+          {!isExpanded && (
             <div className={styles.buttonContainer}>
               <Button
                 variant="secondary"
                 size="sm"
                 fill="text"
-                onClick={() => setIsExpanded(false)}
+                onClick={() => setIsExpanded(true)}
                 className={styles.linkButton}
               >
-                <Trans i18nKey="dashboard-scene.conversion-warning-banner.read-less">Read less</Trans>
+                <Trans i18nKey="dashboard-scene.conversion-warning-banner.read-more">Read more</Trans>
               </Button>
             </div>
-          </div>
-        )}
-      </div>
-    </Alert>
+          )}
+          {isExpanded && (
+            <div className={styles.expandedContent}>
+              <Trans i18nKey="dashboard-scene.conversion-warning-banner.details">
+                During this period, please be aware of the following:
+              </Trans>
+              <ul className={styles.detailsList}>
+                <li>
+                  <Trans i18nKey="dashboard-scene.conversion-warning-banner.detail-tabs">
+                    All tabs and rows will appear as classic rows
+                  </Trans>
+                </li>
+                <li>
+                  <Trans i18nKey="dashboard-scene.conversion-warning-banner.detail-grids">
+                    All auto-grids will be shown as custom grids
+                  </Trans>
+                </li>
+                <li>
+                  <Trans i18nKey="dashboard-scene.conversion-warning-banner.detail-conditional">
+                    Show/hide rules will not work
+                  </Trans>
+                </li>
+              </ul>
+              <Trans i18nKey="dashboard-scene.conversion-warning-banner.recommendation">
+                Once the feature is enabled again, your dashboards will render normally in their Dynamic Dashboard
+                format. Because of this, we strongly recommend not making changes to these dashboards until the feature
+                is turned back on, as edits made in classic mode may lead to unexpected results. Alternatively, you can
+                save a copy of the dashboard using the &quot;Save as copy&quot; option, in the save dashboard menu.
+              </Trans>
+              <div className={styles.buttonContainer}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  fill="text"
+                  onClick={() => setIsExpanded(false)}
+                  className={styles.linkButton}
+                >
+                  <Trans i18nKey="dashboard-scene.conversion-warning-banner.read-less">Read less</Trans>
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </Alert>
+    </Box>
   );
 }
 

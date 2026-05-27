@@ -53,6 +53,7 @@ const WideMenu = ({
   innerRef: React.Ref<HTMLDivElement>;
   innerProps: React.HTMLAttributes<HTMLDivElement> & { style?: React.CSSProperties };
 }) => (
+  // Design system gap: combobox/select option-list styles must spread innerProps.style from react-select; minWidth override required for operator menu width
   <div ref={innerRef} {...innerProps} style={{ ...innerProps.style, minWidth: OPERATOR_MENU_MIN_WIDTH }}>
     {children}
   </div>

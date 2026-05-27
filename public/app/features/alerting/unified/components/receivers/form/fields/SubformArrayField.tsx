@@ -16,10 +16,10 @@ import { OptionField } from './OptionField';
 import { getReceiverFormFieldStyles } from './styles';
 
 interface Props {
-  defaultValues?: any[];
+  defaultValues?: Array<Record<string, unknown>>;
   option: NotificationChannelOption;
   pathPrefix: string;
-  errors?: Array<DeepMap<any, FieldError>>;
+  errors?: Array<DeepMap<Record<string, unknown>, FieldError>>;
   readOnly?: boolean;
   secureFields: NotificationChannelSecureFields;
   getOptionMeta?: (option: NotificationChannelOption) => OptionMeta;

@@ -4,7 +4,7 @@ import { getBackendSrv } from '@grafana/runtime';
 import { type FetchDataArgs } from '@grafana/ui';
 import { contextSrv } from 'app/core/services/context_srv';
 import { accessControlQueryParam } from 'app/core/utils/accessControl';
-import { AccessControlAction } from 'app/types/accessControl';
+import { AccessControlAction, type Role } from 'app/types/accessControl';
 import { type ThunkResult } from 'app/types/store';
 import { type OrgUser } from 'app/types/user';
 
@@ -17,14 +17,19 @@ import {
   sortChanged,
   rolesFetchBegin,
   rolesFetchEnd,
+  type UsersFetchResult,
 } from './reducers';
+
+// Server response shape for POST /api/access-control/users/roles/search.
+// Maps a user id to that user's roles. Untyped on the wire, so we narrow here.
+type UserRolesSearchResponse = Record<number, Role[]> | undefined;
 
 export function loadUsers(): ThunkResult<void> {
   return async (dispatch, getState) => {
     try {
       dispatch(usersFetchBegin());
       const { perPage, page, searchQuery, sort } = getState().users;
-      const users = await getBackendSrv().get(
+      const users = await getBackendSrv().get<UsersFetchResult>(
         `/api/org/users/search`,
         accessControlQueryParam({ perpage: perPage, page, query: searchQuery, sort })
       );
@@ -36,10 +41,13 @@ export function loadUsers(): ThunkResult<void> {
         dispatch(rolesFetchBegin());
         const orgId = contextSrv.user.orgId;
         const userIds = users?.orgUsers.map((u: OrgUser) => u.userId);
-        const roles = await getBackendSrv().post(`/api/access-control/users/roles/search?includeMapped=true`, {
-          userIds,
-          orgId,
-        });
+        const roles = await getBackendSrv().post<UserRolesSearchResponse>(
+          `/api/access-control/users/roles/search?includeMapped=true`,
+          {
+            userIds,
+            orgId,
+          }
+        );
         users.orgUsers.forEach((u: OrgUser) => {
           u.roles = roles ? roles[u.userId] || [] : [];
         });

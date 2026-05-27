@@ -1,11 +1,10 @@
 import { css } from '@emotion/css';
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
 
 import { type GrafanaTheme2 } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
 import { getBackendSrv } from '@grafana/runtime';
-import { Field, Input, Button, Legend, Container, useStyles2, LinkButton, Stack } from '@grafana/ui';
+import { Field, Input, Button, Legend, Container, Form, useStyles2, LinkButton, Stack } from '@grafana/ui';
 import config from 'app/core/config';
 
 interface EmailDTO {
@@ -25,11 +24,6 @@ export const ForgottenPassword = () => {
   const [emailSent, setEmailSent] = useState(false);
   const styles = useStyles2(paragraphStyles);
   const loginHref = `${config.appSubUrl}/login`;
-  const {
-    handleSubmit,
-    register,
-    formState: { errors },
-  } = useForm<EmailDTO>();
 
   const sendEmail = async (formModel: EmailDTO) => {
     const res = await getBackendSrv().post('/api/user/password/send-reset-email', formModel);
@@ -54,39 +48,43 @@ export const ForgottenPassword = () => {
     );
   }
   return (
-    <form onSubmit={handleSubmit(sendEmail)}>
-      <Legend>
-        <Trans i18nKey="forgot-password.reset-password-header">Reset password</Trans>
-      </Legend>
-      <Field
-        label={t('forgot-password.user-field-label', 'User')}
-        description={t(
-          'forgot-password.user-field-description',
-          'Enter your information to get a reset link sent to you'
-        )}
-        invalid={!!errors.userOrEmail}
-        error={errors?.userOrEmail?.message}
-      >
-        <Input
-          id="user-input"
-          placeholder={t('forgot-password.user-field-placeholder', 'Email or username')}
-          {...register('userOrEmail', { required: 'Email or username is required' })}
-        />
-      </Field>
-      <Stack>
-        <Button type="submit">
-          <Trans i18nKey="forgot-password.send-email-button">Send reset email</Trans>
-        </Button>
-        <LinkButton fill="text" href={loginHref}>
-          <Trans i18nKey="forgot-password.back-button">Back to login</Trans>
-        </LinkButton>
-      </Stack>
+    <Form<EmailDTO> onSubmit={sendEmail} maxWidth="none">
+      {({ register, formState: { errors } }) => (
+        <>
+          <Legend>
+            <Trans i18nKey="forgot-password.reset-password-header">Reset password</Trans>
+          </Legend>
+          <Field
+            label={t('forgot-password.user-field-label', 'User')}
+            description={t(
+              'forgot-password.user-field-description',
+              'Enter your information to get a reset link sent to you'
+            )}
+            invalid={!!errors.userOrEmail}
+            error={errors?.userOrEmail?.message}
+          >
+            <Input
+              id="user-input"
+              placeholder={t('forgot-password.user-field-placeholder', 'Email or username')}
+              {...register('userOrEmail', { required: 'Email or username is required' })}
+            />
+          </Field>
+          <Stack>
+            <Button type="submit">
+              <Trans i18nKey="forgot-password.send-email-button">Send reset email</Trans>
+            </Button>
+            <LinkButton fill="text" href={loginHref}>
+              <Trans i18nKey="forgot-password.back-button">Back to login</Trans>
+            </LinkButton>
+          </Stack>
 
-      <p className={styles}>
-        <Trans i18nKey="forgot-password.contact-admin">
-          Did you forget your username or email? Contact your Grafana administrator.
-        </Trans>
-      </p>
-    </form>
+          <p className={styles}>
+            <Trans i18nKey="forgot-password.contact-admin">
+              Did you forget your username or email? Contact your Grafana administrator.
+            </Trans>
+          </p>
+        </>
+      )}
+    </Form>
   );
 };

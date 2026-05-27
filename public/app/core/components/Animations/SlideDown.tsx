@@ -40,6 +40,7 @@ export const SlideDown: FC<Props> = ({ children, in: inProp, maxHeight = default
     <Transition in={inProp} timeout={defaultDuration} nodeRef={transitionRef}>
       {(state) => (
         <div
+          // Design system gap: dynamic animation styles must be inline because they are computed per-frame from animation state.
           style={{
             ...style,
             ...transitionStyles[state],

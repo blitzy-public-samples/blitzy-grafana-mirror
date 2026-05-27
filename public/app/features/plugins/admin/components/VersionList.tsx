@@ -1,11 +1,11 @@
 import { css } from '@emotion/css';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { major, compare, lte } from 'semver';
 
 import { dateTimeFormatTimeAgo, type GrafanaTheme2 } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
 import { config } from '@grafana/runtime';
-import { useStyles2, Badge } from '@grafana/ui';
+import { useStyles2, Badge, InteractiveTable, type Column } from '@grafana/ui';
 
 import { getLatestCompatibleVersion, shouldDisablePluginInstall } from '../helpers';
 import { type CatalogPlugin, PluginUpdateStrategy, type Version } from '../types';
@@ -40,6 +40,133 @@ export const VersionList = ({ plugin }: Props) => {
     return !versions.some((v) => v.version === installedVersion);
   }, [versions, installedVersion]);
 
+  // useCallback ensures referential stability of onInstallClick so it can be safely
+  // included in the columns useMemo dependency array without defeating memoization
+  // (per AAP Cohort 3 InteractiveTable migration blueprint). Behavior is unchanged:
+  // the click still triggers setIsInstalling(true).
+  // NOTE: Declared BEFORE the early return below to satisfy react-hooks/rules-of-hooks.
+  const onInstallClick = useCallback(() => {
+    setIsInstalling(true);
+  }, []);
+
+  // Column definitions for InteractiveTable. The positional ordering (version,
+  // install, releaseDate, grafanaDependency) MUST be preserved because the
+  // responsive [theme.breakpoints.down('md')] block in getStyles.table uses
+  // positional `tbody td:nth-child(N)` selectors to render data-label pseudo-elements
+  // ('Version:', 'Action:', 'Release date:', 'Dependency:').
+  // NOTE: Declared BEFORE the early return below to satisfy react-hooks/rules-of-hooks.
+  const columns = useMemo<Array<Column<Version>>>(
+    () => [
+      {
+        id: 'version',
+        header: () => <Trans i18nKey="plugins.version-list.version">Version</Trans>,
+        cell: ({ row }) => {
+          const isInstalledVersion = installedVersion === row.original.version;
+          if (isInstalledVersion) {
+            return (
+              <span className={styles.currentVersion}>
+                <Trans
+                  i18nKey="plugins.version-list.installed-version"
+                  values={{ versionNumber: row.original.version }}
+                >
+                  {'{{versionNumber}}'} (installed version)
+                </Trans>
+              </span>
+            );
+          }
+          if (row.original.version === latestCompatibleVersion?.version) {
+            return (
+              <Trans
+                i18nKey="plugins.version-list.latest-compatible-version"
+                values={{ versionNumber: row.original.version }}
+              >
+                {'{{versionNumber}}'} (latest compatible version)
+              </Trans>
+            );
+          }
+          return row.original.version;
+        },
+      },
+      {
+        id: 'install',
+        cell: ({ row }) => {
+          const isInstalledVersion = installedVersion === row.original.version;
+          let tooltip: string | undefined = undefined;
+          if (row.original.angularDetected) {
+            tooltip = 'This plugin version is AngularJS type which is not supported';
+          }
+          if (!row.original.isCompatible) {
+            tooltip = 'This plugin version is not compatible with the current Grafana version';
+          }
+          if (disableInstallation) {
+            tooltip = `This plugin can't be managed through the Plugin Catalog`;
+          }
+          if (isInstalledVersion && row.original.status === 'deprecated') {
+            return <Badge text={t('plugins.version-list.deprecated', 'Deprecated')} color="orange" />;
+          }
+          return (
+            <VersionInstallButton
+              pluginId={pluginId}
+              version={row.original}
+              latestCompatibleVersion={latestCompatibleVersion?.version}
+              installedVersion={installedVersion}
+              onConfirmInstallation={onInstallClick}
+              disabled={
+                isInstalledVersion ||
+                isInstalling ||
+                row.original.angularDetected ||
+                !row.original.isCompatible ||
+                disableInstallation ||
+                shouldDisableVersionInstallation({
+                  version: row.original,
+                  latestMajorVersions,
+                  installedVersion,
+                  updateStrategy: plugin.managed.strategy,
+                })
+              }
+              tooltip={tooltip}
+            />
+          );
+        },
+      },
+      {
+        id: 'releaseDate',
+        header: () => <Trans i18nKey="plugins.version-list.latest-release-date">Latest release date</Trans>,
+        cell: ({ row }) => {
+          const isInstalledVersion = installedVersion === row.original.version;
+          return (
+            <span className={isInstalledVersion ? styles.currentVersion : ''}>
+              {dateTimeFormatTimeAgo(row.original.updatedAt || row.original.createdAt)}
+            </span>
+          );
+        },
+      },
+      {
+        id: 'grafanaDependency',
+        header: () => <Trans i18nKey="plugins.version-list.grafana-dependency">Grafana dependency</Trans>,
+        cell: ({ row }) => {
+          const isInstalledVersion = installedVersion === row.original.version;
+          return (
+            <span className={isInstalledVersion ? styles.currentVersion : ''}>
+              {row.original.grafanaDependency || 'N/A'}
+            </span>
+          );
+        },
+      },
+    ],
+    [
+      installedVersion,
+      latestCompatibleVersion,
+      latestMajorVersions,
+      disableInstallation,
+      isInstalling,
+      pluginId,
+      plugin.managed.strategy,
+      onInstallClick,
+      styles.currentVersion,
+    ]
+  );
+
   if (versions.length === 0 && !isInstalledVersionMissing) {
     return (
       <p>
@@ -48,105 +175,8 @@ export const VersionList = ({ plugin }: Props) => {
     );
   }
 
-  const onInstallClick = () => {
-    setIsInstalling(true);
-  };
-
   return (
-    <table className={styles.table}>
-      <thead>
-        <tr>
-          <th>
-            <Trans i18nKey="plugins.version-list.version">Version</Trans>
-          </th>
-          <th></th>
-          <th>
-            <Trans i18nKey="plugins.version-list.latest-release-date">Latest release date</Trans>
-          </th>
-          <th>
-            <Trans i18nKey="plugins.version-list.grafana-dependency">Grafana dependency</Trans>
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        {versions.map((version) => {
-          let tooltip: string | undefined = undefined;
-          const isInstalledVersion = installedVersion === version.version;
-
-          if (version.angularDetected) {
-            tooltip = 'This plugin version is AngularJS type which is not supported';
-          }
-
-          if (!version.isCompatible) {
-            tooltip = 'This plugin version is not compatible with the current Grafana version';
-          }
-
-          if (disableInstallation) {
-            tooltip = `This plugin can't be managed through the Plugin Catalog`;
-          }
-
-          return (
-            <tr key={version.version}>
-              {/* Version number */}
-              {isInstalledVersion ? (
-                <td className={styles.currentVersion}>
-                  <Trans i18nKey="plugins.version-list.installed-version" values={{ versionNumber: version.version }}>
-                    {'{{versionNumber}}'} (installed version)
-                  </Trans>
-                </td>
-              ) : version.version === latestCompatibleVersion?.version ? (
-                <td>
-                  <Trans
-                    i18nKey="plugins.version-list.latest-compatible-version"
-                    values={{ versionNumber: version.version }}
-                  >
-                    {'{{versionNumber}}'} (latest compatible version)
-                  </Trans>
-                </td>
-              ) : (
-                <td>{version.version}</td>
-              )}
-
-              {/* Install button or status badge */}
-              <td>
-                {isInstalledVersion && version.status === 'deprecated' ? (
-                  <Badge text={t('plugins.version-list.deprecated', 'Deprecated')} color="orange" />
-                ) : (
-                  <VersionInstallButton
-                    pluginId={pluginId}
-                    version={version}
-                    latestCompatibleVersion={latestCompatibleVersion?.version}
-                    installedVersion={installedVersion}
-                    onConfirmInstallation={onInstallClick}
-                    disabled={
-                      isInstalledVersion ||
-                      isInstalling ||
-                      version.angularDetected ||
-                      !version.isCompatible ||
-                      disableInstallation ||
-                      shouldDisableVersionInstallation({
-                        version,
-                        latestMajorVersions,
-                        installedVersion,
-                        updateStrategy: plugin.managed.strategy,
-                      })
-                    }
-                    tooltip={tooltip}
-                  />
-                )}
-              </td>
-
-              {/* Latest release date */}
-              <td className={isInstalledVersion ? styles.currentVersion : ''}>
-                {dateTimeFormatTimeAgo(version.updatedAt || version.createdAt)}
-              </td>
-              {/* Dependency */}
-              <td className={isInstalledVersion ? styles.currentVersion : ''}>{version.grafanaDependency || 'N/A'}</td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
+    <InteractiveTable<Version> className={styles.table} columns={columns} data={versions} getRowId={(v) => v.version} />
   );
 };
 

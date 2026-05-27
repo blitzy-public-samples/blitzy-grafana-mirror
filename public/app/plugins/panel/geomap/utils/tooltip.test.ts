@@ -71,8 +71,15 @@ describe('tooltip utils', () => {
     // Reset mocks
     jest.clearAllMocks();
 
-    // Create mock objects
-    panel = new GeomapPanel({} as PanelProps<Options>);
+    // Create mock panel handle object. GeomapPanel is mocked via jest.mock at the
+    // top of this file to a jest.fn() whose mockImplementation returns a plain
+    // object matching the handle shape. After the class→forwardRef conversion the
+    // exported value is no longer constructable, so we call the mock as a function
+    // (cast away the ForwardRefExoticComponent type) instead of `new`-ing it; the
+    // jest mock returns the same object either way at runtime.
+    panel = (GeomapPanel as unknown as (props: PanelProps<Options>) => GeomapPanel)(
+      {} as PanelProps<Options>
+    );
 
     // Create a proper MouseEvent instance to pass the instanceof check
     const mouseEvent = new MouseEvent('pointermove');

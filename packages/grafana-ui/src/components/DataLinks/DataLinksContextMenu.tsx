@@ -74,7 +74,8 @@ export const DataLinksContextMenu = ({ children, links, style }: DataLinksContex
         onClick={linkModel.onClick}
         target={linkModel.target}
         title={linkModel.title}
-        style={{ ...style, overflow: 'hidden', display: 'flex' }}
+        className={styles.singleLink}
+        style={style}
         data-testid={selectors.components.DataLinksContextMenu.singleLink}
       >
         {children({})}
@@ -86,5 +87,9 @@ export const DataLinksContextMenu = ({ children, links, style }: DataLinksContex
 const getStyles = (theme: GrafanaTheme2) => ({
   itemWrapper: css({
     fontSize: 12,
+  }),
+  singleLink: css({
+    overflow: 'hidden',
+    display: 'flex',
   }),
 });

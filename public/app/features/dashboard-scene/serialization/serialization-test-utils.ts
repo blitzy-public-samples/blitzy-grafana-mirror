@@ -1,4 +1,4 @@
-import { readdirSync, statSync } from 'fs';
+import { existsSync, readdirSync, statSync } from 'fs';
 import path from 'path';
 
 import {
@@ -10,11 +10,22 @@ import {
 /**
  * Recursively gets all JSON files from a directory.
  * Returns an array of objects containing the full file path and relative path from the base directory.
+ *
+ * Returns an empty array when the directory does not exist. Tests that rely on
+ * Go-generated golden files (which are intentionally gitignored per
+ * `apps/dashboard/pkg/migration/.gitignore`) call this helper at module load
+ * time; returning [] keeps the module load safe and allows the consuming suite
+ * to skip cleanly when run in a frontend-only environment where the golden
+ * files are absent.
  */
 export function getFilesRecursively(
   dir: string,
   baseDir: string = dir
 ): Array<{ filePath: string; relativePath: string }> {
+  if (!existsSync(dir)) {
+    return [];
+  }
+
   const files: Array<{ filePath: string; relativePath: string }> = [];
   const entries = readdirSync(dir);
 

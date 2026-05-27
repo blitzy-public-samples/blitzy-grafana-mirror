@@ -15,8 +15,8 @@
 
 import type { DashboardScene } from '../scene/DashboardScene';
 
-import { ALL_COMMANDS, validatePayload } from './commands/registry';
-import type { MutationCommand, MutationContext } from './commands/types';
+import { ALL_COMMANDS, type RegisteredCommand, validatePayload } from './commands/registry';
+import type { MutationContext } from './commands/types';
 import type { MutationClient, MutationRequest, MutationResult } from './types';
 
 type MutationHandler = (payload: unknown, context: MutationContext) => Promise<MutationResult>;
@@ -83,12 +83,15 @@ export class DashboardMutationClient implements MutationClient {
     return Array.from(this.commands.keys());
   }
 
-  private registerCommand(cmd: MutationCommand): void {
+  // Accepts the registry's uniform `RegisteredCommand` whose `handler` already has the
+  // `(payload: unknown, ctx) => Promise<MutationResult>` shape (the registry wraps the original
+  // typed handler in a closure that parses the payload via the captured schema). No type
+  // assertion is required when copying `cmd.handler` into the local `MutationHandler` slot.
+  private registerCommand(cmd: RegisteredCommand): void {
     this.commands.set(cmd.name, {
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- safe: client validates with Zod before dispatch
-      handler: cmd.handler as MutationHandler,
+      handler: cmd.handler,
       canExecute: cmd.permission,
-      readOnly: cmd.readOnly ?? false,
+      readOnly: cmd.readOnly,
     });
   }
 }

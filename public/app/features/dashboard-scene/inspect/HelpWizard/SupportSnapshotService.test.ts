@@ -23,7 +23,8 @@ describe('SupportSnapshotService', () => {
   it('Can can build support snapshot dashboard', async () => {
     const service = await setup();
     await service.buildDebugDashboard();
-    expect(service.state.snapshot.panels[0].targets[0]).toMatchInlineSnapshot(`
+    // Non-null assertions: buildDebugDashboard() above guarantees both snapshot and targets are populated for this fixture.
+    expect(service.state.snapshot!.panels[0].targets![0]).toMatchInlineSnapshot(`
       {
         "datasource": {
           "type": "grafana",

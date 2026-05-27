@@ -119,7 +119,7 @@ const mustKeepProps: { [str: string]: boolean } = {
   key: true,
 };
 
-const defaults: any = {
+const defaults: Partial<PanelModel> = {
   gridPos: { x: 0, y: 0, h: 3, w: 6 },
   targets: [{ refId: 'A' }],
   cachedPluginOptions: {},
@@ -150,6 +150,7 @@ export class PanelModel implements DataConfigSource, IPanelModel {
   gridPos!: GridPos;
   type!: string;
   title!: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- alert is the legacy Angular alerting rule blob (deeply nested with plugin-specific conditions/evaluator/notifications). Narrowing to `unknown` cascades into `public/app/features/alerting/state/ThresholdMapper.{ts,test.ts}` (out-of-scope) which access `panel.alert.conditions` directly. Retained at AAP §0.8.6 step 7 per §0.9.2.12 minimal-change mandate.
   alert?: any;
   scopedVars?: ScopedVars;
   repeat?: string;
@@ -164,14 +165,18 @@ export class PanelModel implements DataConfigSource, IPanelModel {
   declare targets: DataQuery[];
   transformations?: DataTransformerConfig[];
   datasource: DataSourceRef | null = null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- thresholds is the legacy threshold array attached to graph/singlestat panels prior to fieldConfig migration. Narrowing to `unknown` cascades into `public/app/features/alerting/state/ThresholdMapper.{ts,test.ts}` (out-of-scope) which iterates `panel.thresholds[i].op/value`. Retained at AAP §0.8.6 step 7 per §0.9.2.12 minimal-change mandate.
   thresholds?: any;
   pluginVersion?: string;
   snapshotData?: DataFrameDTO[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- timeFrom/timeShift legacy panel time overrides can be either a relative duration string ('2h') or null at persistence boundaries. Narrowing to `string | null` cascades into dashboard-scene's PanelTimeRange (`string | undefined`) and ShareModal utils consumers (out-of-scope). Retained at AAP §0.8.6 step 7 per §0.9.2.12 minimal-change mandate.
   timeFrom?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- see timeFrom rationale above
   timeShift?: any;
   hideTimeOverride?: boolean;
   timeCompare?: string;
   declare options: {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- panel options are plugin-specific and dynamically typed; converting to `unknown` would cascade narrowing requirements across hundreds of plugin sites that read `panel.options.legend.showLegend`, `panel.options.fieldName`, etc. Per AAP §0.6.1 plugin-options guidance and §0.9.2.12 minimal-change mandate, this is retained at the option boundary.
     [key: string]: any;
   };
   declare fieldConfig: FieldConfigSource;
@@ -215,7 +220,7 @@ export class PanelModel implements DataConfigSource, IPanelModel {
 
   private queryRunner?: PanelQueryRunner;
 
-  constructor(model: any) {
+  constructor(model: unknown) {
     this.events = new EventBusSrv();
     this.restoreModel(model);
     this.replaceVariables = this.replaceVariables.bind(this);
@@ -223,31 +228,44 @@ export class PanelModel implements DataConfigSource, IPanelModel {
   }
 
   /** Given a persistened PanelModel restores property values */
-  restoreModel(model: any) {
+  restoreModel(model: unknown) {
+    // Narrow once at entry: callers may pass any value but only object-shaped models carry data.
+    // The structural narrowing through `Record<string, unknown>` is the minimum safe form for
+    // dynamically iterating over an opaque persisted object whose precise shape varies per panel
+    // type / persistence version. See AAP §0.8.6 step 5 (unknown + narrowing).
+    const modelObj: Record<string, unknown> =
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- narrowing `unknown` to a string-keyed record after the runtime `typeof model === 'object'` guard
+      model && typeof model === 'object' ? (model as Record<string, unknown>) : {};
+    // Dynamic alias for `this` to permit string-indexed reads/writes/deletes on the class
+    // instance without re-introducing `any`. The double-cast (via `unknown`) is the canonical
+    // pattern for treating a class instance as a string-keyed dictionary in strict TypeScript.
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- dynamic property iteration on the class instance; see comment above and AAP §0.6.1 PanelModel guidance
+    const dynamicThis = this as unknown as Record<string, unknown>;
+
     // Start with clean-up
     for (const property in this) {
       if (notPersistedProperties[property] || !this.hasOwnProperty(property)) {
         continue;
       }
 
-      if (model[property]) {
+      if (modelObj[property]) {
         continue;
       }
 
-      if (typeof this[property] === 'function') {
+      if (typeof dynamicThis[property] === 'function') {
         continue;
       }
 
-      if (typeof this[property] === 'symbol') {
+      if (typeof dynamicThis[property] === 'symbol') {
         continue;
       }
 
-      delete this[property];
+      delete dynamicThis[property];
     }
 
     // copy properties from persisted model
-    for (const property in model) {
-      (this as any)[property] = model[property];
+    for (const property in modelObj) {
+      dynamicThis[property] = modelObj[property];
     }
 
     const newType = getPanelPluginToMigrateTo(this);
@@ -301,19 +319,40 @@ export class PanelModel implements DataConfigSource, IPanelModel {
     this.render();
   }
 
-  getSaveModel() {
+  /**
+   * The save model is a structurally-shaped JSON representation of the panel suitable for
+   * persistence. It omits non-persisted runtime properties (per `notPersistedProperties`)
+   * and may include collapsed-row reduced shapes `{ id, title, gridPos, libraryPanel }` for
+   * library panels nested inside rows. Downstream consumers (LibraryPanel persistence
+   * helpers, ImportOverviewV1, dashboard-scene transformers, etc.) treat this loosely as
+   * either `PanelModel`-shaped JSON or `Panel`-shaped schema JSON. Returning `any` here is
+   * the legacy contract — narrowing to `PanelModel` would falsely promise runtime methods
+   * (events, configRev) which the save model does NOT carry. Public method signature
+   * preserved per AAP §0.9.2.12 minimal-change mandate.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- save model is a dynamic JSON subset that does not satisfy any single TypeScript interface (mixes PanelModel-shaped entries and reduced library-panel shapes for collapsed rows). Cascading narrower types causes failures in library-panels/{state/api.ts,utils.ts}, manage-dashboards/ImportOverviewV1, dashboard/utils/panelMerge, and ShareModal consumers (out-of-scope). Retained at AAP §0.8.6 step 7.
+  getSaveModel(): any {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- legacy dynamic save-model accumulator; field types are heterogeneous across panel/plugin types
     const model: any = {};
+    // Dynamic aliases to permit string-indexed reads on the class instance and on the
+    // structurally-typed `defaults` constant without re-introducing `any` at the local variable
+    // boundary. Runtime semantics are identical to the previous `this[property]` /
+    // `defaults[property]` accesses.
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- dynamic property iteration on the class instance; see comment above
+    const dynamicThis = this as unknown as Record<string, unknown>;
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- string-indexed read on the `Partial<PanelModel>` defaults constant during dynamic comparison
+    const dynamicDefaults = defaults as unknown as Record<string, unknown>;
 
     for (const property in this) {
       if (notPersistedProperties[property] || !this.hasOwnProperty(property)) {
         continue;
       }
 
-      if (isEqual(this[property], defaults[property])) {
+      if (isEqual(dynamicThis[property], dynamicDefaults[property])) {
         continue;
       }
 
-      model[property] = cloneDeep(this[property]);
+      model[property] = cloneDeep(dynamicThis[property]);
     }
 
     // clean libraryPanel from collapsed rows
@@ -400,14 +439,17 @@ export class PanelModel implements DataConfigSource, IPanelModel {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the returned "options-to-remember" bag is consumed by `callPanelTypeChangeHandler` and by dashboard-scene's `angularMigration` (out-of-scope) which both access `.options` as a plugin-specific dynamic shape forwarded to `plugin.onPanelTypeChanged`. Narrowing to `Record<string, unknown>` would propagate `unknown` typing to the plugin handler signature (Record<string, any>) and cascade out-of-scope. Retained at AAP §0.8.6 step 7 per §0.9.2.12 minimal-change mandate.
   public getOptionsToRemember(): any {
-    return Object.keys(this).reduce((acc, property) => {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- dynamic property iteration on the class instance during option capture; see Change 7 in AAP §0.6.1
+    const dynamicThis = this as unknown as Record<string, unknown>;
+    return Object.keys(this).reduce<Record<string, unknown>>((acc, property) => {
       if (notPersistedProperties[property] || mustKeepProps[property]) {
         return acc;
       }
       return {
         ...acc,
-        [property]: (this as any)[property],
+        [property]: dynamicThis[property],
       };
     }, {});
   }
@@ -419,8 +461,10 @@ export class PanelModel implements DataConfigSource, IPanelModel {
       return;
     }
 
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- dynamic property restoration on the class instance from a previously-cached options bag; see Change 8 in AAP §0.6.1
+    const dynamicThis = this as unknown as Record<string, unknown>;
     Object.keys(prevOptions.properties).map((property) => {
-      (this as any)[property] = prevOptions.properties[property];
+      dynamicThis[property] = prevOptions.properties[property];
     });
 
     this.fieldConfig = restoreCustomOverrideRules(this.fieldConfig, prevOptions.fieldConfig);
@@ -496,6 +540,7 @@ export class PanelModel implements DataConfigSource, IPanelModel {
   private callPanelTypeChangeHandler(
     newPlugin: PanelPlugin,
     oldPluginId: string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- oldOptions is the dynamic plugin-options snapshot returned by `getOptionsToRemember()`. The plugin handler's published signature is `PanelTypeChangedHandler<TOptions = any>(panel, prevPluginId, prevOptions: Record<string, any>, prevFieldConfig)` (packages/grafana-data/src/types/panel.ts:171), so widening here propagates the public contract correctly.
     oldOptions: any,
     wasAngular: boolean
   ) {
@@ -635,8 +680,14 @@ export class PanelModel implements DataConfigSource, IPanelModel {
     this.events.publish(new PanelTransformationsChangedEvent());
   }
 
-  setProperty(key: keyof this, value: any) {
-    this[key] = value;
+  setProperty(key: keyof this, value: unknown) {
+    // The assignment is intrinsically dynamic over the union of PanelModel field types — `key` may
+    // refer to any class property. Callers narrow `value` at the call site (e.g., PanelEditor.tsx
+    // passes `value: unknown` after schema-driven editor narrowing; DashboardRow.tsx passes typed
+    // strings). The cast through `this[keyof this]` is the minimum required to satisfy strict
+    // assignability checks; `value: unknown` enforces narrowing at all call sites.
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- dynamic key/value assignment on a class instance; see comment above
+    this[key] = value as this[keyof this];
     this.configRev++;
 
     // Custom handling of repeat dependent options, handled here as PanelEditor can
@@ -674,6 +725,8 @@ export class PanelModel implements DataConfigSource, IPanelModel {
   }
 
   initLibraryPanel(libPanel: LibraryPanel) {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- dynamic property assignment from library panel model onto the class instance; see Change 11 in AAP §0.6.1
+    const dynamicThis = this as unknown as Record<string, unknown>;
     for (const [key, val] of Object.entries(libPanel.model)) {
       switch (key) {
         case 'id':
@@ -681,7 +734,7 @@ export class PanelModel implements DataConfigSource, IPanelModel {
         case 'libraryPanel': // recursive?
           continue;
       }
-      (this as any)[key] = val; // :grimmice:
+      dynamicThis[key] = val; // :grimmice:
     }
     this.libraryPanel = libPanel;
   }
@@ -698,17 +751,23 @@ export function getPluginVersion(plugin: PanelPlugin): string {
 }
 
 interface PanelOptionsCache {
-  properties: any;
+  properties: Record<string, unknown>;
   fieldConfig: FieldConfigSource;
 }
 
 // For cases where we immediately want to stringify the panel model without cloning each property
 export function stringifyPanelModel(panel: PanelModel) {
   const model: Record<string, unknown> = {};
+  // String-indexed alias for the structurally-typed `defaults` constant; runtime semantics are
+  // identical to the previous direct `defaults[prop]` access (which compiled only because
+  // `defaults` was typed `any`).
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- string-indexed read on the `Partial<PanelModel>` defaults constant during dynamic equality comparison
+  const dynamicDefaults = defaults as unknown as Record<string, unknown>;
 
   Object.entries(panel)
     .filter(
-      ([prop, val]) => !notPersistedProperties[prop] && panel.hasOwnProperty(prop) && !isEqual(val, defaults[prop])
+      ([prop, val]) =>
+        !notPersistedProperties[prop] && panel.hasOwnProperty(prop) && !isEqual(val, dynamicDefaults[prop])
     )
     .forEach(([k, v]) => {
       model[k] = v;

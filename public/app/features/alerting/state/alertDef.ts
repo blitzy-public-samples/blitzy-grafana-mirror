@@ -4,6 +4,39 @@ import { t } from '@grafana/i18n';
 import { type IconName } from '@grafana/ui';
 import { QueryPart, QueryPartDef } from 'app/features/alerting/state/query_part';
 
+interface AlertReducerModel {
+  type: string;
+  params?: unknown[];
+}
+
+interface EvalMatch {
+  metric?: string;
+  value?: number | string;
+  Metric?: string;
+  Value?: number | string;
+}
+
+interface AlertAnnotationDataObject {
+  evalMatches?: EvalMatch[];
+  error?: string;
+}
+
+interface AlertAnnotationData {
+  data: EvalMatch[] | AlertAnnotationDataObject;
+}
+
+/**
+ * Type guard for the legacy/new `AlertAnnotationDataObject` shape stored on
+ * annotations. Used by {@link getAlertAnnotationText} to safely narrow
+ * `unknown` input values coming from annotation payload arrays which are
+ * intentionally typed as `unknown[]` at the consumer (see
+ * `public/app/plugins/panel/timeseries/plugins/annotations2-cluster/types.ts`,
+ * `AnnotationVals.data: unknown[]`).
+ */
+function isAlertAnnotationDataObject(value: unknown): value is AlertAnnotationDataObject {
+  return typeof value === 'object' && value !== null;
+}
+
 const alertQueryDef = new QueryPartDef({
   type: 'query',
   params: [
@@ -91,7 +124,7 @@ const executionErrorModes = [
   { text: 'Keep Last State', value: 'keep_state' },
 ];
 
-function createReducerPart(model: any) {
+function createReducerPart(model: AlertReducerModel) {
   const def = new QueryPartDef({ type: model.type, defaultParams: [] });
   return new QueryPart(model, def);
 }
@@ -191,7 +224,7 @@ function getStateDisplayModel(state: string): AlertStateDisplayModel {
   }
 }
 
-function joinEvalMatches(matches: any, separator: string) {
+function joinEvalMatches(matches: EvalMatch[] | undefined, separator: string) {
   return reduce(
     matches,
     (res, ev) => {
@@ -210,7 +243,7 @@ function joinEvalMatches(matches: any, separator: string) {
   ).join(separator);
 }
 
-function getAlertAnnotationInfo(ah: any) {
+function getAlertAnnotationInfo(ah: AlertAnnotationData) {
   // backward compatibility, can be removed in grafana 5.x
   // old way stored evalMatches in data property directly,
   // new way stores it in evalMatches property on new data object
@@ -228,20 +261,38 @@ function getAlertAnnotationInfo(ah: any) {
   return '';
 }
 
-// Copy of getAlertAnnotationInfo, used in annotation tooltip
-function getAlertAnnotationText(annotationData: any) {
+/**
+ * Copy of {@link getAlertAnnotationInfo}, used in annotation tooltips.
+ *
+ * Accepts `unknown` to preserve the broad call contract used by panel
+ * annotation consumers (e.g.
+ * `public/app/plugins/panel/timeseries/plugins/annotations2/AnnotationTooltip2.tsx`
+ * and `annotations2-cluster/AnnotationTooltip2Cluster.tsx`) where
+ * `annoVals.data` is typed as `unknown[]`. Narrowing happens internally via
+ * {@link Array.isArray} and {@link isAlertAnnotationDataObject}, so callers do
+ * not need to perform type assertions or extract intermediate consts to make
+ * TypeScript accept the value. This keeps the function backwards-compatible
+ * with arbitrary annotation payloads (legacy `EvalMatch[]` array form, the
+ * newer `{ evalMatches?, error? }` object form, or anything else, which
+ * returns the empty string).
+ */
+function getAlertAnnotationText(annotationData: unknown) {
   // backward compatibility, can be removed in grafana 5.x
   // old way stored evalMatches in data property directly,
   // new way stores it in evalMatches property on new data object
 
   if (isArray(annotationData)) {
     return joinEvalMatches(annotationData, ', ');
-  } else if (isArray(annotationData.evalMatches)) {
-    return joinEvalMatches(annotationData.evalMatches, ', ');
   }
 
-  if (annotationData.error) {
-    return 'Error: ' + annotationData.error;
+  if (isAlertAnnotationDataObject(annotationData)) {
+    if (isArray(annotationData.evalMatches)) {
+      return joinEvalMatches(annotationData.evalMatches, ', ');
+    }
+
+    if (annotationData.error) {
+      return 'Error: ' + annotationData.error;
+    }
   }
 
   return '';

@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 
 import { Trans, t } from '@grafana/i18n';
-import { Field, Label, Stack } from '@grafana/ui';
+import { Box, Field, Label, Stack } from '@grafana/ui';
 import { ProvisioningAwareFolderPicker } from 'app/features/provisioning/components/Shared/ProvisioningAwareFolderPicker';
 
 import { type Folder, type RuleFormValues } from '../../types/rule-form';
@@ -47,7 +47,7 @@ export function FolderSelector() {
           <Stack direction="row" alignItems="center">
             <Controller
               render={({ field: { ref, ...field } }) => (
-                <div style={{ width: 420 }}>
+                <Box width={52.5}>
                   <ProvisioningAwareFolderPicker
                     permission="view"
                     showRootFolder={false}
@@ -65,7 +65,7 @@ export function FolderSelector() {
                       resetGroup();
                     }}
                   />
-                </div>
+                </Box>
               )}
               name="folder"
               rules={{

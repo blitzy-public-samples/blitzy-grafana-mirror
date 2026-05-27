@@ -1,6 +1,9 @@
+import { css } from '@emotion/css';
+
+import { type GrafanaTheme2 } from '@grafana/data';
 import { t } from '@grafana/i18n';
 import { config } from '@grafana/runtime';
-import { Alert } from '@grafana/ui';
+import { Alert, useStyles2 } from '@grafana/ui';
 import { useGetRepositoryFilesWithPathQuery } from 'app/api/clients/provisioning/v0alpha1';
 import { type DashboardPageRouteSearchParams } from 'app/features/dashboard/containers/types';
 import { usePullRequestParam } from 'app/features/provisioning/hooks/usePullRequestParam';
@@ -25,6 +28,7 @@ function DashboardPreviewBannerContent({ queryParams, slug, path }: DashboardPre
   const { prURL: existingPRUrl } = usePullRequestParam();
   const file = useGetRepositoryFilesWithPathQuery({ name: slug, path, ref: queryParams.ref });
   const { repository } = useGetResourceRepositoryView({ name: slug });
+  const styles = useStyles2(getStyles);
 
   // early return if there is an error loading dashboard file from repository
   if (file.data?.errors) {
@@ -32,7 +36,7 @@ function DashboardPreviewBannerContent({ queryParams, slug, path }: DashboardPre
       <Alert
         title={t('dashboard-scene.dashboard-preview-banner.title-error-loading-dashboard', 'Error loading dashboard')}
         severity="error"
-        style={{ flex: 0 }}
+        className={styles.alert}
       >
         {file.data.errors.map((error, index) => (
           <div key={index}>{error}</div>
@@ -65,3 +69,9 @@ export function DashboardPreviewBanner({ queryParams, route, slug, path }: Dashb
 
   return <DashboardPreviewBannerContent queryParams={queryParams} slug={slug} path={path} />;
 }
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  alert: css({
+    flex: 0,
+  }),
+});

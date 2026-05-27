@@ -1,13 +1,16 @@
+import { css, cx } from '@emotion/css';
 import { isFunction } from 'lodash';
 import { type ComponentType, type FC } from 'react';
 import * as React from 'react';
 
 import {
   type GrafanaPlugin,
+  type GrafanaTheme2,
   type PluginExtensionAddedComponentConfig,
   type PluginExtensionExposedComponentConfig,
   PluginType,
 } from '@grafana/data';
+import { useStyles2 } from '@grafana/ui';
 
 import { type SandboxPluginMeta, type SandboxedPluginObject } from './types';
 import { isSandboxedPluginObject } from './utils';
@@ -116,10 +119,15 @@ const withSandboxWrapper = <P extends object>(
   pluginMeta: SandboxPluginMeta
 ): React.MemoExoticComponent<FC<P>> => {
   const WithWrapper = React.memo((props: P) => {
+    const styles = useStyles2(getStyles);
     return (
       <div
         data-plugin-sandbox={pluginMeta.id}
-        style={{ height: pluginMeta.type === PluginType.app || pluginMeta.type === PluginType.panel ? '100%' : 'auto' }}
+        className={cx(
+          pluginMeta.type === PluginType.app || pluginMeta.type === PluginType.panel
+            ? styles.fullHeight
+            : styles.autoHeight
+        )}
       >
         <WrappedComponent {...props} />
       </div>
@@ -128,3 +136,12 @@ const withSandboxWrapper = <P extends object>(
   WithWrapper.displayName = `GrafanaSandbox(${WrappedComponent.displayName || WrappedComponent.name || 'Component'})`;
   return WithWrapper;
 };
+
+const getStyles = (_theme: GrafanaTheme2) => ({
+  fullHeight: css({
+    height: '100%',
+  }),
+  autoHeight: css({
+    height: 'auto',
+  }),
+});

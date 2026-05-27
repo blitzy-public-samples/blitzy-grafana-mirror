@@ -6,6 +6,7 @@ import { type SelectableValue, type GrafanaTheme2, type PluginType } from '@graf
 import { Trans, t } from '@grafana/i18n';
 import { locationSearchToObject } from '@grafana/runtime';
 import { Select, RadioButtonGroup, useStyles2, Tooltip, Field, TextLink } from '@grafana/ui';
+import { extractErrorMessage } from 'app/api/utils';
 import { Page } from 'app/core/components/Page/Page';
 import { getNavModel } from 'app/core/selectors/navModel';
 import { AdvisorRedirectNotice } from 'app/features/connections/components/AdvisorRedirectNotice/AdvisorRedirectNotice';
@@ -72,7 +73,12 @@ export default function Browse() {
 
   // How should we handle errors?
   if (error) {
-    console.error(error.message);
+    // `error` from useGetAll is typed `unknown` (RequestInfo.error?: unknown
+    // — see public/app/features/plugins/admin/types.ts). Narrow via the
+    // shared `extractErrorMessage` helper rather than asserting `as Error`,
+    // because the plugins-admin slice can also reject with non-Error values
+    // (e.g., RTK Query FetchBaseQueryError, plain strings).
+    console.error(extractErrorMessage(error, 'Unknown error'));
     return null;
   }
 

@@ -88,6 +88,7 @@ export const DefaultCell = (props: TableCellProps) => {
       key={key}
       {...rest}
       className={cellStyle}
+      // Design system gap: inline style required by react-table getCellProps() — cellProps.style is mutated directly by both this component (wordBreak/textAlign/height/minWidth) and the parent TableCell wrapper for layout/justification, and the cursor depends on dynamic link/action state
       style={{ ...cellProps.style, cursor: hasMultipleLinksOrActions ? 'context-menu' : 'auto' }}
       onClick={tooltipOnClickHandler(setTooltipCoords)}
     >

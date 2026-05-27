@@ -39,7 +39,7 @@ async function postMigrateRequest<TQuery extends DataQuery>(queries: TQuery[]): 
       };
     }),
   };
-  const res = await getBackendSrv().post(url, request);
+  const res = await getBackendSrv().post<{ queries: Array<{ JSON: TQuery }> }>(url, request);
   return res.queries.map((query: { JSON: TQuery }) => query.JSON);
 }
 

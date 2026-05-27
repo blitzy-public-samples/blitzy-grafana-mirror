@@ -148,7 +148,14 @@ export class SQLSearcher implements GrafanaSearcher {
       const allDeletedHits = await deletedDashboardsCache.get();
       rsp = searchHitsToDashboardSearchHits(filterSearchResults(allDeletedHits, query));
     } else {
-      rsp = await backendSrv.get<DashboardSearchHit[]>('/api/search', query);
+      // `BackendSrv.get`'s `params` argument is now typed as
+      // `Record<string, unknown> | undefined` after the runtime-package
+      // `any -> unknown` refactor. `APIQuery` is structurally compatible
+      // (all optional, string-keyed) but TypeScript does not auto-coerce
+      // interface types into a record. Materialize a fresh plain object
+      // via `Object.fromEntries(Object.entries(...))` so the resulting
+      // index-signature type is assignable without a type assertion.
+      rsp = await backendSrv.get<DashboardSearchHit[]>('/api/search', Object.fromEntries(Object.entries(query)));
     }
 
     // Field values (columnar)

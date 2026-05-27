@@ -17,8 +17,20 @@ import {
   getOutputDirectory,
   getJsonInputFiles,
   constructLatestVersionOutputFilename,
+  hasGoldenFilesOutputDir,
 } from './__tests__/migrationTestUtils';
 import { getPanelPluginToMigrateTo } from './getPanelPluginToMigrateTo';
+
+// Golden migration output files are produced by the Go backend tests via
+// `make generate-golden-files` (see `apps/dashboard/pkg/migration/.gitignore`).
+// They are present in CI (downloaded as an artifact from the
+// generate-golden-files job) but absent in frontend-only developer environments.
+// When the output directory is missing, skip the suite rather than failing with
+// ENOENT — the parity check has no meaningful work to do without the backend
+// reference data, and the QA guidance for CP3 explicitly calls for
+// skip-on-missing patterns here.
+const hasGoldenFiles = hasGoldenFilesOutputDir('latest_version');
+const describeIfGoldenFiles = hasGoldenFiles ? describe : describe.skip;
 
 /*
  * Backend / Frontend Migration Comparison Test Design Explanation:
@@ -51,7 +63,7 @@ variableAdapters.register(createIntervalVariableAdapter());
 variableAdapters.register(createCustomVariableAdapter());
 variableAdapters.register(createTextBoxVariableAdapter());
 
-describe('Backend / Frontend result comparison', () => {
+describeIfGoldenFiles('Backend / Frontend result comparison', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     setupTestDataSources();

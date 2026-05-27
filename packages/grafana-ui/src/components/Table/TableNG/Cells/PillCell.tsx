@@ -42,6 +42,10 @@ export function PillCell({ rowIdx, field, theme, getTextColorForBackground }: Pi
   return pills.map((pill) => (
     <span
       key={pill.key}
+      // Design system gap: per-pill background/text/border colors are computed at render time from
+      // per-row field data (getPillColor + getTextColorForBackground) and cannot be hoisted to a
+      // static Emotion class. Static structural styles (display, padding, borderRadius, fontSize,
+      // lineHeight, whiteSpace) already live in getStyles below via the `> span` selector.
       style={{
         backgroundColor: pill.bgColor,
         color: pill.color,

@@ -3,59 +3,68 @@ import { useMemo, type JSX } from 'react';
 
 import { useAssistant } from '@grafana/assistant';
 import { FeatureState, type GrafanaTheme2 } from '@grafana/data';
-import { Trans, t } from '@grafana/i18n';
+import { t } from '@grafana/i18n';
 import { config } from '@grafana/runtime';
-import { Grid, Modal, useStyles2, Text, FeatureBadge } from '@grafana/ui';
+import { type Column, FeatureBadge, Grid, InteractiveTable, Modal, Text, useStyles2 } from '@grafana/ui';
 import { getModKey } from 'app/core/utils/browser';
 
 export interface HelpModalProps {
   onDismiss: () => void;
 }
 
+interface ShortcutRow {
+  keys: string[];
+  description: string;
+  isNew?: boolean;
+}
+
 export const HelpModal = ({ onDismiss }: HelpModalProps): JSX.Element => {
   const styles = useStyles2(getStyles);
   const shortcuts = useShortcuts();
+
+  const columns = useMemo<Array<Column<ShortcutRow>>>(
+    () => [
+      {
+        id: 'keys',
+        header: t('help-modal.column-headers.keys', 'Keys'),
+        cell: ({ row }) => (
+          <div className={styles.keys}>
+            {row.original.keys.map((key) => (
+              <Key key={key}>{key}</Key>
+            ))}
+          </div>
+        ),
+        disableGrow: true,
+      },
+      {
+        id: 'description',
+        header: t('help-modal.column-headers.description', 'Description'),
+        cell: ({ row }) => (
+          <div className={styles.descriptionWrapper}>
+            <Text variant="bodySmall" element="p">
+              {row.original.description}
+            </Text>
+            {row.original.isNew && <FeatureBadge featureState={FeatureState.new} />}
+          </div>
+        ),
+      },
+    ],
+    [styles]
+  );
+
   return (
     <Modal title={t('help-modal.title', 'Shortcuts')} isOpen onDismiss={onDismiss} onClickBackdrop={onDismiss}>
       <Grid columns={{ xs: 1, sm: 2 }} gap={3} tabIndex={0}>
-        {Object.values(shortcuts).map(({ category, shortcuts }) => (
+        {Object.values(shortcuts).map(({ category, shortcuts: categoryShortcuts }) => (
           <section key={category}>
-            <table className={styles.table}>
-              <caption>
-                <Text element="p" variant="h5">
-                  {category}
-                </Text>
-              </caption>
-              <thead className="sr-only">
-                <tr>
-                  <th>
-                    <Trans i18nKey="help-modal.column-headers.keys">Keys</Trans>
-                  </th>
-                  <th>
-                    <Trans i18nKey="help-modal.column-headers.description">Description</Trans>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {shortcuts.map(({ keys, description, isNew }) => (
-                  <tr key={keys.join()}>
-                    <td className={styles.keys}>
-                      {keys.map((key) => (
-                        <Key key={key}>{key}</Key>
-                      ))}
-                    </td>
-                    <td>
-                      <div className={styles.descriptionWrapper}>
-                        <Text variant="bodySmall" element="p">
-                          {description}
-                        </Text>
-                        {isNew && <FeatureBadge featureState={FeatureState.new} />}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <Text element="p" variant="h5">
+              {category}
+            </Text>
+            <InteractiveTable<ShortcutRow>
+              columns={columns}
+              data={categoryShortcuts}
+              getRowId={(row) => row.keys.join()}
+            />
           </section>
         ))}
       </Grid>
@@ -284,13 +293,6 @@ function replaceCustomKeyNames(key: string) {
 
 function getStyles(theme: GrafanaTheme2) {
   return {
-    table: css({
-      borderCollapse: 'separate',
-      borderSpacing: theme.spacing(2),
-      '& caption': {
-        captionSide: 'top',
-      },
-    }),
     keys: css({
       textAlign: 'end',
       whiteSpace: 'nowrap',

@@ -537,27 +537,31 @@ export class LokiDatasource
 
   /**
    * A method that wraps `getResource` from DataSourceWithBackend to perform metadata requests, with an additional check for valid URL values.
-   * @returns A Promise that resolves to the data retrieved from the metadata request, or an empty array if no data is available.
+   * @returns A Promise that resolves to the data retrieved from the metadata request, or `undefined` if no data is available.
    */
-  async metadataRequest(url: string, params?: Record<string, string | number>, options?: Partial<BackendSrvRequest>) {
+  async metadataRequest<T = unknown>(
+    url: string,
+    params?: Record<string, string | number>,
+    options?: Partial<BackendSrvRequest>
+  ): Promise<T | undefined> {
     // url must not start with a `/`, otherwise the AJAX-request
     // going from the browser will contain `//`, which can cause problems.
     if (url.startsWith('/')) {
       throw new Error(`invalid metadata request url: ${url}`);
     }
 
-    const res = await this.getResource(url, params, options);
+    const res = await this.getResource<{ data?: T; values?: T; fields?: T }>(url, params, options);
 
     // detected_field/${label}/values has different structure then other metadata responses
     if (!res.data && res.values) {
-      return res.values ?? [];
+      return res.values;
     }
 
     // detected_fields has a different return structure then other metadata responses
     if (!res.data && res.fields) {
-      return res.fields ?? [];
+      return res.fields;
     }
-    return res.data ?? [];
+    return res.data;
   }
 
   /**
@@ -844,7 +848,7 @@ export class LokiDatasource
    * Handles escaping of special characters based on variable type and value.
    * @returns The interpolated value with appropriate character escaping.
    */
-  interpolateQueryExpr(value: any, variable: QueryVariableModel | CustomVariableModel) {
+  interpolateQueryExpr(value: string | string[] | number, variable: QueryVariableModel | CustomVariableModel) {
     // if no multi or include all do not regexEscape
     if (!variable.multi && !variable.includeAll) {
       return value;
@@ -852,6 +856,12 @@ export class LokiDatasource
 
     if (typeof value === 'string') {
       return lokiSpecialRegexEscape(value);
+    }
+
+    if (typeof value === 'number') {
+      // Preserve original behavior: lodashMap on a primitive number returned an empty array,
+      // which `.join('|')` then collapsed to an empty string.
+      return '';
     }
 
     const escapedValues = lodashMap(value, lokiSpecialRegexEscape);
@@ -1057,7 +1067,7 @@ export class LokiDatasource
    * @returns A promise that resolves to an array of AnnotationEvent objects representing the annotations for the dashboard.
    * @todo This is deprecated and it is recommended to use the `AnnotationSupport` feature for annotations.
    */
-  async annotationQuery(options: any): Promise<AnnotationEvent[]> {
+  async annotationQuery(options: AnnotationQueryRequest<LokiQuery>): Promise<AnnotationEvent[]> {
     const { expr, maxLines, instant, tagKeys = '', titleFormat = '', textFormat = '' } = options.annotation;
 
     if (!expr) {

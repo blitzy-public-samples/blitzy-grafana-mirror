@@ -25,7 +25,7 @@ function strHash(str: string): string {
   return hash.toString(36);
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- recursive hash walks heterogeneous nested objects; narrowing-via-unknown would require type assertions inside the recursion that add no safety
 function deterministicObjectHash<T extends Record<string, any>>(obj: T): string {
   let result = '';
   for (const key of Object.keys(obj).sort()) {

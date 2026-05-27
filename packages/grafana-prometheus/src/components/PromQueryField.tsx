@@ -1,10 +1,11 @@
 // Core Grafana history https://github.com/grafana/grafana/blob/v11.0.0-preview/public/app/plugins/datasource/prometheus/components/PromQueryField.tsx
-import { css, cx } from '@emotion/css';
+import { css } from '@emotion/css';
 import { type ReactNode, useCallback, useEffect, useState } from 'react';
 
 import {
   type DataFrame,
   getDefaultTimeRange,
+  type GrafanaTheme2,
   isDataFrame,
   type QueryEditorProps,
   type QueryHint,
@@ -13,7 +14,7 @@ import {
 import { selectors } from '@grafana/e2e-selectors';
 import { t, Trans } from '@grafana/i18n';
 import { reportInteraction } from '@grafana/runtime';
-import { clearButtonStyles, Icon, useTheme2 } from '@grafana/ui';
+import { Button, Stack, useStyles2 } from '@grafana/ui';
 
 import { type PrometheusDatasource } from '../datasource';
 import { getInitHints } from '../query_hints';
@@ -44,7 +45,7 @@ export const PromQueryField = (props: PromQueryFieldProps) => {
     hideMetricsBrowser = false,
   } = props;
 
-  const theme = useTheme2();
+  const styles = useStyles2(getStyles);
 
   const [hint, setHint] = useState<QueryHint | null>(null);
   const [labelBrowserVisible, setLabelBrowserVisible] = useState(false);
@@ -109,13 +110,17 @@ export const PromQueryField = (props: PromQueryFieldProps) => {
 
   return (
     <>
-      <div
-        className="gf-form-inline gf-form-inline--xs-view-flex-column flex-grow-1"
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        gap={0}
+        grow={1}
         data-testid={props['data-testid']}
       >
         {!hideMetricsBrowser && (
-          <button
-            className="gf-form-label query-keyword pointer"
+          <Button
+            variant="secondary"
+            fill="text"
+            icon={labelBrowserVisible ? 'angle-down' : 'angle-right'}
             onClick={onClickChooserButton}
             disabled={datasource.lookupsDisabled}
             type="button"
@@ -126,11 +131,10 @@ export const PromQueryField = (props: PromQueryFieldProps) => {
             ) : (
               <Trans i18nKey="grafana-prometheus.metrics-browser.enabled-label">Metrics browser</Trans>
             )}
-            <Icon name={labelBrowserVisible ? 'angle-down' : 'angle-right'} />
-          </button>
+          </Button>
         )}
 
-        <div className="flex-grow-1 min-width-15">
+        <div className={styles.monacoWrapper}>
           <MonacoQueryFieldWrapper
             languageProvider={languageProvider}
             history={history}
@@ -145,7 +149,7 @@ export const PromQueryField = (props: PromQueryFieldProps) => {
             timeRange={range ?? getDefaultTimeRange()}
           />
         </div>
-      </div>
+      </Stack>
       {labelBrowserVisible && (
         <div>
           <MetricsBrowserProvider
@@ -164,16 +168,12 @@ export const PromQueryField = (props: PromQueryFieldProps) => {
             flexBasis: '100%',
           })}
         >
-          <div className="text-warning">
+          <div className={styles.warning}>
             {hint.label}{' '}
             {hint.fix ? (
-              <button
-                type="button"
-                className={cx(clearButtonStyles(theme), 'text-link', 'muted')}
-                onClick={onClickHintFix}
-              >
+              <Button variant="secondary" fill="text" onClick={onClickHintFix}>
                 {hint.fix.label}
-              </button>
+              </Button>
             ) : null}
           </div>
         </div>
@@ -181,3 +181,13 @@ export const PromQueryField = (props: PromQueryFieldProps) => {
     </>
   );
 };
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  warning: css({
+    color: theme.colors.warning.text,
+  }),
+  monacoWrapper: css({
+    flexGrow: 1,
+    minWidth: theme.spacing(30),
+  }),
+});

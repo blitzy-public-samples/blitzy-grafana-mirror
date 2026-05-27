@@ -113,7 +113,7 @@ export const FuzzySearch: React.FC<FuzzySearchProps> = ({
             {isOpen ? (
               <>
                 <Input
-                  className="width-10"
+                  width={20}
                   type="text"
                   placeholder={t('components.fuzzy-search.placeholder-search-team', 'Enter search term')}
                   value={searchTerm}

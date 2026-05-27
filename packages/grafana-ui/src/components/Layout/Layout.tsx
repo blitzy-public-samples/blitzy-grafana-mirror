@@ -47,10 +47,10 @@ export const Layout = ({
   height = '100%',
   ...rest
 }: LayoutProps) => {
-  const styles = useStyles2(getStyles, orientation, spacing, justify, align, wrap);
+  const styles = useStyles2(getStyles, orientation, spacing, justify, align, wrap, width, height);
 
   return (
-    <div className={styles.layout} style={{ width, height }} {...rest}>
+    <div className={styles.layout} {...rest}>
       {React.Children.toArray(children)
         .filter(Boolean)
         .map((child, index) => {
@@ -134,7 +134,9 @@ const getStyles = (
   spacing: Spacing,
   justify: Justify,
   align: Align,
-  wrap: boolean
+  wrap: boolean,
+  width: string,
+  height: string | number
 ) => {
   const finalSpacing = spacing !== 'none' ? theme.spacing(spacingToNumber[spacing]) : 0;
 
@@ -152,7 +154,8 @@ const getStyles = (
       flexWrap: wrap ? 'wrap' : 'nowrap',
       justifyContent: justify,
       alignItems: align,
-      height: '100%',
+      width: width,
+      height: height,
       maxWidth: '100%',
       // compensate for last row margin when wrapped, horizontal layout
       marginBottom: marginCompensation,

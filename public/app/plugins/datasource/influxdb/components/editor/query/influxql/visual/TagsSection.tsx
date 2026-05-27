@@ -1,7 +1,9 @@
+import { css } from '@emotion/css';
 import type { JSX } from 'react';
 
-import { type SelectableValue } from '@grafana/data';
+import { type GrafanaTheme2, type SelectableValue } from '@grafana/data';
 import { AccessoryButton } from '@grafana/plugin-ui';
+import { useStyles2 } from '@grafana/ui';
 
 import { type InfluxQueryTag } from '../../../../../types';
 import { adjustOperatorIfNeeded, getCondition, getOperator } from '../utils/tagUtils';
@@ -40,6 +42,7 @@ const loadConditionOptions = () => Promise.resolve(condititonOptions);
 const loadOperatorOptions = () => Promise.resolve(operatorOptions);
 
 const Tag = ({ tag, isFirst, onRemove, onChange, getTagKeyOptions, getTagValueOptions }: TagProps): JSX.Element => {
+  const styles = useStyles2(getStyles);
   const operator = getOperator(tag);
   const condition = getCondition(tag, isFirst);
 
@@ -67,7 +70,7 @@ const Tag = ({ tag, isFirst, onRemove, onChange, getTagKeyOptions, getTagValueOp
   const isRegexOperator = operator === '=~' || operator === '!~';
 
   return (
-    <div className="gf-form">
+    <div className={styles.tagRow}>
       {condition != null && (
         <Seg
           value={condition}
@@ -107,7 +110,7 @@ const Tag = ({ tag, isFirst, onRemove, onChange, getTagKeyOptions, getTagValueOp
         }}
       />
       <AccessoryButton
-        style={{ marginRight: '4px' }}
+        className={styles.removeTag}
         aria-label="remove"
         icon="times"
         variant="secondary"
@@ -179,3 +182,19 @@ export const TagsSection = ({ tags, onChange, getTagKeyOptions, getTagValueOptio
     </>
   );
 };
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  // Replicates the base `.gf-form` rule from
+  // packages/grafana-ui/src/themes/GlobalStyles/forms.ts (without modifiers).
+  tagRow: css({
+    display: 'flex',
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    textAlign: 'left',
+    position: 'relative',
+    marginBottom: theme.spacing(0.5),
+  }),
+  removeTag: css({
+    marginRight: theme.spacing(0.5),
+  }),
+});

@@ -99,6 +99,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 
     // In order to standardise Button please always consider using IconButton when you need a button with an icon only
     // When using tooltip, ref is forwarded to Tooltip component instead for https://github.com/grafana/grafana/issues/65632
+    // Design system gap: this file IS the @grafana/ui Button primitive. The raw <button> element is the canonical implementation that powers <Button> across the codebase, so it is kept as raw per refactor protocol (AAP §0.4.4).
     const button = (
       <button
         className={buttonStyles}

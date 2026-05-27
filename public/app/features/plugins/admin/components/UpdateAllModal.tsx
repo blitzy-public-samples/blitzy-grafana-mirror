@@ -15,6 +15,17 @@ type UpdateError = {
   message: string;
 };
 
+function isUpdateError(value: unknown): value is UpdateError {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'id' in value &&
+    typeof value.id === 'string' &&
+    'message' in value &&
+    typeof value.message === 'string'
+  );
+}
+
 type Props = {
   isOpen: boolean;
   isLoading: boolean;
@@ -70,7 +81,7 @@ export const UpdateAllModal = ({ isOpen, onDismiss, isLoading, plugins }: Props)
 
   // Updates the component state on every error that comes from the store
   useEffect(() => {
-    if (inProgress && error && !errorMap.has(error.id) && selectedPlugins?.has(error.id)) {
+    if (inProgress && isUpdateError(error) && !errorMap.has(error.id) && selectedPlugins?.has(error.id)) {
       setErrorMap((prevErrorMap) => {
         const newErrorMap = new Map(prevErrorMap);
         newErrorMap.set(error.id, error);

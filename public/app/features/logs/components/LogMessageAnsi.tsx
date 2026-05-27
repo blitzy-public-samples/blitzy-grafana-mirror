@@ -1,16 +1,16 @@
 import ansicolor from 'ansicolor';
-import { PureComponent } from 'react';
+import { memo, useMemo } from 'react';
 import Highlighter from 'react-highlight-words';
 
 import { findHighlightChunksInText, type GrafanaTheme2 } from '@grafana/data';
-import { withTheme2, type Themeable2 } from '@grafana/ui';
+import { useTheme2 } from '@grafana/ui';
 
 interface Style {
   [key: string]: string;
 }
 
 interface ParsedChunk {
-  style: Style;
+  style?: Style;
   text: string;
 }
 
@@ -34,70 +34,77 @@ function convertCSSToStyle(theme: GrafanaTheme2, css: string): Style {
   }, {});
 }
 
-interface Props extends Themeable2 {
+interface Props {
   value: string;
   highlight?: {
     searchWords: string[];
     highlightClassName: string;
   };
+  /**
+   * @deprecated The theme is now resolved internally via `useTheme2()`. This
+   * optional prop is preserved for backward source compatibility with the
+   * pre-conversion class-component API (when `UnThemedLogMessageAnsi` was the
+   * un-themed `PureComponent` wrapped by `withTheme2(...)`) and is intentionally
+   * ignored at runtime. Will be removed in a future cleanup.
+   */
+  theme?: GrafanaTheme2;
 }
 
-interface State {
-  chunks: ParsedChunk[];
-  prevValue: string;
-}
+export const LogMessageAnsi = memo(({ value, highlight }: Props) => {
+  const theme = useTheme2();
 
-export class UnThemedLogMessageAnsi extends PureComponent<Props, State> {
-  state: State = {
-    chunks: [],
-    prevValue: '',
-  };
-
-  static getDerivedStateFromProps(props: Props, state: State) {
-    if (props.value === state.prevValue) {
-      return null;
-    }
-
-    const parsed = ansicolor.parse(props.value);
-
-    return {
-      chunks: parsed.spans.map((span) => {
-        return span.css
-          ? {
-              style: convertCSSToStyle(props.theme, span.css),
-              text: span.text,
-            }
-          : { text: span.text };
-      }),
-      prevValue: props.value,
-    };
-  }
-
-  render() {
-    const { chunks } = this.state;
-
-    return chunks.map((chunk, index) => {
-      const chunkText = this.props.highlight?.searchWords ? (
-        <Highlighter
-          key={index}
-          textToHighlight={chunk.text}
-          searchWords={this.props.highlight.searchWords}
-          findChunks={findHighlightChunksInText}
-          highlightClassName={this.props.highlight.highlightClassName}
-        />
-      ) : (
-        chunk.text
-      );
-      return chunk.style ? (
-        <span key={index} style={chunk.style} data-testid="ansiLogLine">
-          {chunkText}
-        </span>
-      ) : (
-        chunkText
-      );
+  // Derive ANSI-parsed chunks from `value` + `theme`. This replaces the
+  // previous `getDerivedStateFromProps` lifecycle: re-parsing only occurs when
+  // `value` or `theme` changes, matching the original `prevValue` guard.
+  const chunks = useMemo<ParsedChunk[]>(() => {
+    const parsed = ansicolor.parse(value);
+    return parsed.spans.map((span) => {
+      return span.css
+        ? {
+            style: convertCSSToStyle(theme, span.css),
+            text: span.text,
+          }
+        : { text: span.text };
     });
-  }
-}
+  }, [value, theme]);
 
-export const LogMessageAnsi = withTheme2(UnThemedLogMessageAnsi);
+  return (
+    <>
+      {chunks.map((chunk, index) => {
+        const chunkText = highlight?.searchWords ? (
+          <Highlighter
+            key={index}
+            textToHighlight={chunk.text}
+            searchWords={highlight.searchWords}
+            findChunks={findHighlightChunksInText}
+            highlightClassName={highlight.highlightClassName}
+          />
+        ) : (
+          chunk.text
+        );
+        return chunk.style ? (
+          <span key={index} style={chunk.style} data-testid="ansiLogLine">
+            {chunkText}
+          </span>
+        ) : (
+          chunkText
+        );
+      })}
+    </>
+  );
+});
+
 LogMessageAnsi.displayName = 'LogMessageAnsi';
+
+/**
+ * @deprecated Use `LogMessageAnsi` directly. This named export is preserved for
+ * backward compatibility with the pre-conversion class-component API. Before
+ * the class→functional conversion, `UnThemedLogMessageAnsi` was the unthemed
+ * `PureComponent` class that `withTheme2(...)` wrapped to produce
+ * `LogMessageAnsi`. After the conversion the component resolves the theme
+ * itself via `useTheme2()`, so this alias renders identically to
+ * `LogMessageAnsi`. Existing imports such as
+ * `import { UnThemedLogMessageAnsi } from './LogMessageAnsi'` continue to work
+ * unchanged.
+ */
+export const UnThemedLogMessageAnsi = LogMessageAnsi;

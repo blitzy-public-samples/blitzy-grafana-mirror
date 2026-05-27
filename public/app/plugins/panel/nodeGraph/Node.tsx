@@ -72,6 +72,14 @@ const getStyles = (theme: GrafanaTheme2, hovering: HoverState) => ({
     stroke: 'none',
     pointerEvents: 'fill',
   }),
+
+  iconWrapper: css({
+    width: 70,
+    overflow: 'hidden',
+    display: 'flex',
+    justifyContent: 'center',
+    marginTop: theme.spacing(-0.5),
+  }),
 });
 
 export const computeNodeCircumferenceStrokeWidth = (nodeRadius: number) => Math.ceil(nodeRadius * 0.075);
@@ -111,7 +119,7 @@ export const Node = memo(function Node(props: {
         <circle className={styles.hoverCircle} r={nodeRadius - 3} cx={node.x} cy={node.y} strokeWidth={strokeWidth} />
       )}
       <ColorCircle node={node} />
-      <g className={styles.text} style={{ pointerEvents: 'none' }}>
+      <g className={styles.text}>
         <NodeContents node={node} hovering={hovering} />
         <foreignObject
           x={node.x - (isHovered ? 100 : 70)}
@@ -161,7 +169,7 @@ function NodeContents({ node, hovering }: { node: NodeDatum; hovering: HoverStat
 
   return node.icon ? (
     <foreignObject x={node.x - 35} y={node.y - 20} width="70" height="40">
-      <div style={{ width: 70, overflow: 'hidden', display: 'flex', justifyContent: 'center', marginTop: -4 }}>
+      <div className={styles.iconWrapper}>
         <Icon data-testid={`node-icon-${node.icon}`} name={node.icon} size={'xxxl'} />
       </div>
     </foreignObject>

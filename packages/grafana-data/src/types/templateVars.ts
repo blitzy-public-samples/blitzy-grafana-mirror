@@ -97,6 +97,7 @@ export interface VariableOption {
   text: string | string[];
   value: string | string[];
   isNone?: boolean;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Must remain assignable to `@grafana/schema`'s narrower `VariableOption.properties: Record<string, string>` via dashboard API response transformers; `Record<string, unknown>` violates that contract and the schema's generated `.gen.ts` source is out of scope for modification. Narrowing to `Record<string, string>` would be a breaking change to the public `@grafana/data` API.
   properties?: Record<string, any>;
 }
 
@@ -125,6 +126,7 @@ export interface QueryVariableModel extends VariableWithMultiSupport {
   definition: string;
   sort: VariableSort;
   queryValue?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Datasource-specific query shapes are heterogeneous (Prometheus/Loki query strings, SQL strings, ElasticSearch JSON, etc.) and must remain assignable to the inherited `VariableWithOptions.query: string` contract; `unknown` would violate that inheritance, and a concrete union is unresolvable across all plugin datasources.
   query: any;
   regex: string;
   regexApplyTo?: VariableRegexApplyTo;
@@ -200,6 +202,7 @@ export interface BaseVariableModel {
   skipUrlSync: boolean;
   index: number;
   state: LoadingState;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- variable error shape is heterogeneous across plugin datasources (string, Error, AxiosError, FetchError, plain object); consumers across public/app/features/variables/ and dashboard-scene/ read `variable.error.message` / `variable.error.status` directly without narrowing; narrowing to `unknown` breaks public `@grafana/data` API contract per AAP §0.8.7 and §0.9.2.3 IMMUTABLE plugin API surface
   error: any | null;
   description: string | null;
   usedInRepeat?: boolean;

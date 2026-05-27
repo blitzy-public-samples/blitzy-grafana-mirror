@@ -5,7 +5,7 @@ import { Controller, FormProvider, useFieldArray, useForm, useFormContext } from
 import { AlertLabels } from '@grafana/alerting/unstable';
 import { type GrafanaTheme2, type SelectableValue } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
-import { Button, type ComboboxOption, Field, InlineLabel, Input, Space, Stack, Text, useStyles2 } from '@grafana/ui';
+import { Button, type ComboboxOption, Field, FieldSet, InlineLabel, Input, Space, Stack, Text, useStyles2 } from '@grafana/ui';
 
 import { labelsApi } from '../../../api/labelsApi';
 import { usePluginBridge } from '../../../hooks/usePluginBridge';
@@ -86,28 +86,30 @@ export function LabelsSubForm({ dataSourceName, onClose, initialLabels }: Labels
   return (
     <FormProvider {...formAPI}>
       <form onSubmit={formAPI.handleSubmit(onSave)}>
-        <Stack direction="column" gap={4}>
-          <Stack direction="column" gap={1}>
-            <Text>{getLabelText(type)}</Text>
-            <Text variant="bodySmall" color="secondary">
-              {getDescriptionText()}
-            </Text>
+        <FieldSet>
+          <Stack direction="column" gap={4}>
+            <Stack direction="column" gap={1}>
+              <Text>{getLabelText(type)}</Text>
+              <Text variant="bodySmall" color="secondary">
+                {getDescriptionText()}
+              </Text>
+            </Stack>
+            <Stack direction="column" gap={1}>
+              <LabelsWithSuggestions dataSourceName={dataSourceName} />
+              <Space v={2} />
+              <LabelsInRule labels={formAPI.watch('labelsInSubform')} />
+              <Space v={1} />
+              <div className={styles.confirmButton}>
+                <Button type="button" variant="secondary" onClick={onCancel}>
+                  <Trans i18nKey="alerting.common.cancel">Cancel</Trans>
+                </Button>
+                <Button type="submit">
+                  <Trans i18nKey="alerting.labels-sub-form.save">Save</Trans>
+                </Button>
+              </div>
+            </Stack>
           </Stack>
-          <Stack direction="column" gap={1}>
-            <LabelsWithSuggestions dataSourceName={dataSourceName} />
-            <Space v={2} />
-            <LabelsInRule labels={formAPI.watch('labelsInSubform')} />
-            <Space v={1} />
-            <div className={styles.confirmButton}>
-              <Button type="button" variant="secondary" onClick={onCancel}>
-                <Trans i18nKey="alerting.common.cancel">Cancel</Trans>
-              </Button>
-              <Button type="submit">
-                <Trans i18nKey="alerting.labels-sub-form.save">Save</Trans>
-              </Button>
-            </div>
-          </Stack>
-        </Stack>
+        </FieldSet>
       </form>
     </FormProvider>
   );

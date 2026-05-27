@@ -12,7 +12,9 @@ export class MockBackendSrv implements Partial<BackendSrv> {
   fetch<T>(options: BackendSrvRequest): Observable<FetchResponse<T>> {
     const init: RequestInit = {
       method: options.method || 'GET',
-      headers: options.headers,
+      // BackendSrvRequest.headers is Record<string, unknown> | undefined; cast to HeadersInit since
+      // headers are always string-valued at runtime in this mock's call sites (intercepted by MSW in tests).
+      headers: options.headers as HeadersInit | undefined,
       body: options.data ? JSON.stringify(options.data) : undefined,
       credentials: options.credentials,
       signal: options.abortSignal,

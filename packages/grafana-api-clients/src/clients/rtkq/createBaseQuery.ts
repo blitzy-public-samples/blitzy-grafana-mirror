@@ -17,7 +17,7 @@ interface CreateBaseQueryOptions {
 export function createBaseQuery({ baseURL }: CreateBaseQueryOptions): BaseQueryFn<RequestOptions> {
   async function backendSrvBaseQuery(requestOptions: RequestOptions) {
     try {
-      const headers: Record<string, string> = {
+      const headers: Record<string, unknown> = {
         ...requestOptions.headers,
       };
 

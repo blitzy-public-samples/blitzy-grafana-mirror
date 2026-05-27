@@ -36,6 +36,16 @@ import { type GrafanaAnnotationQuery, GrafanaAnnotationType, type GrafanaQuery, 
 
 let counter = 100;
 
+interface AnnotationQueryParams {
+  [key: string]: unknown;
+  from: number;
+  to: number;
+  limit?: number;
+  tags?: string[];
+  matchAny?: boolean;
+  dashboardUID?: string;
+}
+
 export class GrafanaDatasource extends DataSourceWithBackend<GrafanaQuery> {
   constructor(instanceSettings: DataSourceInstanceSettings) {
     super(instanceSettings);
@@ -205,7 +215,7 @@ export class GrafanaDatasource extends DataSourceWithBackend<GrafanaQuery> {
 
     const annotation = options.annotation as unknown as AnnotationQuery<GrafanaAnnotationQuery>;
     const target = annotation.target!;
-    const params: any = {
+    const params: AnnotationQueryParams = {
       from: options.range.from.valueOf(),
       to: options.range.to.valueOf(),
       limit: target.limit,
@@ -230,7 +240,7 @@ export class GrafanaDatasource extends DataSourceWithBackend<GrafanaQuery> {
       const templateSrv = getTemplateSrv();
       const delimiter = '__delimiter__';
       const tags = [];
-      for (const t of params.tags) {
+      for (const t of params.tags!) {
         const renderedValues = templateSrv.replace(t, {}, (value: string | string[]) => {
           if (typeof value === 'string') {
             return value;

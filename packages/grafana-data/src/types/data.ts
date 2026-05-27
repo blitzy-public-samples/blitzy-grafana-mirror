@@ -5,6 +5,7 @@ import { type PanelPluginDataSupport } from './panel';
 import { type DataTopic } from './query';
 import { type DataTransformerConfig } from './transformations';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic default `T = any` preserved for back-compat: KeyValue is the most-used type alias in Grafana with thousands of consumers using bare `KeyValue` (no T) and accessing values directly without narrowing
 export type KeyValue<T = any> = Record<string, T>;
 
 /**
@@ -45,6 +46,7 @@ export interface QueryResultMeta {
   typeVersion?: [number, number];
 
   /** DatasSource Specific Values */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- `Record<string, any>` preserved for back-compat: datasources attach heterogeneous custom metadata (query stats, request info) read by panel plugins without narrowing
   custom?: Record<string, any>;
 
   /** Stats */
@@ -170,6 +172,7 @@ export interface Column {
   text: string; // For a Column, the 'text' is the field name
   filterable?: boolean;
   unit?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- `Record<string, any>` preserved on deprecated legacy Column type for back-compat with legacy datasources
   custom?: Record<string, any>;
 }
 
@@ -177,6 +180,7 @@ export interface Column {
 export interface TableData extends QueryResultBase {
   name?: string;
   columns: Column[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- `any[][]` preserved on deprecated legacy TableData.rows for back-compat: cell values are heterogeneous and legacy consumers index rows[i][j] without narrowing
   rows: any[][];
   type?: string;
 }

@@ -158,6 +158,13 @@ export function VizPanelHeaderActionsRenderer({ model }: SceneComponentProps<Viz
   return (
     <>
       {!hideGroupByAction && supportsApplicability && isGroupByActionSupported && groupByVariable && (
+        // Design system gap: `show-on-hover` className is consumed by parent PanelChrome's
+        // emotion CSS (packages/grafana-ui/src/components/PanelChrome/PanelChrome.tsx) — its
+        // wrapper selector `&:hover .show-on-hover, &:focus-within .show-on-hover` toggles
+        // opacity/visibility. The class is the contract between parent and child for
+        // hover-reveal behavior and cannot be replaced by an Emotion-generated class name
+        // (the hashed name would not match PanelChrome's hard-coded selector). Kept as raw
+        // className per refactor protocol (AAP §0.9.2.6, §0.4.4 cross-component coupling).
         <div className="show-on-hover">
           <PanelGroupByAction groupByVariable={groupByVariable} queries={queries} />
         </div>

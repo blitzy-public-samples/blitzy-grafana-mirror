@@ -196,6 +196,7 @@ function OptionRow({
   return (
     <Draggable draggableId={option.id} index={index}>
       {(draggableProvided) => (
+        // Design system gap: drag-library style spread required by @hello-pangea/dnd; kept as inline style per AAP §0.4.4 Gaps Inventory.
         <div
           className={styles.row}
           ref={draggableProvided.innerRef}

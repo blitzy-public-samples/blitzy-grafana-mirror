@@ -1,11 +1,22 @@
 import { css } from '@emotion/css';
 import { useState } from 'react';
 
-import { arrayUtils, type AnnotationQuery } from '@grafana/data';
+import { arrayUtils, type AnnotationQuery, type GrafanaTheme2 } from '@grafana/data';
 import { selectors } from '@grafana/e2e-selectors';
 import { Trans, t } from '@grafana/i18n';
 import { getDataSourceSrv } from '@grafana/runtime';
-import { Button, DeleteButton, EmptyState, IconButton, Stack, TextLink, useStyles2 } from '@grafana/ui';
+import {
+  Button,
+  type CellProps,
+  type Column,
+  DeleteButton,
+  EmptyState,
+  IconButton,
+  InteractiveTable,
+  Stack,
+  TextLink,
+  useStyles2,
+} from '@grafana/ui';
 
 import { type DashboardModel } from '../../state/DashboardModel';
 import { ListNewButton } from '../DashboardSettings/ListNewButton';
@@ -36,7 +47,7 @@ export const AnnotationSettingsList = ({ dashboard, onNew, onEdit }: Props) => {
     if (anno.enable === false) {
       return (
         <>
-          <em className="muted">
+          <em className={styles.muted}>
             <Trans i18nKey="dashboard.annotation-settings-list.disabled" values={{ name: anno.name }}>
               (Disabled) {'{{name}}'}
             </Trans>
@@ -48,7 +59,7 @@ export const AnnotationSettingsList = ({ dashboard, onNew, onEdit }: Props) => {
     if (anno.builtIn) {
       return (
         <>
-          <em className="muted">
+          <em className={styles.muted}>
             <Trans i18nKey="dashboard.annotation-settings-list.built-in" values={{ name: anno.name }}>
               {'{{name}}'} (Built-in)
             </Trans>
@@ -61,77 +72,82 @@ export const AnnotationSettingsList = ({ dashboard, onNew, onEdit }: Props) => {
   };
 
   const dataSourceSrv = getDataSourceSrv();
+
+  // Columns array for InteractiveTable. Defined as a plain const inside the component body
+  // (not memoized) to match the established pattern in
+  // `public/app/features/alerting/unified/components/settings/VersionManager.tsx`, where
+  // inline cell handlers must close over per-render state (`annotations`, `onEdit`, etc.).
+  // The action columns use `disableGrow: true` to constrain their width to the minimum,
+  // which is the InteractiveTable equivalent of the original 1% fixed-width action cells.
+  const columns: Array<Column<AnnotationQuery>> = [
+    {
+      id: 'name',
+      header: t('dashboard.annotation-settings-list.query-name', 'Query name'),
+      cell: ({ row: { original: annotation, index: idx } }: CellProps<AnnotationQuery>) => (
+        <Button size="sm" fill="text" variant="secondary" onClick={() => onEdit(idx)}>
+          {getAnnotationName(annotation)}
+        </Button>
+      ),
+    },
+    {
+      id: 'datasource',
+      header: t('dashboard.annotation-settings-list.data-source', 'Data source'),
+      cell: ({ row: { original: annotation, index: idx } }: CellProps<AnnotationQuery>) => (
+        <Button size="sm" fill="text" variant="secondary" onClick={() => onEdit(idx)}>
+          {dataSourceSrv.getInstanceSettings(annotation.datasource)?.name || annotation.datasource?.uid}
+        </Button>
+      ),
+    },
+    {
+      id: 'moveUp',
+      disableGrow: true,
+      cell: ({ row: { index: idx } }: CellProps<AnnotationQuery>) =>
+        idx !== 0 ? (
+          <IconButton
+            name="arrow-up"
+            onClick={() => onMove(idx, -1)}
+            tooltip={t('dashboard.annotation-settings-list.tooltip-move-up', 'Move up')}
+          />
+        ) : null,
+    },
+    {
+      id: 'moveDown',
+      disableGrow: true,
+      cell: ({ row: { index: idx } }: CellProps<AnnotationQuery>) =>
+        annotations.length > 1 && idx !== annotations.length - 1 ? (
+          <IconButton
+            name="arrow-down"
+            onClick={() => onMove(idx, 1)}
+            tooltip={t('dashboard.annotation-settings-list.tooltip-move-down', 'Move down')}
+          />
+        ) : null,
+    },
+    {
+      id: 'delete',
+      disableGrow: true,
+      cell: ({ row: { original: annotation, index: idx } }: CellProps<AnnotationQuery>) =>
+        !annotation.builtIn ? (
+          <DeleteButton
+            size="sm"
+            onConfirm={() => onDelete(idx)}
+            aria-label={t(
+              'dashboard.annotation-settings-list.aria-label-delete',
+              'Delete query with title "{{title}}"',
+              { title: annotation.name }
+            )}
+          />
+        ) : null,
+    },
+  ];
+
   return (
     <Stack direction="column">
       {annotations.length > 0 && (
-        <div className={styles.table}>
-          <table role="grid" className="filter-table filter-table--hover">
-            <thead>
-              <tr>
-                <th>
-                  <Trans i18nKey="dashboard.annotation-settings-list.query-name">Query name</Trans>
-                </th>
-                <th>
-                  <Trans i18nKey="dashboard.annotation-settings-list.data-source">Data source</Trans>
-                </th>
-                <th colSpan={3}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {dashboard.annotations.list.map((annotation, idx) => (
-                <tr key={`${annotation.name}-${idx}`}>
-                  {annotation.builtIn ? (
-                    <td role="gridcell" style={{ width: '90%' }} className="pointer" onClick={() => onEdit(idx)}>
-                      <Button size="sm" fill="text" variant="secondary">
-                        {getAnnotationName(annotation)}
-                      </Button>
-                    </td>
-                  ) : (
-                    <td role="gridcell" className="pointer" onClick={() => onEdit(idx)}>
-                      <Button size="sm" fill="text" variant="secondary">
-                        {getAnnotationName(annotation)}
-                      </Button>
-                    </td>
-                  )}
-                  <td role="gridcell" className="pointer" onClick={() => onEdit(idx)}>
-                    {dataSourceSrv.getInstanceSettings(annotation.datasource)?.name || annotation.datasource?.uid}
-                  </td>
-                  <td role="gridcell" style={{ width: '1%' }}>
-                    {idx !== 0 && (
-                      <IconButton
-                        name="arrow-up"
-                        onClick={() => onMove(idx, -1)}
-                        tooltip={t('dashboard.annotation-settings-list.tooltip-move-up', 'Move up')}
-                      />
-                    )}
-                  </td>
-                  <td role="gridcell" style={{ width: '1%' }}>
-                    {dashboard.annotations.list.length > 1 && idx !== dashboard.annotations.list.length - 1 ? (
-                      <IconButton
-                        name="arrow-down"
-                        onClick={() => onMove(idx, 1)}
-                        tooltip={t('dashboard.annotation-settings-list.tooltip-move-down', 'Move down')}
-                      />
-                    ) : null}
-                  </td>
-                  <td role="gridcell" style={{ width: '1%' }}>
-                    {!annotation.builtIn && (
-                      <DeleteButton
-                        size="sm"
-                        onConfirm={() => onDelete(idx)}
-                        aria-label={t(
-                          'dashboard.annotation-settings-list.aria-label-delete',
-                          'Delete query with title "{{title}}"',
-                          { title: annotation.name }
-                        )}
-                      />
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <InteractiveTable
+          columns={columns}
+          data={annotations}
+          getRowId={(annotation, idx) => `${annotation.name}-${idx}`}
+        />
       )}
       {showEmptyListCTA && (
         <Stack direction="column">
@@ -179,9 +195,8 @@ export const AnnotationSettingsList = ({ dashboard, onNew, onEdit }: Props) => {
   );
 };
 
-const getStyles = () => ({
-  table: css({
-    width: '100%',
-    overflowX: 'scroll',
+const getStyles = (theme: GrafanaTheme2) => ({
+  muted: css({
+    color: theme.colors.text.secondary,
   }),
 });

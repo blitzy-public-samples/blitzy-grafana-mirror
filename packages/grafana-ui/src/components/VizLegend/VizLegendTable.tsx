@@ -91,6 +91,7 @@ export const VizLegendTable = <T extends unknown>({
     );
   }
 
+  // Design system gap: VizLegend table-form variant is itself a legend primitive; specialized rendering features (e.g., series row highlighting, per-cell badges) are not feasible via InteractiveTable; raw <table> retained per cascade default.
   return (
     <table className={cx(styles.table, className)}>
       <thead>
@@ -127,7 +128,7 @@ export const VizLegendTable = <T extends unknown>({
       {curLimit > 0 && items.length > curLimit && (
         <tfoot>
           <tr>
-            <td colSpan={100} style={{ textAlign: 'right' }}>
+            <td colSpan={100} className={styles.tdRightAlign}>
               <Button fill="text" variant="primary" size="sm" onClick={() => setLimit(0)}>
                 <Trans i18nKey={'legend.container.show-all-series'}>...show all {{ total: items.length }} items</Trans>
               </Button>
@@ -170,5 +171,8 @@ const getStyles = (theme: GrafanaTheme2) => ({
     marginLeft: theme.spacing(0.5),
     display: 'inline-flex',
     verticalAlign: 'middle',
+  }),
+  tdRightAlign: css({
+    textAlign: 'right',
   }),
 });

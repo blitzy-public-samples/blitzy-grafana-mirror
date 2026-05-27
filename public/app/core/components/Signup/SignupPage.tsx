@@ -1,8 +1,10 @@
+import { css } from '@emotion/css';
 import { useForm } from 'react-hook-form';
 
+import { type GrafanaTheme2 } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
 import { getBackendSrv } from '@grafana/runtime';
-import { Field, Input, Button, LinkButton, Stack } from '@grafana/ui';
+import { Field, Input, Button, LinkButton, Stack, useStyles2 } from '@grafana/ui';
 import { getConfig } from 'app/core/config';
 import { useAppNotification } from 'app/core/copy/appNotification';
 import { type GrafanaRouteComponentProps } from 'app/core/navigation/types';
@@ -29,6 +31,7 @@ interface QueryParams {
 interface Props extends GrafanaRouteComponentProps<{}, QueryParams> {}
 
 export const SignupPage = ({ queryParams }: Props) => {
+  const styles = useStyles2(getStyles);
   const notifyApp = useAppNotification();
   const {
     handleSubmit,
@@ -44,7 +47,7 @@ export const SignupPage = ({ queryParams }: Props) => {
     delete formData.confirm;
 
     const response = await getBackendSrv()
-      .post('/api/user/signup/step2', {
+      .post<{ code?: string }>('/api/user/signup/step2', {
         email: formData.email,
         code: formData.code,
         username: formData.email,
@@ -57,7 +60,7 @@ export const SignupPage = ({ queryParams }: Props) => {
         notifyApp.warning(msg);
       });
 
-    if (response.code === 'redirect-to-select-org') {
+    if (response?.code === 'redirect-to-select-org') {
       window.location.assign(getConfig().appSubUrl + '/profile/select-org?signup=1');
     }
     window.location.assign(getConfig().appSubUrl + '/');
@@ -66,7 +69,12 @@ export const SignupPage = ({ queryParams }: Props) => {
   return (
     <LoginLayout>
       <InnerBox>
-        <form onSubmit={handleSubmit(onSubmit)} style={{ width: '100%' }}>
+        {/* Design system gap: this form uses react-hook-form's useForm() hook directly rather
+            than the deprecated @grafana/ui <Form> wrapper (see @grafana/ui Form.tsx JSDoc
+            "@deprecated use the useForm hook from react-hook-form instead" and AAP §0.4.2).
+            Raw <form> with handleSubmit + Field composition is the documented design system
+            pattern for forms with custom submit logic. */}
+        <form onSubmit={handleSubmit(onSubmit)} className={styles.form}>
           <Field label={t('sign-up.user-name-label', 'Your name')}>
             <Input
               id="user-name"
@@ -137,5 +145,11 @@ export const SignupPage = ({ queryParams }: Props) => {
     </LoginLayout>
   );
 };
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  form: css({
+    width: '100%',
+  }),
+});
 
 export default SignupPage;

@@ -10,7 +10,35 @@ import {
   type ValueMappingResult,
 } from '../types/valueMapping';
 
-export function getValueMappingResult(valueMappings: ValueMapping[], value: any): ValueMappingResult | null {
+// Local types used to model the legacy Angular panel shape consumed by
+// `convertOldAngularValueMappings` and `upgradeOldAngularValueMapping`.
+// These describe the optional fields produced by Angular-era panel JSON.
+interface LegacyAngularValueMap {
+  value?: string;
+  text?: string;
+}
+
+interface LegacyAngularRangeMap {
+  from?: string | number;
+  to?: string | number;
+  text?: string;
+}
+
+interface LegacyAngularPanel {
+  mappingType?: number;
+  valueMaps?: LegacyAngularValueMap[];
+  rangeMaps?: LegacyAngularRangeMap[];
+  fieldConfig?: { defaults?: { thresholds?: ThresholdsConfig } };
+}
+
+interface LegacyAngularMapping extends LegacyAngularValueMap, LegacyAngularRangeMap {
+  id: number;
+  // `type` accepts both the legacy numeric enum and the new string enum
+  // because `upgradeOldAngularValueMapping` switches on either form.
+  type: MappingType | LegacyMappingType;
+}
+
+export function getValueMappingResult(valueMappings: ValueMapping[], value: unknown): ValueMappingResult | null {
   for (const vm of valueMappings) {
     switch (vm.type) {
       case MappingType.ValueToText:
@@ -18,7 +46,10 @@ export function getValueMappingResult(valueMappings: ValueMapping[], value: any)
           continue;
         }
 
-        const result = vm.options[value];
+        // `value` is `unknown`; coerce to string for the property lookup.
+        // This matches JS's implicit toString conversion used when indexing
+        // with a non-string key (e.g. `vm.options[11]` → `vm.options['11']`).
+        const result = vm.options[String(value)];
         if (result) {
           return result;
         }
@@ -30,7 +61,9 @@ export function getValueMappingResult(valueMappings: ValueMapping[], value: any)
           continue;
         }
 
-        const valueAsNumber = parseFloat(value);
+        // `parseFloat` accepts a string; with `unknown`, coerce via `String(...)`
+        // which yields identical numeric parsing to the prior implicit conversion.
+        const valueAsNumber = parseFloat(String(value));
         if (isNaN(valueAsNumber)) {
           continue;
         }
@@ -133,7 +166,10 @@ export enum LegacyMappingType {
 /**
  * Converts the old Angular value mappings to new react style
  */
-export function convertOldAngularValueMappings(panel: any, migratedThresholds?: ThresholdsConfig): ValueMapping[] {
+export function convertOldAngularValueMappings(
+  panel: LegacyAngularPanel,
+  migratedThresholds?: ThresholdsConfig
+): ValueMapping[] {
   const mappings: ValueMapping[] = [];
 
   // Guess the right type based on options
@@ -146,8 +182,11 @@ export function convertOldAngularValueMappings(panel: any, migratedThresholds?: 
     }
   }
   if (mappingType === 1) {
-    for (let i = 0; i < panel.valueMaps.length; i++) {
-      const map = panel.valueMaps[i];
+    // Non-null assertions preserve the original runtime behavior: if
+    // `panel.mappingType === 1` is set externally without `valueMaps`,
+    // the original code would throw. We do not change that.
+    for (let i = 0; i < panel.valueMaps!.length; i++) {
+      const map = panel.valueMaps![i];
       mappings.push(
         upgradeOldAngularValueMapping(
           {
@@ -160,8 +199,8 @@ export function convertOldAngularValueMappings(panel: any, migratedThresholds?: 
       );
     }
   } else if (mappingType === 2) {
-    for (let i = 0; i < panel.rangeMaps.length; i++) {
-      const map = panel.rangeMaps[i];
+    for (let i = 0; i < panel.rangeMaps!.length; i++) {
+      const map = panel.rangeMaps![i];
       mappings.push(
         upgradeOldAngularValueMapping(
           {
@@ -178,13 +217,15 @@ export function convertOldAngularValueMappings(panel: any, migratedThresholds?: 
   return mappings;
 }
 
-function upgradeOldAngularValueMapping(old: any, thresholds?: ThresholdsConfig): ValueMapping {
+function upgradeOldAngularValueMapping(old: LegacyAngularMapping, thresholds?: ThresholdsConfig): ValueMapping {
   const valueMaps: ValueMap = { type: MappingType.ValueToText, options: {} };
   const newMappings: ValueMapping[] = [];
 
   // Use the color we would have picked from thesholds
   let color: string | undefined = undefined;
-  const numeric = parseFloat(old.text);
+  // `old.text` is optional; `parseFloat('')` and `parseFloat(undefined)` both yield NaN,
+  // so coalescing to '' preserves the original behavior while satisfying the typed signature.
+  const numeric = parseFloat(old.text ?? '');
   if (thresholds && !isNaN(numeric)) {
     const level = getActiveThreshold(numeric, thresholds.steps);
     if (level && level.color) {
@@ -223,11 +264,14 @@ function upgradeOldAngularValueMapping(old: any, thresholds?: ThresholdsConfig):
           },
         });
       } else {
+        // Non-null assertions preserve the original runtime semantics:
+        // the original `any`-typed code performed `+undefined` (which yields NaN)
+        // without guarding for missing fields. The assertions keep that behavior.
         newMappings.push({
           type: MappingType.RangeToText,
           options: {
-            from: +old.from,
-            to: +old.to,
+            from: +old.from!,
+            to: +old.to!,
             result: { text: old.text, color },
           },
         });

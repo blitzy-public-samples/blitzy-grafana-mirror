@@ -32,6 +32,13 @@ mimirDataSource();
 // Setup plugin extensions hook to prevent setPluginLinksHook errors
 setupPluginsExtensionsHook();
 
+// Pre-existing flake category from QA CP3: the suite passes comfortably in
+// isolation (2/2 tests in ~33s) but individual tests can exceed the default
+// 30s per-test budget under parallel CPU contention in CI. Bumping the budget
+// to 180s eliminates the parallel-execution timeout flake without changing
+// any behavior under test.
+jest.setTimeout(180 * 1000);
+
 describe('RuleEditor cloud', () => {
   beforeEach(() => {
     // Mock getPluginSettings to ensure labels plugin is not detected

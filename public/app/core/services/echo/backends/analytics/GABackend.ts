@@ -1,4 +1,4 @@
-import { type EchoBackend, EchoEventType, type PageviewEchoEvent } from '@grafana/runtime';
+import { type EchoBackend, type EchoEvent, EchoEventType, isPageviewEvent, type PageviewEchoEvent } from '@grafana/runtime';
 
 import { loadScript } from '../../utils';
 
@@ -26,8 +26,11 @@ export class GAEchoBackend implements EchoBackend<PageviewEchoEvent, GAEchoBacke
     ga('set', 'anonymizeIp', true);
   }
 
-  addEvent = (e: PageviewEchoEvent) => {
+  addEvent = (e: EchoEvent) => {
     if (!window.ga) {
+      return;
+    }
+    if (!isPageviewEvent(e)) {
       return;
     }
 

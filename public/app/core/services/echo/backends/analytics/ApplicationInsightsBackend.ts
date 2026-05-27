@@ -1,7 +1,7 @@
 import {
   type EchoBackend,
+  type EchoEvent,
   EchoEventType,
-  type InteractionEchoEvent,
   isInteractionEvent,
   isPageviewEvent,
   type PageviewEchoEvent,
@@ -47,7 +47,7 @@ export class ApplicationInsightsBackend implements EchoBackend<PageviewEchoEvent
       });
   }
 
-  addEvent = (e: PageviewEchoEvent | InteractionEchoEvent) => {
+  addEvent = (e: EchoEvent) => {
     if (!window.applicationInsights) {
       return;
     }

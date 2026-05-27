@@ -1,9 +1,12 @@
+import { css } from '@emotion/css';
+
 import { Trans, t } from '@grafana/i18n';
-import { Tooltip } from '@grafana/ui';
+import { Tooltip, useStyles2 } from '@grafana/ui';
 
 const UnknownContactPointDetails = ({ receiverName }: { receiverName?: string }) => {
+  const styles = useStyles2(getStyles);
   return (
-    <span style={{ cursor: 'help' }}>
+    <span className={styles.wrapper}>
       <Tooltip
         content={t(
           'alerting.unknown-contact-point-details.unknown-contact-point-tooltip',
@@ -21,5 +24,11 @@ const UnknownContactPointDetails = ({ receiverName }: { receiverName?: string })
     </span>
   );
 };
+
+const getStyles = () => ({
+  wrapper: css({
+    cursor: 'help',
+  }),
+});
 
 export default UnknownContactPointDetails;

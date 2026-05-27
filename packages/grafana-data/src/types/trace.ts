@@ -1,6 +1,7 @@
 /**
  * Type representing a tag in a trace span or fields of a log.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic default `T = any` preserved for back-compat: TraceKeyValuePair holds heterogeneous values from arbitrary trace sources; changing to `unknown` would force narrowing in every consumer
 export type TraceKeyValuePair<T = any> = {
   key: string;
   value: T;

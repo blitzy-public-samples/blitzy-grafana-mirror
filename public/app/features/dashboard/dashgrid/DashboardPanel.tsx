@@ -1,7 +1,6 @@
-import { PureComponent } from 'react';
-import { connect, type ConnectedProps } from 'react-redux';
+import { memo, useCallback, useEffect } from 'react';
 
-import { type StoreState } from 'app/types/store';
+import { type StoreState, useDispatch, useSelector } from 'app/types/store';
 
 import { initPanelState } from '../../panel/state/actions';
 import { setPanelInstanceState } from '../../panel/state/reducers';
@@ -25,6 +24,11 @@ export interface OwnProps {
   hideMenu?: boolean;
 }
 
+// Preserved selector definition. Although the converted functional component
+// performs its own per-field useSelector calls (see DashboardPanelInternal
+// below), keeping the selector at module scope lets `Props` continue to be
+// derived from its return type, matching the original
+// `Props = OwnProps & ConnectedProps<typeof connector>` contract.
 const mapStateToProps = (state: StoreState, props: OwnProps) => {
   const panelState = state.panels[props.stateKey];
   if (!panelState) {
@@ -37,55 +41,95 @@ const mapStateToProps = (state: StoreState, props: OwnProps) => {
   };
 };
 
-const mapDispatchToProps = {
-  initPanelState,
-  setPanelInstanceState,
-};
+type StateProps = ReturnType<typeof mapStateToProps>;
 
-const connector = connect(mapStateToProps, mapDispatchToProps);
+// Preserved dispatch contract — the original `mapDispatchToProps` was an
+// object-form binding `{ initPanelState, setPanelInstanceState }`, which the
+// `connect` HOC merged into the connected component's props as
+// already-dispatch-wrapped action creators. The functional version dispatches
+// each action inline, but the `Props` type still surfaces the same shape so
+// downstream consumers (e.g. SoloPanelPage.test.tsx's jest mock typed via
+// `import { type Props as DashboardPanelProps }`) continue to compile
+// unchanged.
+interface DispatchProps {
+  initPanelState: typeof initPanelState;
+  setPanelInstanceState: typeof setPanelInstanceState;
+}
 
-export type Props = OwnProps & ConnectedProps<typeof connector>;
+// Public API: `Props` retains the same OwnProps + state-slice + dispatch
+// shape that the historical `connect(...)`-wrapped class component carried.
+// Externally, the memoized `DashboardPanel` only requires `OwnProps` at the
+// call site (state and dispatch fields are supplied internally via hooks),
+// but the exported type alias remains shape-equivalent for any consumer
+// importing it.
+export type Props = OwnProps & StateProps & DispatchProps;
 
-export class DashboardPanelUnconnected extends PureComponent<Props> {
-  static defaultProps: Partial<Props> = {
-    lazy: true,
-  };
+// The functional component itself only requires `OwnProps`: state-slice
+// values (`plugin`, `instanceState`) and dispatch-bound action creators
+// (`initPanelState`, `setPanelInstanceState`) are sourced via hooks below
+// rather than being injected as props by `connect`. Consumers therefore
+// continue to pass exactly the same OwnProps-shape they did before this
+// refactor (see `DashboardGrid.renderPanel`, `SoloPanelPage`, `PanelEditor`).
+const DashboardPanelInternal = (props: OwnProps) => {
+  const {
+    panel,
+    stateKey,
+    dashboard,
+    isEditing,
+    isViewing,
+    isDraggable = true,
+    width,
+    height,
+    lazy = true,
+    timezone,
+    hideMenu,
+  } = props;
 
-  componentDidMount() {
-    this.props.panel.isInView = !this.props.lazy;
-    if (!this.props.lazy) {
-      this.onPanelLoad();
+  // Replaces connect(mapStateToProps, ...) — pulls per-panel slice state from
+  // the store. The slice may be absent on the very first render (no
+  // initPanelState dispatched yet), so we fall back to undefined plugin to
+  // preserve the class-component's `if (!panelState) { return { plugin:
+  // undefined }; }` behavior.
+  const plugin = useSelector((state) => state.panels[stateKey]?.plugin);
+  const dispatch = useDispatch();
+
+  // mapDispatchToProps replaced — dispatch wraps the action creators inline.
+  // useCallback keeps onInstanceStateChange referentially stable so
+  // <PanelStateWrapper /> does not re-render purely from a fresh closure.
+  const onInstanceStateChange = useCallback(
+    (value: unknown) => {
+      dispatch(setPanelInstanceState({ key: stateKey, value }));
+    },
+    [dispatch, stateKey]
+  );
+
+  const onPanelLoad = useCallback(() => {
+    if (!plugin) {
+      dispatch(initPanelState(panel));
     }
-  }
+  }, [plugin, panel, dispatch]);
 
-  onInstanceStateChange = (value: unknown) => {
-    this.props.setPanelInstanceState({ key: this.props.stateKey, value });
-  };
+  const onVisibilityChange = useCallback(
+    (v: boolean) => {
+      panel.isInView = v;
+    },
+    [panel]
+  );
 
-  onVisibilityChange = (v: boolean) => {
-    this.props.panel.isInView = v;
-  };
-
-  onPanelLoad = () => {
-    if (!this.props.plugin) {
-      this.props.initPanelState(this.props.panel);
+  // componentDidMount equivalent — runs exactly once for the panel's
+  // lifetime. The class set panel.isInView = !lazy and conditionally called
+  // onPanelLoad() when lazy=false. Empty dep array mirrors mount-only intent.
+  useEffect(() => {
+    panel.isInView = !lazy;
+    if (!lazy) {
+      onPanelLoad();
     }
-  };
+    // mount-only: matches original componentDidMount semantics; subsequent
+    // changes to `lazy`/`panel` are not handled by the class either.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  renderPanel = ({ isInView }: { isInView: boolean }) => {
-    const {
-      dashboard,
-      panel,
-      isViewing,
-      isEditing,
-      width,
-      height,
-      plugin,
-      timezone,
-      hideMenu,
-      isDraggable = true,
-    } = this.props;
-
+  const renderPanel = ({ isInView }: { isInView: boolean }) => {
     if (!plugin) {
       return null;
     }
@@ -101,24 +145,30 @@ export class DashboardPanelUnconnected extends PureComponent<Props> {
         isDraggable={isDraggable}
         width={width}
         height={height}
-        onInstanceStateChange={this.onInstanceStateChange}
+        onInstanceStateChange={onInstanceStateChange}
         timezone={timezone}
         hideMenu={hideMenu}
       />
     );
   };
 
-  render() {
-    const { width, height, lazy } = this.props;
+  return lazy ? (
+    <LazyLoader width={width} height={height} onChange={onVisibilityChange} onLoad={onPanelLoad}>
+      {renderPanel}
+    </LazyLoader>
+  ) : (
+    renderPanel({ isInView: true })
+  );
+};
 
-    return lazy ? (
-      <LazyLoader width={width} height={height} onChange={this.onVisibilityChange} onLoad={this.onPanelLoad}>
-        {this.renderPanel}
-      </LazyLoader>
-    ) : (
-      this.renderPanel({ isInView: true })
-    );
-  }
-}
+// Preserve the original PureComponent shallow-skip optimization: wrap with
+// React.memo (default shallowEqual on props). The original
+// DashboardPanelUnconnected extended PureComponent specifically because the
+// dashboard grid re-renders all panels frequently with identical props for
+// off-screen panels — skipping equal-props renders is a measurable savings
+// on large dashboards.
+export const DashboardPanel = memo(DashboardPanelInternal);
 
-export const DashboardPanel = connector(DashboardPanelUnconnected);
+// Preserve the displayName so React DevTools and any test snapshots that
+// reference DashboardPanel by name keep working.
+DashboardPanel.displayName = 'DashboardPanel';

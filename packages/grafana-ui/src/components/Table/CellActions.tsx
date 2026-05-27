@@ -15,6 +15,7 @@ import { getTextAlign } from './utils';
 
 interface CellActionProps extends TableCellProps {
   previewMode: TableCellInspectorMode;
+  showFilters?: boolean;
 }
 
 interface CommonButtonProps {

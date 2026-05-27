@@ -5,7 +5,7 @@ import { type DataSourceInstanceSettings } from '@grafana/data';
 import { selectors } from '@grafana/e2e-selectors';
 import { Trans, t } from '@grafana/i18n';
 import { config, DataSourcePicker } from '@grafana/runtime';
-import { Button, InlineField, Input, Switch, useTheme2 } from '@grafana/ui';
+import { Button, InlineField, Input, Stack, Switch, useTheme2 } from '@grafana/ui';
 
 import { PROM_CONFIG_LABEL_WIDTH } from '../constants';
 import { type ExemplarTraceIdDestination } from '../types';
@@ -26,7 +26,7 @@ export function ExemplarSetting({ value, onChange, onDelete, disabled }: Props) 
   const styles = overhaulStyles(theme);
 
   return (
-    <div className="gf-form-group">
+    <Stack direction="column" gap={2}>
       <InlineField
         label={t('grafana-prometheus.configuration.exemplar-setting.label-internal-link', 'Internal link')}
         labelWidth={PROM_CONFIG_LABEL_WIDTH}
@@ -74,7 +74,7 @@ export function ExemplarSetting({ value, onChange, onDelete, disabled }: Props) 
                 : (ds) => ds.type !== 'grafana-azure-monitor-datasource'
             }
             tracing={true}
-            current={value.datasourceUid}
+            current={value.datasourceUid ?? null}
             noDefault={true}
             width={40}
             onChange={(ds: DataSourceInstanceSettings) =>
@@ -200,6 +200,6 @@ export function ExemplarSetting({ value, onChange, onDelete, disabled }: Props) 
           />
         </InlineField>
       )}
-    </div>
+    </Stack>
   );
 }

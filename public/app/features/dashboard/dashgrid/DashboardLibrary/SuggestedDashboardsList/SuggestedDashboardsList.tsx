@@ -32,6 +32,15 @@ const DEFAULT_SORT_DIRECTION = 'desc' as const;
 const INCLUDE_LOGO = true;
 const INCLUDE_SCREENSHOTS = true;
 
+/**
+ * Body shape returned by `checkDashboardCompatibility` when it surfaces a
+ * recoverable failure. Used to narrow the caught FetchError below.
+ */
+interface CompatibilityErrorData {
+  message?: string;
+  code?: string;
+}
+
 interface SuggestedDashboardsListProps {
   provisionedDashboards: PluginDashboard[];
   communityDashboards: GnetDashboard[];
@@ -424,8 +433,12 @@ export const SuggestedDashboardsList = ({
     } catch (err) {
       console.error('Error checking dashboard compatibility:', err);
 
-      const errorMessage = isFetchError(err) ? err.data?.message : 'Failed to check compatibility';
-      const errorCode = isFetchError(err) ? err.data?.code : undefined;
+      // Narrow the caught error to the compatibility-API failure body so
+      // `.data?.message` and `.data?.code` are typed.
+      const errorMessage = isFetchError<CompatibilityErrorData>(err)
+        ? err.data?.message
+        : 'Failed to check compatibility';
+      const errorCode = isFetchError<CompatibilityErrorData>(err) ? err.data?.code : undefined;
 
       setCompatibilityMap((prev) =>
         new Map(prev).set(dashboard.id, {

@@ -105,7 +105,7 @@ export type PageviewEchoEvent = EchoEvent<EchoEventType.Pageview, PageviewEchoEv
  */
 export interface InteractionEchoEventPayload {
   interactionName: string;
-  properties?: Record<string, any>;
+  properties?: Record<string, unknown>;
 }
 
 /**
@@ -139,7 +139,12 @@ export type ExperimentViewEchoEvent = EchoEvent<EchoEventType.ExperimentView, Ex
  * @public
  */
 export const isPageviewEvent = (event: EchoEvent): event is PageviewEchoEvent => {
-  return Boolean(event.payload.page);
+  return (
+    typeof event.payload === 'object' &&
+    event.payload !== null &&
+    'page' in event.payload &&
+    Boolean(event.payload.page)
+  );
 };
 
 /**
@@ -148,7 +153,12 @@ export const isPageviewEvent = (event: EchoEvent): event is PageviewEchoEvent =>
  * @public
  */
 export const isInteractionEvent = (event: EchoEvent): event is InteractionEchoEvent => {
-  return Boolean(event.payload.interactionName);
+  return (
+    typeof event.payload === 'object' &&
+    event.payload !== null &&
+    'interactionName' in event.payload &&
+    Boolean(event.payload.interactionName)
+  );
 };
 
 /**
@@ -157,5 +167,10 @@ export const isInteractionEvent = (event: EchoEvent): event is InteractionEchoEv
  * @public
  */
 export const isExperimentViewEvent = (event: EchoEvent): event is ExperimentViewEchoEvent => {
-  return Boolean(event.payload.experimentId);
+  return (
+    typeof event.payload === 'object' &&
+    event.payload !== null &&
+    'experimentId' in event.payload &&
+    Boolean(event.payload.experimentId)
+  );
 };

@@ -28,6 +28,7 @@ export const ImageCell = (props: TableCellProps) => {
   // The image element
   const img = (
     <img
+      // Design system gap: dynamic height driven by react-table cell-height measurement (tableStyles.cellHeight minus layout offset)
       style={{ height: tableStyles.cellHeight - DATALINKS_HEIGHT_OFFSET, width: 'auto' }}
       src={displayValue.text}
       className={tableStyles.imageCell}
@@ -41,6 +42,7 @@ export const ImageCell = (props: TableCellProps) => {
     <div
       {...cellProps}
       className={tableStyles.cellContainer}
+      // Design system gap: inline style required by react-table getCellProps() — cellProps.style is mutated directly by the parent TableCell wrapper for layout/justification, and the cursor depends on dynamic link/action state
       style={{ ...cellProps.style, cursor: hasMultipleLinksOrActions ? 'context-menu' : 'auto' }}
       onClick={tooltipOnClickHandler(setTooltipCoords)}
     >

@@ -1,30 +1,37 @@
-import { PureComponent } from 'react';
+import { useMemo } from 'react';
 
 import { type SQLQuery, SqlQueryEditorLazy, applyQueryDefaults } from '@grafana/sql';
-import { InlineFormLabel, LinkButton, type Themeable2, withTheme2, Stack, Space } from '@grafana/ui';
+import { InlineFormLabel, LinkButton, Stack, Space } from '@grafana/ui';
 
 import type InfluxDatasource from '../../../../datasource';
 import { FlightSQLDatasource } from '../../../../fsql/datasource.flightsql';
 import { type InfluxQuery } from '../../../../types';
 
-interface Props extends Themeable2 {
+interface Props {
   onChange: (query: InfluxQuery) => void;
   onRunQuery: () => void;
   query: InfluxQuery;
   datasource: InfluxDatasource;
 }
 
-class UnthemedSQLQueryEditor extends PureComponent<Props> {
-  datasource: FlightSQLDatasource;
+const transformQuery = (query: InfluxQuery & SQLQuery): SQLQuery => {
+  const defaultQuery = applyQueryDefaults(query);
+  return {
+    ...defaultQuery,
+    dataset: 'iox',
+    sql: {
+      ...defaultQuery.sql,
+      limit: undefined,
+    },
+  };
+};
 
-  constructor(props: Props) {
-    super(props);
-    const { datasource: influxDatasource } = props;
-
-    this.datasource = new FlightSQLDatasource(
+export const FSQLEditor = ({ query, onChange, onRunQuery, datasource }: Props) => {
+  const flightSqlDatasource = useMemo(() => {
+    return new FlightSQLDatasource(
       {
-        url: influxDatasource.urls[0],
-        access: influxDatasource.access,
+        url: datasource.urls[0],
+        access: datasource.access,
 
         jsonData: {
           // TODO Clean this
@@ -39,77 +46,59 @@ class UnthemedSQLQueryEditor extends PureComponent<Props> {
           timezone: '',
           user: '',
           database: '',
-          url: influxDatasource.urls[0],
+          url: datasource.urls[0],
           timeInterval: '',
         },
-        meta: influxDatasource.meta,
-        name: influxDatasource.name,
+        meta: datasource.meta,
+        name: datasource.name,
         readOnly: false,
-        type: influxDatasource.type,
-        uid: influxDatasource.uid,
+        type: datasource.type,
+        uid: datasource.uid,
       },
-      influxDatasource.templateSrv
+      datasource.templateSrv
     );
-  }
+  }, [datasource]);
 
-  transformQuery(query: InfluxQuery & SQLQuery): SQLQuery {
-    const defaultQuery = applyQueryDefaults(query);
-    return {
-      ...defaultQuery,
-      dataset: 'iox',
-      sql: {
-        ...defaultQuery.sql,
-        limit: undefined,
-      },
-    };
-  }
+  const onRunSQLQuery = () => {
+    return onRunQuery();
+  };
 
-  render() {
-    const { query, onRunQuery, onChange } = this.props;
+  const onSQLChange = (query: SQLQuery) => {
+    // query => rawSql for now
+    onChange({ ...query });
+  };
 
-    const onRunSQLQuery = () => {
-      return onRunQuery();
-    };
+  const helpTooltip = (
+    <div>
+      Type: <i>ctrl+space</i> to show template variable suggestions <br />
+      Many queries can be copied from Chronograf
+    </div>
+  );
 
-    const onSQLChange = (query: SQLQuery) => {
-      // query => rawSql for now
-      onChange({ ...query });
-    };
+  return (
+    <>
+      <SqlQueryEditorLazy
+        datasource={flightSqlDatasource}
+        query={transformQuery(query)}
+        onRunQuery={onRunSQLQuery}
+        onChange={onSQLChange}
+        queryHeaderProps={{ dialect: 'influx' }}
+      />
+      <Space v={0.5} />
+      <Stack flex={1} gap={4} justifyContent="space-between">
+        <LinkButton
+          icon="external-link-alt"
+          variant="secondary"
+          target="blank"
+          href="https://docs.influxdata.com/influxdb/cloud-serverless/query-data/sql/"
+        >
+          SQL language syntax
+        </LinkButton>
 
-    const helpTooltip = (
-      <div>
-        Type: <i>ctrl+space</i> to show template variable suggestions <br />
-        Many queries can be copied from Chronograf
-      </div>
-    );
-
-    return (
-      <>
-        <SqlQueryEditorLazy
-          datasource={this.datasource}
-          query={this.transformQuery(query)}
-          onRunQuery={onRunSQLQuery}
-          onChange={onSQLChange}
-          queryHeaderProps={{ dialect: 'influx' }}
-        />
-        <Space v={0.5} />
-        <Stack flex={1} gap={4} justifyContent="space-between">
-          <LinkButton
-            icon="external-link-alt"
-            variant="secondary"
-            target="blank"
-            href="https://docs.influxdata.com/influxdb/cloud-serverless/query-data/sql/"
-          >
-            SQL language syntax
-          </LinkButton>
-
-          <InlineFormLabel width={5} tooltip={helpTooltip}>
-            Help
-          </InlineFormLabel>
-        </Stack>
-      </>
-    );
-  }
-}
-
-export const FSQLEditor = withTheme2(UnthemedSQLQueryEditor);
+        <InlineFormLabel width={5} tooltip={helpTooltip}>
+          Help
+        </InlineFormLabel>
+      </Stack>
+    </>
+  );
+};

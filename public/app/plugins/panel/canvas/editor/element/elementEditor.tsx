@@ -72,8 +72,8 @@ export function getElementEditor(opts: CanvasEditorOptions): NestedPanelOptions<
 
       builder.addSelect({
         path: 'type',
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/consistent-type-assertions
-        name: undefined as any, // required, but hide space
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- name is required by the upstream CanvasElementOptions type but intentionally suppressed in the UI; cast through unknown avoids any-type pollution
+        name: undefined as unknown as string, // required, but hide space
         settings: {
           options: layerTypes,
         },

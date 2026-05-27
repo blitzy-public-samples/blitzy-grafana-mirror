@@ -3,7 +3,7 @@ import { type ChangeEvent } from 'react';
 import { type AzureCredentials, type AzureAuthType } from '@grafana/azure-sdk';
 import { type SelectableValue } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
-import { Button, Field, Select, Input } from '@grafana/ui';
+import { Button, Field, Input, Select, Stack } from '@grafana/ui';
 
 export interface Props {
   managedIdentityEnabled: boolean;
@@ -231,7 +231,7 @@ export const AzureCredentialsForm = (props: Props) => {
                 htmlFor="client-secret"
                 required
               >
-                <div className="width-30" style={{ display: 'flex', gap: '4px' }}>
+                <Stack direction="row" gap={0.5} width={60}>
                   <Input
                     aria-label={t(
                       'azureauth.azure-credentials-form.aria-label-configured-client-secret',
@@ -248,7 +248,7 @@ export const AzureCredentialsForm = (props: Props) => {
                   <Button variant="secondary" type="button" onClick={onClientSecretReset} disabled={disabled}>
                     <Trans i18nKey="azureauth.azure-credentials-form.client-secret-reset">Reset</Trans>
                   </Button>
-                </div>
+                </Stack>
               </Field>
             ) : (
               <Field
@@ -317,7 +317,7 @@ export const AzureCredentialsForm = (props: Props) => {
                 htmlFor="password"
                 required
               >
-                <div className="width-30" style={{ display: 'flex', gap: '4px' }}>
+                <Stack direction="row" gap={0.5} width={60}>
                   <Input
                     aria-label={t('azureauth.azure-credentials-form.aria-label-password-configured', 'Password')}
                     placeholder={t('azureauth.azure-credentials-form.placeholder-password-configured', 'configured')}
@@ -328,7 +328,7 @@ export const AzureCredentialsForm = (props: Props) => {
                   <Button variant="secondary" type="button" onClick={onPasswordReset} disabled={disabled}>
                     <Trans i18nKey="azureauth.azure-credentials-form.password-reset">Reset</Trans>
                   </Button>
-                </div>
+                </Stack>
               </Field>
             ) : (
               <Field

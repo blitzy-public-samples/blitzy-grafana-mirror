@@ -61,7 +61,7 @@ export function TableCellInspector({ value, onDismiss, mode }: TableCellInspecto
   return (
     <Drawer onClose={onDismiss} title={t('grafana-ui.table.inspect-drawer-title', 'Inspect value')} tabs={tabBar}>
       <Stack direction="column" gap={2}>
-        <ClipboardButton icon="copy" getText={() => text} style={{ marginLeft: 'auto', width: '200px' }}>
+        <ClipboardButton icon="copy" getText={() => text} className={styles.copyButton}>
           <Trans i18nKey="grafana-ui.table.copy">Copy to Clipboard</Trans>
         </ClipboardButton>
         {currentMode === 'code' ? (
@@ -88,5 +88,9 @@ const getStyles = (theme: GrafanaTheme2) => ({
   textContainer: css({
     color: theme.colors.text.secondary,
     minHeight: 42,
+  }),
+  copyButton: css({
+    marginLeft: 'auto',
+    width: 200,
   }),
 });

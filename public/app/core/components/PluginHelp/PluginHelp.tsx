@@ -11,7 +11,7 @@ interface Props {
 
 export function PluginHelp({ pluginId }: Props) {
   const { value, loading, error } = useAsync(async () => {
-    return getBackendSrv().get(`/api/plugins/${pluginId}/markdown/query_help`);
+    return getBackendSrv().get<string>(`/api/plugins/${pluginId}/markdown/query_help`);
   }, []);
 
   const renderedMarkdown = renderMarkdown(value);
@@ -36,5 +36,9 @@ export function PluginHelp({ pluginId }: Props) {
     );
   }
 
+  // Design system gap: 'markdown-html' is a global Emotion style entry point defined in
+  // packages/grafana-ui/src/themes/GlobalStyles/markdownStyles.ts (applied via <Global>) and
+  // a stable E2E test selector exported by @grafana/e2e-selectors. Kept as raw className per
+  // refactor protocol — replacing it would break global descendant styles and E2E specs.
   return <div className="markdown-html" dangerouslySetInnerHTML={{ __html: renderedMarkdown }} />;
 }

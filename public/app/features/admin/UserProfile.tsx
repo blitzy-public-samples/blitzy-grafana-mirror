@@ -1,9 +1,18 @@
-import { css, cx } from '@emotion/css';
-import { memo, useRef, useState, useCallback, useEffect } from 'react';
+import { memo, useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import * as React from 'react';
 
 import { Trans, t } from '@grafana/i18n';
-import { Button, ConfirmButton, ConfirmModal, Input, LegacyInputStatus, Stack } from '@grafana/ui';
+import {
+  Button,
+  type Column,
+  ConfirmButton,
+  ConfirmModal,
+  Input,
+  InteractiveTable,
+  LegacyInputStatus,
+  Stack,
+  Text,
+} from '@grafana/ui';
 import { contextSrv } from 'app/core/services/context_srv';
 import { AccessControlAction } from 'app/types/accessControl';
 import { type UserDTO } from 'app/types/user';
@@ -16,6 +25,16 @@ interface Props {
   onUserDisable: (userUid: string) => void;
   onUserEnable: (userUid: string) => void;
   onPasswordChange(password: string): void;
+}
+
+interface ProfileRow {
+  key: string;
+  label: string;
+  value: string;
+  locked: boolean;
+  lockMessage?: string;
+  inputType?: string;
+  onChange?: (value: string) => void;
 }
 
 export function UserProfile({
@@ -88,52 +107,87 @@ export function UserProfile({
   const canDisable = contextSrv.hasPermissionInMetadata(AccessControlAction.UsersDisable, user);
   const canEnable = contextSrv.hasPermissionInMetadata(AccessControlAction.UsersEnable, user);
 
+  const rows = useMemo<ProfileRow[]>(
+    () => [
+      {
+        key: 'id',
+        label: t('admin.user-profile.label-numerical-identifier', 'Numerical identifier'),
+        value: user.id.toString(),
+        locked: true,
+      },
+      {
+        key: 'name',
+        label: t('admin.user-profile.label-name', 'Name'),
+        value: user.name,
+        locked: editLocked,
+        lockMessage,
+        onChange: onUserNameChange,
+      },
+      {
+        key: 'email',
+        label: t('admin.user-profile.label-email', 'Email'),
+        value: user.email,
+        locked: editLocked,
+        lockMessage,
+        onChange: onUserEmailChange,
+      },
+      {
+        key: 'username',
+        label: t('admin.user-profile.label-username', 'Username'),
+        value: user.login,
+        locked: editLocked,
+        lockMessage,
+        onChange: onUserLoginChange,
+      },
+      {
+        key: 'password',
+        label: t('admin.user-profile.label-password', 'Password'),
+        value: '********',
+        inputType: 'password',
+        locked: passwordChangeLocked,
+        lockMessage,
+        onChange: onPasswordChange,
+      },
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally narrow deps to user-data fields actually consumed by row values; including the entire `user` object or the handlers (recreated each render) would unnecessarily rebuild the row array on every render and cause InteractiveTable to lose row identity (and the edit-cell sub-state).
+    [
+      user.id,
+      user.name,
+      user.email,
+      user.login,
+      editLocked,
+      passwordChangeLocked,
+      lockMessage,
+    ]
+  );
+
+  const columns = useMemo<Array<Column<ProfileRow>>>(
+    () => [
+      {
+        id: 'label',
+        header: t('admin.user-profile.column-field', 'Field'),
+        cell: ({ row: { original } }) => (
+          <Text weight="medium">
+            <label htmlFor={`${original.key}-input`}>{original.label}</label>
+          </Text>
+        ),
+      },
+      {
+        id: 'detail',
+        header: t('admin.user-profile.column-value', 'Value'),
+        cell: ({ row: { original } }) => <ProfileDetailCell row={original} />,
+      },
+    ],
+    []
+  );
+
   return (
     <div>
-      <h3 className="page-heading">
+      <Text element="h3" variant="h3">
         <Trans i18nKey="admin.user-profile.title">User information</Trans>
-      </h3>
+      </Text>
       <Stack direction="column" gap={1.5}>
-        <div>
-          <table className="filter-table form-inline">
-            <tbody>
-              <UserProfileRow
-                label={t('admin.user-profile.label-numerical-identifier', 'Numerical identifier')}
-                value={user.id.toString()}
-                locked={true}
-              />
-              <UserProfileRow
-                label={t('admin.user-profile.label-name', 'Name')}
-                value={user.name}
-                locked={editLocked}
-                lockMessage={lockMessage}
-                onChange={onUserNameChange}
-              />
-              <UserProfileRow
-                label={t('admin.user-profile.label-email', 'Email')}
-                value={user.email}
-                locked={editLocked}
-                lockMessage={lockMessage}
-                onChange={onUserEmailChange}
-              />
-              <UserProfileRow
-                label={t('admin.user-profile.label-username', 'Username')}
-                value={user.login}
-                locked={editLocked}
-                lockMessage={lockMessage}
-                onChange={onUserLoginChange}
-              />
-              <UserProfileRow
-                label={t('admin.user-profile.label-password', 'Password')}
-                value="********"
-                inputType="password"
-                locked={passwordChangeLocked}
-                lockMessage={lockMessage}
-                onChange={onPasswordChange}
-              />
-            </tbody>
-          </table>
-        </div>
+        <InteractiveTable<ProfileRow> columns={columns} data={rows} getRowId={(row) => row.key} />
         <Stack gap={2}>
           {canDelete && (
             <>
@@ -176,6 +230,108 @@ export function UserProfile({
   );
 }
 
+/**
+ * Detail cell — combines the value display, edit input, and edit/save/cancel action
+ * button into a single InteractiveTable cell. This keeps per-row edit state
+ * (`editing`, `value`, input ref for focus) local to the cell so the parent
+ * UserProfile component does not need to re-render on every keystroke and so the
+ * input retains focus across re-renders. Layout matches the original
+ * label-value-action visual via an inline Stack with horizontal flex.
+ */
+const ProfileDetailCell = memo(({ row }: { row: ProfileRow }) => {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(row.value);
+  const inputElemRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setValue(row.value);
+  }, [row.value]);
+
+  const focusInput = useCallback(() => {
+    if (inputElemRef.current) {
+      inputElemRef.current.focus();
+    }
+  }, []);
+
+  const onEditClick = useCallback(() => {
+    if (row.inputType === 'password') {
+      // Reset value for password field (matches original UserProfileRow behavior)
+      setValue('');
+      setEditing(true);
+      setTimeout(focusInput, 0);
+    } else {
+      setEditing(true);
+      setTimeout(focusInput, 0);
+    }
+  }, [row.inputType, focusInput]);
+
+  const onCancelClick = useCallback(() => {
+    setEditing(false);
+    setValue(row.value);
+  }, [row.value]);
+
+  const onInputChange = useCallback((event: React.ChangeEvent<HTMLInputElement>, status?: LegacyInputStatus) => {
+    if (status === LegacyInputStatus.Invalid) {
+      return;
+    }
+    setValue(event.target.value);
+  }, []);
+
+  const onInputBlur = useCallback((event: React.FocusEvent<HTMLInputElement>, status?: LegacyInputStatus) => {
+    if (status === LegacyInputStatus.Invalid) {
+      return;
+    }
+    setValue(event.target.value);
+  }, []);
+
+  const onSave = useCallback(() => {
+    if (row.onChange) {
+      row.onChange(value);
+    }
+    setEditing(false);
+  }, [row, value]);
+
+  if (row.locked) {
+    return (
+      <Stack alignItems="center" gap={2}>
+        <span>{row.value}</span>
+        <Text italic color="secondary">
+          {row.lockMessage ?? ''}
+        </Text>
+      </Stack>
+    );
+  }
+
+  const inputId = `${row.key}-input`;
+  return (
+    <Stack alignItems="center" gap={2}>
+      {editing ? (
+        <Input
+          id={inputId}
+          type={row.inputType ?? 'text'}
+          defaultValue={value}
+          onBlur={onInputBlur}
+          onChange={onInputChange}
+          ref={inputElemRef}
+          width={30}
+        />
+      ) : (
+        <span>{row.value}</span>
+      )}
+      <ConfirmButton
+        confirmText={t('admin.user-profile-row.confirmText-save', 'Save')}
+        onClick={onEditClick}
+        onConfirm={onSave}
+        onCancel={onCancelClick}
+      >
+        {t('admin.user-profile.edit-button', 'Edit')}
+      </ConfirmButton>
+    </Stack>
+  );
+});
+
+ProfileDetailCell.displayName = 'ProfileDetailCell';
+
 interface UserProfileRowProps {
   label: string;
   value?: string;
@@ -185,6 +341,12 @@ interface UserProfileRowProps {
   onChange?: (value: string) => void;
 }
 
+/**
+ * Legacy row renderer kept for backwards compatibility with any external consumers
+ * importing `UserProfileRow` (the component is exported). Internally the page now
+ * renders profile rows through InteractiveTable; this component is a thin shim that
+ * wraps the same Field/Value/Action triple in a single-row Stack.
+ */
 export const UserProfileRow = memo(
   ({
     label,
@@ -247,49 +409,38 @@ export const UserProfileRow = memo(
       }
     }, [onChange, value]);
 
-    const labelClass = cx(
-      'width-16',
-      css({
-        fontWeight: 500,
-      })
-    );
-
     if (locked) {
       return <LockedRow label={label} value={value} lockMessage={lockMessage} />;
     }
 
     const inputId = `${label}-input`;
     return (
-      <tr>
-        <td className={labelClass}>
+      <Stack alignItems="center" gap={2}>
+        <Text weight="medium">
           <label htmlFor={inputId}>{label}</label>
-        </td>
-        <td className="width-25" colSpan={2}>
-          {editing ? (
-            <Input
-              id={inputId}
-              type={inputType}
-              defaultValue={value}
-              onBlur={onInputBlur}
-              onChange={onInputChange}
-              ref={inputElemRef}
-              width={30}
-            />
-          ) : (
-            <span>{valueProp}</span>
-          )}
-        </td>
-        <td>
-          <ConfirmButton
-            confirmText={t('admin.user-profile-row.confirmText-save', 'Save')}
-            onClick={onEditClick}
-            onConfirm={onSave}
-            onCancel={onCancelClick}
-          >
-            {t('admin.user-profile.edit-button', 'Edit')}
-          </ConfirmButton>
-        </td>
-      </tr>
+        </Text>
+        {editing ? (
+          <Input
+            id={inputId}
+            type={inputType}
+            defaultValue={value}
+            onBlur={onInputBlur}
+            onChange={onInputChange}
+            ref={inputElemRef}
+            width={30}
+          />
+        ) : (
+          <span>{valueProp}</span>
+        )}
+        <ConfirmButton
+          confirmText={t('admin.user-profile-row.confirmText-save', 'Save')}
+          onClick={onEditClick}
+          onConfirm={onSave}
+          onCancel={onCancelClick}
+        >
+          {t('admin.user-profile.edit-button', 'Edit')}
+        </ConfirmButton>
+      </Stack>
     );
   }
 );
@@ -303,26 +454,13 @@ interface LockedRowProps {
 }
 
 export const LockedRow = ({ label, value, lockMessage }: LockedRowProps) => {
-  const lockMessageClass = css({
-    fontStyle: 'italic',
-    marginRight: '0.6rem',
-  });
-  const labelClass = cx(
-    'width-16',
-    css({
-      fontWeight: 500,
-    })
-  );
-
   return (
-    <tr>
-      <td className={labelClass}>{label}</td>
-      <td className="width-25" colSpan={2}>
-        {value}
-      </td>
-      <td>
-        <span className={lockMessageClass}>{lockMessage}</span>
-      </td>
-    </tr>
+    <Stack alignItems="center" gap={2}>
+      <Text weight="medium">{label}</Text>
+      <span>{value}</span>
+      <Text italic color="secondary">
+        {lockMessage ?? ''}
+      </Text>
+    </Stack>
   );
 };

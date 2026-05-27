@@ -37,6 +37,7 @@ export function SidebarComp({ children, contextValue }: Props) {
     [styles.containerHidden]: !!contextValue.isHidden,
   });
 
+  // Design system gap: dynamic edge/bottom margin offsets driven by component state; class-based styling not feasible
   const style = { [position]: theme.spacing(edgeMargin), bottom: theme.spacing(bottomMargin) };
 
   const ref = useCustomClickAway((evt) => {
@@ -114,6 +115,7 @@ export function SidebarOpenPane({ children }: SidebarOpenPaneProps) {
   const className = cx(styles.openPane, context.position === 'right' ? styles.openPaneRight : styles.openPaneLeft);
 
   return (
+    // Design system gap: dynamic width driven by resize state; class-based styling not feasible
     <div className={className} style={{ width: context.paneWidth }}>
       {children}
     </div>

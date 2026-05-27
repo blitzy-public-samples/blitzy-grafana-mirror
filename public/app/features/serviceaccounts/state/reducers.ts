@@ -64,7 +64,7 @@ export const initialStateList: ServiceAccountsState = {
   serviceAccountStateFilter: ServiceAccountStateFilter.All,
 };
 
-interface ServiceAccountsFetched {
+export interface ServiceAccountsFetched {
   serviceAccounts: ServiceAccountDTO[];
   perPage: number;
   page: number;

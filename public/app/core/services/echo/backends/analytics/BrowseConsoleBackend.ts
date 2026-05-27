@@ -1,6 +1,7 @@
 /* eslint-disable no-console */
 import {
   type EchoBackend,
+  type EchoEvent,
   EchoEventType,
   isExperimentViewEvent,
   isInteractionEvent,
@@ -14,7 +15,7 @@ export class BrowserConsoleBackend implements EchoBackend<PageviewEchoEvent, unk
 
   constructor() {}
 
-  addEvent = (e: PageviewEchoEvent) => {
+  addEvent = (e: EchoEvent) => {
     if (isPageviewEvent(e)) {
       console.log('[EchoSrv:pageview]', e.payload.page);
     }

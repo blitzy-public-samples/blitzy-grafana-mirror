@@ -1,11 +1,11 @@
 import { css } from '@emotion/css';
 import { useState, useCallback, useId, useMemo } from 'react';
 
-import { type SelectableValue } from '@grafana/data';
+import { type GrafanaTheme2, type SelectableValue } from '@grafana/data';
 import { selectors } from '@grafana/e2e-selectors';
 import { t, Trans } from '@grafana/i18n';
 
-import { useTheme2 } from '../../themes/ThemeContext';
+import { useStyles2, useTheme2 } from '../../themes/ThemeContext';
 import { Alert } from '../Alert/Alert';
 import { Button } from '../Button/Button';
 import { Field } from '../Forms/Field';
@@ -109,6 +109,7 @@ export const DataSourceHttpSettings = (props: HttpSettingsProps) => {
   const [isAccessHelpVisible, setIsAccessHelpVisible] = useState(false);
   const [azureAuthEnabled, setAzureAuthEnabled] = useState(false);
   const theme = useTheme2();
+  const styles = useStyles2(getStyles);
   let urlTooltip;
 
   const onSettingsChange = useCallback(
@@ -187,7 +188,7 @@ export const DataSourceHttpSettings = (props: HttpSettingsProps) => {
   return (
     <Stack direction="column" gap={5}>
       <section>
-        <h3 className="page-heading">
+        <h3 className={styles.pageHeading}>
           <Trans i18nKey="grafana-ui.data-source-http-settings.heading">HTTP</Trans>
         </h3>
 
@@ -288,7 +289,7 @@ export const DataSourceHttpSettings = (props: HttpSettingsProps) => {
       </section>
 
       <section>
-        <h3 className="page-heading">
+        <h3 className={styles.pageHeading}>
           <Trans i18nKey="grafana-ui.data-source-http-settings.auth">Auth</Trans>
         </h3>
         <Stack direction="column" gap={4}>
@@ -404,3 +405,11 @@ export const DataSourceHttpSettings = (props: HttpSettingsProps) => {
     </Stack>
   );
 };
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  pageHeading: css({
+    fontSize: theme.typography.h4.fontSize,
+    marginTop: 0,
+    marginBottom: theme.spacing(2),
+  }),
+});

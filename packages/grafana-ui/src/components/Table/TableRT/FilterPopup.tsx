@@ -1,11 +1,12 @@
 import { css, cx } from '@emotion/css';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import * as React from 'react';
+import { type Column, type UseFiltersColumnProps } from 'react-table';
 
 import { type Field, type GrafanaTheme2, type SelectableValue } from '@grafana/data';
 import { t, Trans } from '@grafana/i18n';
 
-import { useStyles2, useTheme2 } from '../../../themes/ThemeContext';
+import { useStyles2 } from '../../../themes/ThemeContext';
 import { Button } from '../../Button/Button';
 import { ClickOutsideWrapper } from '../../ClickOutsideWrapper/ClickOutsideWrapper';
 import { Label } from '../../Forms/Label';
@@ -17,7 +18,7 @@ import { FilterList } from './FilterList';
 import { type TableStyles } from './styles';
 
 interface Props {
-  column: any;
+  column: Column<{}> & UseFiltersColumnProps<{}>;
   tableStyles: TableStyles;
   onClose: () => void;
   field?: Field;
@@ -36,7 +37,6 @@ export const FilterPopup = ({
   operator,
   setOperator,
 }: Props) => {
-  const theme = useTheme2();
   const uniqueValues = useMemo(() => calculateUniqueFieldValues(preFilteredRows, field), [preFilteredRows, field]);
   const options = useMemo(() => valuesToOptions(uniqueValues), [uniqueValues]);
   const filteredOptions = useMemo(() => getFilteredOptions(options, filterValue), [options, filterValue]);
@@ -81,7 +81,7 @@ export const FilterPopup = ({
               <IconButton
                 name="text-fields"
                 tooltip={t('grafana-ui.table.filter-popup-match-case', 'Match case')}
-                style={{ color: matchCase ? theme.colors.text.link : theme.colors.text.disabled }}
+                className={matchCase ? styles.matchCaseEnabled : styles.matchCaseDisabled}
                 onClick={() => {
                   setMatchCase((s) => !s);
                 }}
@@ -147,6 +147,12 @@ const getStyles = (theme: GrafanaTheme2) => ({
   }),
   label: css({
     marginBottom: 0,
+  }),
+  matchCaseEnabled: css({
+    color: theme.colors.text.link,
+  }),
+  matchCaseDisabled: css({
+    color: theme.colors.text.disabled,
   }),
 });
 

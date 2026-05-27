@@ -1,7 +1,7 @@
-import { FormProvider, useForm } from 'react-hook-form';
+import { type DeepMap, type FieldError, FormProvider, useForm } from 'react-hook-form';
 
 import { Trans, t } from '@grafana/i18n';
-import { Alert, Button, LinkButton, Stack } from '@grafana/ui';
+import { Alert, Button, FieldSet, LinkButton, Stack } from '@grafana/ui';
 import { useCleanup } from 'app/core/hooks/useCleanup';
 import { type AlertManagerCortexConfig } from 'app/plugins/datasource/alertmanager/types';
 import { useDispatch } from 'app/types/store';
@@ -79,17 +79,22 @@ export const GlobalConfigForm = ({ config, alertManagerSourceName }: Props) => {
             {error.message || String(error)}
           </Alert>
         )}
-        {globalConfigOptions.map((option) => (
-          <OptionField
-            readOnly={readOnly}
-            defaultValue={defaultValues[option.propertyName]}
-            key={option.propertyName}
-            option={option}
-            error={errors[option.propertyName]}
-            pathPrefix={''}
-            secureFields={{}}
-          />
-        ))}
+        <FieldSet>
+          {globalConfigOptions.map((option) => (
+            <OptionField
+              readOnly={readOnly}
+              defaultValue={defaultValues[option.propertyName]}
+              key={option.propertyName}
+              option={option}
+              error={
+                // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- OptionField.error is a discriminated union (FieldError | DeepMap<...>) selected by option.element at runtime; react-hook-form's indexed FieldErrors entry is structurally compatible but its declared union (Merge<FieldError, FieldErrorsImpl<{}>>) is not a TypeScript subtype, so the cast bridges the API
+                errors[option.propertyName] as FieldError | DeepMap<Record<string, unknown>, FieldError> | undefined
+              }
+              pathPrefix={''}
+              secureFields={{}}
+            />
+          ))}
+        </FieldSet>
         <div>
           <Stack>
             {!readOnly && (

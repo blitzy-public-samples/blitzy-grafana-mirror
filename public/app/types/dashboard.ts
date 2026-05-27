@@ -112,6 +112,7 @@ export interface SnapshotSpec {
 export interface DashboardDataDTO extends Dashboard {
   title: string;
   uid: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- DashboardDataDTO.panels intentionally widens the parent Dashboard type to accept legacy DashboardModel/PanelModel shapes (with `mode: string` FieldColor from @grafana/data) and library-panel/alert/collapsed properties that differ from the strict @grafana/schema Panel/RowPanel union; concrete typing surfaces incompatibilities in cross-version dashboard JSON
   panels?: any[];
 }
 

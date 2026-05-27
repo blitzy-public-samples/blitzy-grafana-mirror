@@ -86,9 +86,11 @@ export interface PanelContext {
   onThresholdsChange?: (thresholds: ThresholdsConfig) => void;
 
   /** For instance state that can be shared between panel & options UI  */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- instanceState is per-plugin and cannot be globally typed; plugins must narrow at use site
   instanceState?: any;
 
   /** Update instance state, this is only supported in dashboard panel context currently */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- `onInstanceStateChange` is a publicly-exported SDK callback (PanelContext is re-exported from `@grafana/ui` and consumed by every plugin author with a custom panel options UI). The `state` argument shape is per-plugin and intentionally opaque — tightening to `unknown` per AAP §0.8.6 would force every existing plugin to add narrowing logic at the call site, which is a public API contract break. Per AAP §0.9.1 ("Maintain all public API contracts") and §0.8.7 ("Public API Surface Preservation Analysis"), retain `any` with this inline justification.
   onInstanceStateChange?: (state: any) => void;
 
   /**

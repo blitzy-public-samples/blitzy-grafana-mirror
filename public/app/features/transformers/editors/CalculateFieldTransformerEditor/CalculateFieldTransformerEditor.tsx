@@ -1,3 +1,4 @@
+import { css } from '@emotion/css';
 import { type ChangeEvent, useEffect, useState } from 'react';
 import * as React from 'react';
 import { of, type OperatorFunction } from 'rxjs';
@@ -8,6 +9,7 @@ import {
   DataTransformerID,
   FieldType,
   getFieldDisplayName,
+  type GrafanaTheme2,
   type KeyValue,
   type SelectableValue,
   standardTransformers,
@@ -24,7 +26,7 @@ import {
 } from '@grafana/data/internal';
 import { t } from '@grafana/i18n';
 import { getTemplateSrv } from '@grafana/runtime';
-import { InlineField, InlineSwitch, Input, Select } from '@grafana/ui';
+import { InlineField, InlineSwitch, Input, Select, useStyles2 } from '@grafana/ui';
 
 import { getTransformationContent } from '../../docs/getTransformationContent';
 import darkImage from '../../images/dark/calculateField.svg';
@@ -50,6 +52,7 @@ export const CalculateFieldTransformerEditor = (props: CalculateFieldTransformer
   const { options, onChange, input } = props;
   const configuredOptions = options?.reduce?.include;
   const [state, setState] = useState<CalculateFieldTransformerEditorState>({ names: [], selected: [] });
+  const styles = useStyles2(getStyles);
 
   const calculationModes = [
     {
@@ -202,7 +205,7 @@ export const CalculateFieldTransformerEditor = (props: CalculateFieldTransformer
         label={t('transformers.calculate-field-transformer-editor.label-mode', 'Mode')}
       >
         <Select
-          className="width-18"
+          className={styles.modeSelect}
           options={calculationModes}
           value={calculationModes.find((v) => v.value === mode)}
           onChange={onModeChanged}
@@ -245,7 +248,7 @@ export const CalculateFieldTransformerEditor = (props: CalculateFieldTransformer
         disabled={disableAlias}
       >
         <Input
-          className="width-18"
+          className={styles.modeSelect}
           value={options.alias ?? ''}
           placeholder={getNameFromOptions(options)}
           onChange={onAliasChanged}
@@ -279,3 +282,9 @@ export const getCalculateFieldTransformRegistryItem: () => TransformerRegistryIt
     imageDark: darkImage,
     imageLight: lightImage,
   });
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  modeSelect: css({
+    width: theme.spacing(36),
+  }),
+});

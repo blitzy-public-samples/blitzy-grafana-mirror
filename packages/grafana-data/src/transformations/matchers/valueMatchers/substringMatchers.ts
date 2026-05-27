@@ -4,7 +4,7 @@ import { ValueMatcherID } from '../ids';
 
 import { type BasicValueMatcherOptions } from './types';
 
-const isSubstringMatcher: ValueMatcherInfo<BasicValueMatcherOptions> = {
+const isSubstringMatcher: ValueMatcherInfo<BasicValueMatcherOptions<string>> = {
   id: ValueMatcherID.substring,
   name: 'Contains substring',
   description: 'Match where value for given field is a substring to options value.',
@@ -27,19 +27,19 @@ const isSubstringMatcher: ValueMatcherInfo<BasicValueMatcherOptions> = {
   getDefaultOptions: () => ({ value: '' }),
 };
 
-const isNotSubstringValueMatcher: ValueMatcherInfo<BasicValueMatcherOptions> = {
+const isNotSubstringValueMatcher: ValueMatcherInfo<BasicValueMatcherOptions<string>> = {
   id: ValueMatcherID.notSubstring,
   name: 'Does not contain substring',
   description: 'Match where value for given field is not a substring to options value.',
   get: (options) => {
     return (valueIndex: number, field: Field) => {
       const value = field.values[valueIndex];
-      return (
+      return Boolean(
         typeof value === 'string' &&
-        options.value &&
-        value &&
-        options.value !== '' &&
-        !value.toLowerCase().includes(options.value.toLowerCase())
+          options.value &&
+          value &&
+          options.value !== '' &&
+          !value.toLowerCase().includes(options.value.toLowerCase())
       );
     };
   },

@@ -33,14 +33,20 @@ export const EvaluationGroup = ({
     <Stack direction="column" role="treeitem" aria-expanded={isOpen} aria-selected="false" gap={0}>
       <div className={styles.headerWrapper}>
         <Stack direction="row" alignItems="center" gap={1}>
-          <button className={cx(styles.hiddenButton, styles.largerClickTarget)} type="button" onClick={onToggle}>
+          <Button
+            variant="secondary"
+            fill="text"
+            type="button"
+            onClick={onToggle}
+            className={cx(styles.hiddenButton, styles.largerClickTarget)}
+          >
             <Stack alignItems="center" gap={0.5}>
               <Icon name={isOpen ? 'angle-down' : 'angle-right'} />
               <Text truncate variant="body">
                 {name}
               </Text>
             </Stack>
-          </button>
+          </Button>
           {isProvisioned && (
             <Badge color="purple" text={t('alerting.evaluation-group.text-provisioned', 'Provisioned')} />
           )}

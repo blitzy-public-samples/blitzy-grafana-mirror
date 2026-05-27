@@ -1,12 +1,21 @@
 // From https://github.com/streamich/fast-shallow-equal
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function isShallowEqual(a: any, b: any) {
+/**
+ * Type guard preserving the original `instanceof Object` runtime check while narrowing the
+ * value to `Record<string, unknown>` so the indexing loops below type-check without using
+ * `as` assertions. Using a type predicate here avoids adding a new
+ * `@typescript-eslint/consistent-type-assertions` baseline entry per AAP §0.8.5.
+ */
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return value instanceof Object;
+}
+
+export function isShallowEqual(a: unknown, b: unknown): boolean {
   if (a === b) {
     return true;
   }
 
-  if (!(a instanceof Object) || !(b instanceof Object)) {
+  if (!isObjectRecord(a) || !isObjectRecord(b)) {
     return false;
   }
 

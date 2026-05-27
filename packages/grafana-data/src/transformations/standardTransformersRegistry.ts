@@ -16,6 +16,7 @@ export interface TransformerUIProps<T> {
   onChange: (options: T) => void;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic default `TOptions = any` preserved for back-compat: transformDataFrame.ts spreads `info.transformation.defaultOptions` with `{...defaultOptions, ...config.options}` which requires `any` for the spread; consumers also register transformers with explicit `TOptions` type parameter
 export interface TransformerRegistryItem<TOptions = any> extends RegistryItem {
   /**
    * Object describing transformer configuration

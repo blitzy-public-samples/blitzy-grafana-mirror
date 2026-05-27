@@ -204,7 +204,12 @@ export function InstallControlsButton({
     );
   }
 
-  const shouldDisable = isInstalling || errorInstalling || plugin.angularDetected;
+  // `errorInstalling` from useInstallStatus is typed `unknown` (RequestInfo.error?:
+  // unknown — see public/app/features/plugins/admin/types.ts), and the JS
+  // short-circuit `||` would yield `unknown` as the type of `shouldDisable`. The
+  // <Button> `disabled` prop expects `boolean | undefined`, so coerce explicitly
+  // via Boolean() — preserving the original runtime semantics (truthy = disabled).
+  const shouldDisable = Boolean(isInstalling || errorInstalling || plugin.angularDetected);
 
   return (
     <Button disabled={shouldDisable} onClick={onInstall}>

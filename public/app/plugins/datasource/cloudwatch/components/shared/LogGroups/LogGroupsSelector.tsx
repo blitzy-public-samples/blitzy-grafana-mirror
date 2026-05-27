@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { type SelectableValue } from '@grafana/data';
 import { EditorField } from '@grafana/plugin-ui';
@@ -6,6 +6,7 @@ import {
   Button,
   Checkbox,
   Icon,
+  InteractiveTable,
   Label,
   LoadingPlaceholder,
   Modal,
@@ -13,6 +14,7 @@ import {
   Space,
   TextLink,
   useStyles2,
+  type Column,
 } from '@grafana/ui';
 
 import { type LogGroup } from '../../../dataquery.gen';
@@ -21,6 +23,8 @@ import getStyles from '../../styles';
 import { Account, ALL_ACCOUNTS_OPTION } from '../Account';
 
 import Search from './Search';
+
+type LogGroupRow = LogGroup & { accountLabel?: string };
 
 type CrossAccountLogsQueryProps = {
   selectedLogGroups?: LogGroup[];
@@ -40,7 +44,7 @@ export const LogGroupsSelector = ({
   ...props
 }: CrossAccountLogsQueryProps) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectableLogGroups, setSelectableLogGroups] = useState<LogGroup[]>([]);
+  const [selectableLogGroups, setSelectableLogGroups] = useState<LogGroupRow[]>([]);
   const [selectedLogGroups, setSelectedLogGroups] = useState(props.selectedLogGroups ?? []);
   const [searchPhrase, setSearchPhrase] = useState('');
   const [searchAccountId, setSearchAccountId] = useState(ALL_ACCOUNTS_OPTION.value);
@@ -104,13 +108,52 @@ export const LogGroupsSelector = ({
     setIsLoading(false);
   };
 
-  const handleSelectCheckbox = (row: LogGroup, isChecked: boolean) => {
-    if (isChecked) {
-      setSelectedLogGroups([...selectedLogGroups, row]);
-    } else {
-      setSelectedLogGroups(selectedLogGroups.filter((lg) => lg.arn !== row.arn));
-    }
-  };
+  const handleSelectCheckbox = useCallback(
+    (row: LogGroup, isChecked: boolean) => {
+      if (isChecked) {
+        setSelectedLogGroups([...selectedLogGroups, row]);
+      } else {
+        setSelectedLogGroups(selectedLogGroups.filter((lg) => lg.arn !== row.arn));
+      }
+    },
+    [selectedLogGroups]
+  );
+
+  const columns = useMemo<Array<Column<LogGroupRow>>>(
+    () => [
+      {
+        id: 'logGroup',
+        header: 'Log Group',
+        cell: ({ row: { original } }) => (
+          <div className={styles.nestedEntry}>
+            <Checkbox
+              id={original.arn}
+              onChange={(ev) => handleSelectCheckbox(original, ev.currentTarget.checked)}
+              value={!!(original.arn && selectedLogGroups.some((lg) => lg.arn === original.arn))}
+            />
+            <Space layout="inline" h={2} />
+            <label className={styles.logGroupSearchResults} htmlFor={original.arn} title={original.name}>
+              {original.name}
+            </label>
+          </div>
+        ),
+      },
+      {
+        id: 'accountLabel',
+        header: 'Account label',
+        cell: ({ row: { original } }) => <>{original.accountLabel ?? ''}</>,
+        visible: () => accountOptions.length > 0,
+      },
+      {
+        id: 'accountId',
+        header: 'Account ID',
+        cell: ({ row: { original } }) => <>{original.accountId ?? ''}</>,
+      },
+    ],
+    [accountOptions.length, selectedLogGroups, styles, handleSelectCheckbox]
+  );
+
+  const getRowId = useCallback((row: LogGroupRow) => row.arn ?? row.name ?? '', []);
 
   const handleApply = () => {
     onChange(selectedLogGroups);
@@ -169,51 +212,13 @@ export const LogGroupsSelector = ({
               <Space layout="block" v={1} />
             </>
           )}
-          <div className={styles.tableScroller}>
-            <table className={styles.table}>
-              <thead>
-                <tr className={styles.row}>
-                  <td className={styles.cell}>Log Group</td>
-                  {accountOptions.length > 0 && <td className={styles.cell}>Account label</td>}
-                  <td className={styles.cell}>Account ID</td>
-                </tr>
-              </thead>
-              <tbody>
-                {isLoading && (
-                  <tr className={styles.row}>
-                    <td className={styles.cell}>
-                      <LoadingPlaceholder text={'Loading...'} />
-                    </td>
-                  </tr>
-                )}
-                {!isLoading && selectableLogGroups.length === 0 && (
-                  <tr className={styles.row}>
-                    <td className={styles.cell}>No log groups found</td>
-                  </tr>
-                )}
-                {!isLoading &&
-                  selectableLogGroups.map((row) => (
-                    <tr className={styles.row} key={`${row.arn}`}>
-                      <td className={styles.cell}>
-                        <div className={styles.nestedEntry}>
-                          <Checkbox
-                            id={row.arn}
-                            onChange={(ev) => handleSelectCheckbox(row, ev.currentTarget.checked)}
-                            value={!!(row.arn && selectedLogGroups.some((lg) => lg.arn === row.arn))}
-                          />
-                          <Space layout="inline" h={2} />
-                          <label className={styles.logGroupSearchResults} htmlFor={row.arn} title={row.name}>
-                            {row.name}
-                          </label>
-                        </div>
-                      </td>
-                      {accountOptions.length > 0 && <td className={styles.cell}>{row.accountLabel}</td>}
-                      <td className={styles.cell}>{row.accountId}</td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
+          {isLoading && <LoadingPlaceholder text="Loading..." />}
+          {!isLoading && selectableLogGroups.length === 0 && <div>No log groups found</div>}
+          {!isLoading && selectableLogGroups.length > 0 && (
+            <div className={styles.tableScroller}>
+              <InteractiveTable columns={columns} data={selectableLogGroups} getRowId={getRowId} />
+            </div>
+          )}
         </div>
         <Space layout="block" v={2} />
         <Label className={styles.logGroupCountLabel}>

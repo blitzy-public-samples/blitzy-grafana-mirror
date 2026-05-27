@@ -528,7 +528,11 @@ export class CompletionProvider implements monacoTypes.languages.CompletionItemP
           tagValues = await this.getTagValues(situation.tagName, situation.query, this.timeRangeForTags, this.range);
           setAlertText(undefined);
         } catch (error) {
-          if (isFetchError(error)) {
+          // Narrow with the expected Tempo error body shape so
+          // `error.data.error` is typed. After the runtime-package
+          // `any -> unknown` refactor, `FetchError<T>` defaults to
+          // `FetchError<unknown>`.
+          if (isFetchError<{ error?: string }>(error)) {
             setAlertText(error.data.error);
           } else if (error instanceof Error) {
             setAlertText(`Error: ${error.message}`);

@@ -78,6 +78,7 @@ export function InlineEdit({ onClose, id, scene }: Props) {
           <Resizable height={measurements.height} width={measurements.width} onResize={onResizeStop}>
             <div
               className={styles.inlineEditorContainer}
+              // Design system gap: dynamic positioning style requires inline; useStyles2 cannot accept per-render computed values without re-creating the style object every render
               style={{ height: `${measurements.height}px`, width: `${measurements.width}px` }}
               ref={ref}
             >

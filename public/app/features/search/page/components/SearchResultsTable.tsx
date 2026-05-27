@@ -41,6 +41,7 @@ export type TableColumn = Column & {
 
 const ROW_HEIGHT = 36; // pixels
 const EMPTY_PANEL_PLUGIN_METAS = {};
+const FIXED_LIST_STYLE: CSSProperties = { overflow: 'hidden auto' };
 
 export const SearchResultsTable = React.memo(
   ({
@@ -256,7 +257,7 @@ export const SearchResultsTable = React.memo(
                 itemCount={rows.length}
                 itemSize={tableStyles.rowHeight}
                 width={width}
-                style={{ overflow: 'hidden auto' }}
+                style={FIXED_LIST_STYLE}
               >
                 {RenderRow}
               </FixedSizeList>

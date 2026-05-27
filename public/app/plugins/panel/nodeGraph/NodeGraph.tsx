@@ -102,6 +102,18 @@ const getStyles = (theme: GrafanaTheme2) => ({
     background: theme.colors.warning.main,
     color: theme.colors.warning.contrastText,
   }),
+  alertTopPanel: css({
+    top: '0px',
+  }),
+  alertTopExplore: css({
+    top: '40px',
+  }),
+  alertSecondaryTopPanel: css({
+    top: '30px',
+  }),
+  alertSecondaryTopExplore: css({
+    top: '70px',
+  }),
   loadingWrapper: css({
     label: 'loadingWrapper',
     height: '100%',
@@ -278,6 +290,13 @@ export function NodeGraph({ getLinks, dataFrames, nodeLimit, panelId, zoomMode, 
         >
           <g
             className={styles.mainGroup}
+            // Per-frame dynamic transform (scale + Math.floor of pan position computed during
+            // pinch/zoom and drag-pan interactions); kept inline per AAP §0.4.4 plugin-overlay
+            // exemption — useStyles2 / Emotion css() cannot accept per-render computed values
+            // without generating a new Emotion class on every animation frame, which would
+            // produce O(n) hashing + CSS-class allocation per interactive frame and pollute the
+            // Emotion class registry. The transform values are pure data-bound numerics, so the
+            // SVG `transform` attribute (via the `style` prop) is the canonical approach.
             style={{ transform: `scale(${scale}) translate(${Math.floor(position.x)}px, ${Math.floor(position.y)}px)` }}
           >
             {!config.gridLayout && (
@@ -344,8 +363,8 @@ export function NodeGraph({ getLinks, dataFrames, nodeLimit, panelId, zoomMode, 
 
       {hiddenNodesCount > 0 && (
         <div
-          className={styles.alert}
-          style={{ top: panelId ? '0px' : '40px' }} // panelId is undefined in Explore
+          // panelId is undefined in Explore
+          className={cx(styles.alert, panelId ? styles.alertTopPanel : styles.alertTopExplore)}
           aria-label={t('nodeGraph.node-graph.aria-label-nodes-hidden-warning', 'Nodes hidden warning')}
         >
           <Trans i18nKey="nodeGraph.node-graph.hidden-nodes" count={hiddenNodesCount}>
@@ -356,8 +375,7 @@ export function NodeGraph({ getLinks, dataFrames, nodeLimit, panelId, zoomMode, 
 
       {config.layoutAlgorithm === LayoutAlgorithm.Layered && processed.nodes.length > layeredLayoutThreshold && (
         <div
-          className={styles.alert}
-          style={{ top: panelId ? '30px' : '70px' }}
+          className={cx(styles.alert, panelId ? styles.alertSecondaryTopPanel : styles.alertSecondaryTopExplore)}
           aria-label={t(
             'nodeGraph.node-graph.aria-label-layered-layout-performance-warning',
             'Layered layout performance warning'

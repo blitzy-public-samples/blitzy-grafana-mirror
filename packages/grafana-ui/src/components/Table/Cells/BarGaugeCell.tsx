@@ -93,6 +93,7 @@ export const BarGaugeCell = (props: TableCellProps) => {
     <div
       {...cellProps}
       className={tableStyles.cellContainer}
+      // Design system gap: inline style required by react-table getCellProps() — cellProps.style is mutated directly by the parent TableCell wrapper for layout/justification, and the cursor depends on dynamic link/action state
       style={{ ...cellProps.style, cursor: hasMultipleLinksOrActions ? 'context-menu' : 'auto' }}
       onClick={({ clientX, clientY }) => {
         setTooltipCoords({ clientX, clientY });

@@ -1,10 +1,23 @@
+import { css } from '@emotion/css';
 import { useBooleanFlagValue } from '@openfeature/react-sdk';
 import { memo, useCallback, useEffect, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 
+import type { GrafanaTheme2 } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
 import { config } from '@grafana/runtime';
-import { Alert, Box, Button, Checkbox, Field, LoadingPlaceholder, Stack, Text, TextLink } from '@grafana/ui';
+import {
+  Alert,
+  Box,
+  Button,
+  Checkbox,
+  Field,
+  LoadingPlaceholder,
+  Stack,
+  Text,
+  TextLink,
+  useStyles2,
+} from '@grafana/ui';
 import { type Job } from 'app/api/clients/provisioning/v0alpha1';
 
 import { JobStatus } from '../Job/JobStatus';
@@ -56,6 +69,7 @@ export const SynchronizeStep = memo(function SynchronizeStep({
   });
   const [job, setJob] = useState<Job>();
   const provisioningFolderMetadataEnabled = useBooleanFlagValue('provisioningFolderMetadata', false);
+  const styles = useStyles2(getStyles);
 
   useEffect(() => {
     // This useEffect is used to update the step status info based on the repository status and the form errors
@@ -150,7 +164,7 @@ export const SynchronizeStep = memo(function SynchronizeStep({
                 .
               </Trans>
             </Text>
-            <ul style={{ marginLeft: '16px', marginTop: 0, marginBottom: 0 }}>
+            <ul className={styles.limitationsList}>
               <li>
                 <Trans i18nKey="provisioning.wizard.alert-point-1">
                   Resources can still be created, edited, or deleted during this process, but changes may not be
@@ -251,4 +265,12 @@ export const SynchronizeStep = memo(function SynchronizeStep({
       </Field>
     </Stack>
   );
+});
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  limitationsList: css({
+    marginLeft: theme.spacing(2),
+    marginTop: 0,
+    marginBottom: 0,
+  }),
 });

@@ -1,9 +1,10 @@
-import { css, cx } from '@emotion/css';
-import { PureComponent } from 'react';
+import { css } from '@emotion/css';
+import { memo, useReducer } from 'react';
 
 import { type GrafanaTheme2, type SelectableValue } from '@grafana/data';
 import { getTemplateSrv } from '@grafana/runtime';
 import {
+  Box,
   CodeEditor,
   type CodeEditorSuggestionItem,
   CodeEditorSuggestionItemKind,
@@ -11,14 +12,14 @@ import {
   LinkButton,
   type MonacoEditor,
   Segment,
-  type Themeable2,
-  withTheme2,
+  Stack,
+  useStyles2,
 } from '@grafana/ui';
 
 import type InfluxDatasource from '../../../../datasource';
 import { type InfluxQuery } from '../../../../types';
 
-interface Props extends Themeable2 {
+interface Props {
   onChange: (query: InfluxQuery) => void;
   query: InfluxQuery;
   // `datasource` is not used internally, but this component is used at some places
@@ -94,22 +95,35 @@ v1.tagValues(
   },
 ];
 
-class UnthemedFluxQueryEditor extends PureComponent<Props> {
-  onFluxQueryChange = (query: string) => {
-    this.props.onChange({ ...this.props.query, query });
+// For some reason in angular, when this component gets re-mounted, the width
+// is not set properly.  This forces the layout shortly after mount so that it
+// displays OK.  Note: this is not an issue when used directly in react
+const editorDidMountCallbackHack = (editor: MonacoEditor) => {
+  setTimeout(() => editor.layout(), 100);
+};
+
+const FluxQueryEditorInternal = ({ query, onChange }: Props) => {
+  const styles = useStyles2(getStyles);
+  // useReducer-based forceUpdate replaces `this.forceUpdate()` from the
+  // previous PureComponent. The reducer simply increments a counter to
+  // schedule a re-render; the dispatched value is ignored.
+  const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
+
+  const onFluxQueryChange = (newQuery: string) => {
+    onChange({ ...query, query: newQuery });
   };
 
-  onSampleChange = (val: SelectableValue<string>) => {
-    this.props.onChange({
-      ...this.props.query,
+  const onSampleChange = (val: SelectableValue<string>) => {
+    onChange({
+      ...query,
       query: val.value!,
     });
 
     // Angular HACK: Since the target does not actually change!
-    this.forceUpdate();
+    forceUpdate();
   };
 
-  getSuggestions = (): CodeEditorSuggestionItem[] => {
+  const getSuggestions = (): CodeEditorSuggestionItem[] => {
     const sugs: CodeEditorSuggestionItem[] = [
       {
         label: 'v.timeRangeStart',
@@ -155,39 +169,34 @@ class UnthemedFluxQueryEditor extends PureComponent<Props> {
     return sugs;
   };
 
-  // For some reason in angular, when this component gets re-mounted, the width
-  // is not set properly.  This forces the layout shortly after mount so that it
-  // displays OK.  Note: this is not an issue when used directly in react
-  editorDidMountCallbackHack = (editor: MonacoEditor) => {
-    setTimeout(() => editor.layout(), 100);
-  };
+  const helpTooltip = (
+    <div>
+      Type: <i>ctrl+space</i> to show template variable suggestions <br />
+      Many queries can be copied from Chronograf
+    </div>
+  );
 
-  render() {
-    const { query, theme } = this.props;
-    const styles = getStyles(theme);
-
-    const helpTooltip = (
-      <div>
-        Type: <i>ctrl+space</i> to show template variable suggestions <br />
-        Many queries can be copied from Chronograf
-      </div>
-    );
-
-    return (
-      <>
-        <CodeEditor
-          height={'100%'}
-          containerStyles={styles.editorContainerStyles}
-          language="sql"
-          value={query.query || ''}
-          onBlur={this.onFluxQueryChange}
-          onSave={this.onFluxQueryChange}
-          showMiniMap={false}
-          showLineNumbers={true}
-          getSuggestions={this.getSuggestions}
-          onEditorDidMount={this.editorDidMountCallbackHack}
-        />
-        <div className={cx('gf-form-inline', styles.editorActions)}>
+  return (
+    <>
+      <CodeEditor
+        height={'100%'}
+        containerStyles={styles.editorContainerStyles}
+        language="sql"
+        value={query.query || ''}
+        onBlur={onFluxQueryChange}
+        onSave={onFluxQueryChange}
+        showMiniMap={false}
+        showLineNumbers={true}
+        getSuggestions={getSuggestions}
+        onEditorDidMount={editorDidMountCallbackHack}
+      />
+      {/*
+        The Stack below replaces the legacy `gf-form-inline` div wrapper.
+        Stack omits `className` from its props (by design), so the
+        marginTop styling lives on a thin `div` wrapper.
+      */}
+      <div className={styles.editorActions}>
+        <Stack direction="row" wrap="wrap" alignItems="flex-start" gap={0.5}>
           <LinkButton
             icon="external-link-alt"
             variant="secondary"
@@ -196,26 +205,22 @@ class UnthemedFluxQueryEditor extends PureComponent<Props> {
           >
             Flux language syntax
           </LinkButton>
-          <Segment
-            options={samples}
-            value="Sample query"
-            onChange={this.onSampleChange}
-            className={css({
-              marginTop: theme.spacing(-0.5),
-              marginLeft: theme.spacing(0.5),
-            })}
-          />
-          <div className="gf-form gf-form--grow">
-            <div className="gf-form-label gf-form-label--grow"></div>
-          </div>
+          <Segment options={samples} value="Sample query" onChange={onSampleChange} className={styles.segmentStyle} />
+          {/* Flex spacer replacing the legacy `gf-form gf-form--grow` / `gf-form-label gf-form-label--grow` nested empty divs. */}
+          <Box flex={1} />
           <InlineFormLabel width={5} tooltip={helpTooltip}>
             Help
           </InlineFormLabel>
-        </div>
-      </>
-    );
-  }
-}
+        </Stack>
+      </div>
+    </>
+  );
+};
+
+// React.memo preserves the shallow-prop-equality skip optimization that the
+// previous `PureComponent` provided. No custom equality comparator is needed
+// because the original class had no custom shouldComponentUpdate.
+export const FluxQueryEditor = memo(FluxQueryEditorInternal);
 
 const getStyles = (theme: GrafanaTheme2) => ({
   editorContainerStyles: css({
@@ -227,8 +232,10 @@ const getStyles = (theme: GrafanaTheme2) => ({
     paddingBottom: theme.spacing(1),
   }),
   editorActions: css({
-    marginTop: '6px',
+    marginTop: theme.spacing(0.75),
+  }),
+  segmentStyle: css({
+    marginTop: theme.spacing(-0.5),
+    marginLeft: theme.spacing(0.5),
   }),
 });
-
-export const FluxQueryEditor = withTheme2(UnthemedFluxQueryEditor);

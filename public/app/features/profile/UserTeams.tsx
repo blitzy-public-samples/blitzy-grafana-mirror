@@ -1,7 +1,9 @@
+import { css } from '@emotion/css';
 import { memo } from 'react';
 
+import { type GrafanaTheme2 } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
-import { LoadingPlaceholder, ScrollContainer } from '@grafana/ui';
+import { LoadingPlaceholder, ScrollContainer, useStyles2 } from '@grafana/ui';
 import { type Team } from 'app/types/teams';
 
 export interface Props {
@@ -10,6 +12,8 @@ export interface Props {
 }
 
 export const UserTeams = memo<Props>(({ isLoading, teams }) => {
+  const styles = useStyles2(getStyles);
+
   if (isLoading) {
     return <LoadingPlaceholder text={t('profile.user-teams.text-loading-teams', 'Loading teams...')} />;
   }
@@ -20,7 +24,7 @@ export const UserTeams = memo<Props>(({ isLoading, teams }) => {
 
   return (
     <div>
-      <h3 className="page-sub-heading">
+      <h3 className={styles.pageSubHeading}>
         <Trans i18nKey="profile.user-teams.teams">Teams</Trans>
       </h3>
       <ScrollContainer overflowY="visible" overflowX="auto" width="100%">
@@ -46,7 +50,7 @@ export const UserTeams = memo<Props>(({ isLoading, teams }) => {
             {teams.map((team: Team, index) => {
               return (
                 <tr key={index}>
-                  <td className="width-4 text-center">
+                  <td className={styles.avatarCell}>
                     <img className="filter-table__avatar" src={team.avatarUrl} alt="" />
                   </td>
                   <td>{team.name}</td>
@@ -63,5 +67,15 @@ export const UserTeams = memo<Props>(({ isLoading, teams }) => {
 });
 
 UserTeams.displayName = 'UserTeams';
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  pageSubHeading: css({
+    marginBottom: theme.spacing(2),
+  }),
+  avatarCell: css({
+    width: theme.spacing(8),
+    textAlign: 'center',
+  }),
+});
 
 export default UserTeams;

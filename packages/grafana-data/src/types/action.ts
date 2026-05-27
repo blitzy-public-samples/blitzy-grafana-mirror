@@ -23,9 +23,11 @@ export interface Action {
 /**
  * Processed Action Model. The values are ready to use
  */
-export interface ActionModel<T = any> {
+export interface ActionModel<T = unknown> {
   title: string;
   type?: ActionType;
+  // When a click handler is invoked, this is passed the raw mouse|react event and the origin value (typically a Field or null).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- rollback per AAP §0.9.2.11 trigger: (1) `event: unknown` broke contravariant assignment for handlers declared as `(evt: MouseEvent, ...) => void` in public/app/features/actions/utils.ts, (2) `origin?: T` introduced contravariant failures where `ActionModel<Field<any>>` is no longer assignable to `ActionModel<unknown>` and call sites that pass `null` for origin (e.g., `action.onClick(new MouseEvent('click'), null, actionVars)` in ActionButton.tsx and canvas/runtime/element.tsx) no longer typecheck. Generic parameter T preserved as `unknown` default for public API back-compat; callback retains `any` for heterogeneous DOM/React event types and nullable origin values.
   onClick: (event: any, origin?: any, actionVars?: ActionVariableInput) => void;
   confirmation: (actionVars?: ActionVariableInput) => ReactNode;
   oneClick?: boolean;

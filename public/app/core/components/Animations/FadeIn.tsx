@@ -34,6 +34,7 @@ export const FadeIn = (props: Props) => {
       {(state) => (
         <div
           ref={transitionRef}
+          // Design system gap: dynamic animation styles must be inline because they are computed per-frame from animation state.
           style={{
             ...defaultStyle,
             ...transitionStyles[state],

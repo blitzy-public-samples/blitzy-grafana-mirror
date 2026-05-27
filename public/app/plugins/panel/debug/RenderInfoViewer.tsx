@@ -1,4 +1,4 @@
-import { Component } from 'react';
+import { useCallback, useReducer, useRef } from 'react';
 
 import {
   compareArrayValues,
@@ -6,11 +6,12 @@ import {
   fieldReducers,
   getFieldDisplayName,
   getFrameDisplayName,
+  type PanelData,
   type PanelProps,
   ReducerID,
 } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
-import { IconButton } from '@grafana/ui';
+import { type Column, IconButton, InteractiveTable } from '@grafana/ui';
 
 import { type Options, type UpdateConfig } from './panelcfg.gen';
 
@@ -20,137 +21,137 @@ type UpdateCounters = {
   [K in keyof UpdateConfig]: number;
 };
 
-export class RenderInfoViewer extends Component<Props> {
+interface FieldRow {
+  id: string;
+  field: string;
+  type: string;
+  last: string;
+}
+
+export function RenderInfoViewer(props: Props) {
+  const { data, options } = props;
+
   // Intentionally not state to avoid overhead -- yes, things will be 1 tick behind
-  lastRender = Date.now();
-  counters: UpdateCounters = {
+  const lastRenderRef = useRef(Date.now());
+  const countersRef = useRef<UpdateCounters>({
     render: 0,
     dataChanged: 0,
     schemaChanged: 0,
-  };
+  });
+  const prevDataRef = useRef<PanelData | undefined>(undefined);
+  const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
 
-  shouldComponentUpdate(prevProps: Props) {
-    const { data, options } = this.props;
+  // Equivalent of class shouldComponentUpdate side-effect: detect data/schema changes vs previous render.
+  // The manual diff runs inline during render (not in useEffect) because the side-effect mutates a ref
+  // (not React state) and must be visible in the SAME render that observes the new data — matching the
+  // original shouldComponentUpdate timing where the counter increment was visible in the subsequent render.
+  const prevData = prevDataRef.current;
+  if (prevData !== undefined && prevData !== data) {
+    countersRef.current.dataChanged++;
 
-    if (prevProps.data !== data) {
-      this.counters.dataChanged++;
-
-      if (options.counters?.schemaChanged) {
-        const oldSeries = prevProps.data?.series;
-        const series = data.series;
-        if (series && oldSeries) {
-          const sameStructure = compareArrayValues(series, oldSeries, compareDataFrameStructures);
-          if (!sameStructure) {
-            this.counters.schemaChanged++;
-          }
+    if (options.counters?.schemaChanged) {
+      const oldSeries = prevData.series;
+      const series = data.series;
+      if (series && oldSeries) {
+        const sameStructure = compareArrayValues(series, oldSeries, compareDataFrameStructures);
+        if (!sameStructure) {
+          countersRef.current.schemaChanged++;
         }
       }
     }
-    return true; // always render?
   }
+  prevDataRef.current = data;
 
-  resetCounters = () => {
-    this.counters = {
+  const resetCounters = useCallback(() => {
+    countersRef.current = {
       render: 0,
       dataChanged: 0,
       schemaChanged: 0,
     };
-    this.forceUpdate();
+    forceUpdate();
+  }, []);
+
+  const showCounters = options.counters ?? {
+    render: false,
+    dataChanged: false,
+    schemaChanged: false,
   };
+  countersRef.current.render++;
+  const now = Date.now();
+  const elapsed = now - lastRenderRef.current;
+  lastRenderRef.current = now;
 
-  render() {
-    const { data, options } = this.props;
-    const showCounters = options.counters ?? {
-      render: false,
-      dataChanged: false,
-      schemaChanged: false,
-    };
-    this.counters.render++;
-    const now = Date.now();
-    const elapsed = now - this.lastRender;
-    this.lastRender = now;
+  const reducer = fieldReducers.get(ReducerID.lastNotNull);
 
-    const reducer = fieldReducers.get(ReducerID.lastNotNull);
+  const fieldColumns: Array<Column<FieldRow>> = [
+    { id: 'field', header: t('debug.render-info-viewer.field', 'Field') },
+    { id: 'type', header: t('debug.render-info-viewer.type', 'Type') },
+    { id: 'last', header: t('debug.render-info-viewer.last', 'Last') },
+  ];
 
-    return (
+  return (
+    <div>
       <div>
-        <div>
-          <IconButton
-            name="step-backward"
-            title={t('debug.render-info-viewer.title-reset-counters', 'Reset counters')}
-            onClick={this.resetCounters}
-            tooltip={t('debug.render-info-viewer.tooltip-step-back', 'Step back')}
-          />
-          <span>
-            {showCounters.render && (
-              <span>
-                <Trans i18nKey="debug.render-info-viewer.render-counter" values={{ numRenders: this.counters.render }}>
-                  Render: {'{{numRenders}}'}&nbsp;
-                </Trans>
-              </span>
-            )}
-            {showCounters.dataChanged && (
-              <span>
-                <Trans
-                  i18nKey="debug.render-info-viewer.data-counter"
-                  values={{ numDataChanges: this.counters.dataChanged }}
-                >
-                  Data: {'{{numDataChanges}}'}&nbsp;
-                </Trans>
-              </span>
-            )}
-            {showCounters.schemaChanged && (
-              <span>
-                <Trans
-                  i18nKey="debug.render-info-viewer.schema-counter"
-                  values={{ numSchemaChanges: this.counters.schemaChanged }}
-                >
-                  Schema: {'{{numSchemaChanges}}'}&nbsp;
-                </Trans>
-              </span>
-            )}
+        <IconButton
+          name="step-backward"
+          title={t('debug.render-info-viewer.title-reset-counters', 'Reset counters')}
+          onClick={resetCounters}
+          tooltip={t('debug.render-info-viewer.tooltip-step-back', 'Step back')}
+        />
+        <span>
+          {showCounters.render && (
             <span>
-              <Trans i18nKey="debug.render-info-viewer.elapsed-time">Time: {{ elapsed }}ms</Trans>
+              <Trans
+                i18nKey="debug.render-info-viewer.render-counter"
+                values={{ numRenders: countersRef.current.render }}
+              >
+                Render: {'{{numRenders}}'}&nbsp;
+              </Trans>
             </span>
+          )}
+          {showCounters.dataChanged && (
+            <span>
+              <Trans
+                i18nKey="debug.render-info-viewer.data-counter"
+                values={{ numDataChanges: countersRef.current.dataChanged }}
+              >
+                Data: {'{{numDataChanges}}'}&nbsp;
+              </Trans>
+            </span>
+          )}
+          {showCounters.schemaChanged && (
+            <span>
+              <Trans
+                i18nKey="debug.render-info-viewer.schema-counter"
+                values={{ numSchemaChanges: countersRef.current.schemaChanged }}
+              >
+                Schema: {'{{numSchemaChanges}}'}&nbsp;
+              </Trans>
+            </span>
+          )}
+          <span>
+            <Trans i18nKey="debug.render-info-viewer.elapsed-time">Time: {{ elapsed }}ms</Trans>
           </span>
-        </div>
+        </span>
+      </div>
 
-        {data.series &&
-          data.series.map((frame, idx) => (
+      {data.series &&
+        data.series.map((frame, idx) => {
+          const rows: FieldRow[] = frame.fields.map((field, fIdx) => ({
+            id: `${fIdx}/${field.name}`,
+            field: getFieldDisplayName(field, frame, data.series),
+            type: field.type,
+            last: `${reducer.reduce!(field, false, false)[reducer.id]}`,
+          }));
+          return (
             <div key={`${idx}/${frame.refId}`}>
               <h4>
                 {getFrameDisplayName(frame, idx)} ({frame.length})
               </h4>
-              <table className="filter-table">
-                <thead>
-                  <tr>
-                    <td>
-                      <Trans i18nKey="debug.render-info-viewer.field">Field</Trans>
-                    </td>
-                    <td>
-                      <Trans i18nKey="debug.render-info-viewer.type">Type</Trans>
-                    </td>
-                    <td>
-                      <Trans i18nKey="debug.render-info-viewer.last">Last</Trans>
-                    </td>
-                  </tr>
-                </thead>
-                <tbody>
-                  {frame.fields.map((field, idx) => {
-                    const v = reducer.reduce!(field, false, false)[reducer.id];
-                    return (
-                      <tr key={`${idx}/${field.name}`}>
-                        <td>{getFieldDisplayName(field, frame, data.series)}</td>
-                        <td>{field.type}</td>
-                        <td>{`${v}`}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+              <InteractiveTable columns={fieldColumns} data={rows} getRowId={(row) => row.id} />
             </div>
-          ))}
-      </div>
-    );
-  }
+          );
+        })}
+    </div>
+  );
 }

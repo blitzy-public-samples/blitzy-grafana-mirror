@@ -1,7 +1,8 @@
+import { css } from '@emotion/css';
 import debounce from 'debounce-promise';
 
-import { type SelectableValue, toOption } from '@grafana/data';
-import { Select, Input, InlineFormLabel, AsyncSelect, Stack, InlineLabel } from '@grafana/ui';
+import { type GrafanaTheme2, type SelectableValue, toOption } from '@grafana/data';
+import { Select, Input, InlineFormLabel, AsyncSelect, Stack, InlineLabel, useStyles2 } from '@grafana/ui';
 
 import { type OpenTsdbQuery } from '../types';
 
@@ -16,11 +17,12 @@ export interface MetricSectionProps {
 export function MetricSection({ query, onChange, onRunQuery, suggestMetrics, aggregators }: MetricSectionProps) {
   const aggregatorOptions = aggregators.map((value: string) => toOption(value));
   const metricSearch = debounce((query: string) => suggestMetrics(query), 350);
+  const styles = useStyles2(getStyles);
 
   return (
     <Stack gap={0.5} alignItems="flex-start" data-testid={testIds.section}>
       <Stack gap={0}>
-        <InlineFormLabel width={8} className="query-keyword">
+        <InlineFormLabel width={8} className={styles.queryKeyword}>
           Metric
         </InlineFormLabel>
         {/* metric async select: autocomplete calls opentsdb suggest API */}
@@ -41,7 +43,7 @@ export function MetricSection({ query, onChange, onRunQuery, suggestMetrics, agg
         />
       </Stack>
       <Stack gap={0} alignItems="flex-start">
-        <InlineFormLabel width={'auto'} className="query-keyword">
+        <InlineFormLabel width={'auto'} className={styles.queryKeyword}>
           Aggregator
         </InlineFormLabel>
         <Select
@@ -58,7 +60,7 @@ export function MetricSection({ query, onChange, onRunQuery, suggestMetrics, agg
       </Stack>
       <Stack gap={0}>
         <InlineFormLabel
-          className="query-keyword"
+          className={styles.queryKeyword}
           width={6}
           tooltip={<div>Use patterns like $tag_tagname to replace part of the alias for a tag value</div>}
         >
@@ -86,3 +88,9 @@ export const testIds = {
   section: 'opentsdb-metricsection',
   alias: 'metric-alias',
 };
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  queryKeyword: css({
+    color: theme.colors.primary.text,
+  }),
+});

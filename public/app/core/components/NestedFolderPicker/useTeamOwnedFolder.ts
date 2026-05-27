@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 
 import { type TeamDto, useGetSignedInUserTeamListQuery } from '@grafana/api-clients/internal/rtkq/legacy';
 import type { DashboardHit } from '@grafana/api-clients/rtkq/dashboard/v0alpha1';
-import { isFetchError } from '@grafana/runtime';
+import { type FetchErrorDataProps, isFetchError } from '@grafana/runtime';
 import { useSearchDashboardsAndFoldersQuery } from 'app/api/clients/dashboard/v0alpha1';
 import { teamOwnerRef } from 'app/features/browse-dashboards/utils/dashboards';
 
@@ -100,7 +100,8 @@ function coercedError(error: unknown, fallbackMessage = 'Failed to load teams') 
   }
 
   // FetchError is what our backendSrv is throwing and RTKQ is using it as a base query.
-  if (isFetchError(error)) {
+  // Narrow with the canonical body shape so `error.data?.message` is typed.
+  if (isFetchError<FetchErrorDataProps>(error)) {
     return new Error(error.data?.message ?? error.statusText ?? fallbackMessage);
   }
 

@@ -48,11 +48,11 @@ const Triangle = (props: CanvasElementProps<CanvasElementConfig, CanvasElementDa
           width="100%"
           height="100%"
           clipPath={`url(#triangleClip-${uniqueId})`}
-          style={{ fill: 'none' }}
+          fill="none"
         />
         <polygon
           points="100,0 200,200 0,200"
-          style={{ fill: data?.backgroundImage ? `url(#image-${uniqueId})` : data?.backgroundColor }}
+          fill={data?.backgroundImage ? `url(#image-${uniqueId})` : data?.backgroundColor}
         />
 
         {/* Border */}

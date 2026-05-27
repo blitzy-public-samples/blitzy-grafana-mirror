@@ -69,6 +69,7 @@ export const DashboardFiltersOverview = ({
   return (
     <div className={styles.container}>
       <div ref={scrollRef} className={styles.listContainer}>
+        {/* Design system gap: dynamic virtualizer total-size height — runtime value cannot use static useStyles2 emotion class */}
         <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
           {virtualizer.getVirtualItems().map((virtualRow) => {
             const item = listItems[virtualRow.index];
@@ -82,6 +83,7 @@ export const DashboardFiltersOverview = ({
                   key={`group-${item.group}`}
                   ref={virtualizer.measureElement}
                   data-index={virtualRow.index}
+                  // Design system gap: dynamic virtualizer row position (translateY) — runtime offset cannot use static useStyles2 emotion class
                   style={{
                     position: 'absolute',
                     top: 0,
@@ -107,6 +109,7 @@ export const DashboardFiltersOverview = ({
                 key={`row-${keyValue}-${keyOption.group ?? 'ungrouped'}`}
                 ref={virtualizer.measureElement}
                 data-index={virtualRow.index}
+                // Design system gap: dynamic virtualizer row position (translateY) — runtime offset cannot use static useStyles2 emotion class
                 style={{
                   position: 'absolute',
                   top: 0,

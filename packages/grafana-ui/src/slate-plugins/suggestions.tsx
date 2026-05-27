@@ -235,6 +235,7 @@ const handleTypeahead = async (
   // Get decorations associated with the current line
   const parentBlock = value.document.getClosestBlock(value.focusBlock.key);
   const selectionStartOffset = value.selection.start.offset - 1;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Slate v0.47 Block.getDecorations expects Slate-internal Editor type that is structurally incompatible with slate-react v0.22's Editor type; bridging via 'as unknown as SlateEditor' would introduce additional @typescript-eslint/consistent-type-assertions violations beyond the baseline
   const decorations = parentBlock && parentBlock.getDecorations(editor as any);
 
   const filteredDecorations = decorations

@@ -88,7 +88,7 @@ class LegacyQueryRunner implements QueryRunner {
       return getEmptyMetricFindValueObservable();
     }
 
-    const queryOptions: any = getLegacyQueryOptions(variable, searchFilter, timeSrv, request.scopedVars);
+    const queryOptions = getLegacyQueryOptions(variable, searchFilter, timeSrv, request.scopedVars);
 
     return from(datasource.metricFindQuery(variable.query, queryOptions)).pipe(
       mergeMap((values) => {
@@ -96,8 +96,9 @@ class LegacyQueryRunner implements QueryRunner {
           return getEmptyMetricFindValueObservable();
         }
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Legacy variable support emits MetricFindValue[] which is structurally incompatible with PanelData.series (DataFrame[]); operators.ts detects and handles both shapes at runtime, and type assertions are forbidden by @typescript-eslint/consistent-type-assertions.
         const series: any = values;
-        return of({ series, state: LoadingState.Done, timeRange: queryOptions.range });
+        return of({ series, state: LoadingState.Done, timeRange: queryOptions.range! });
       })
     );
   }

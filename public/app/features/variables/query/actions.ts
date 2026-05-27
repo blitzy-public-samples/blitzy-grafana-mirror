@@ -1,6 +1,6 @@
 import { Subscription } from 'rxjs';
 
-import { type DataSourceRef } from '@grafana/data';
+import { type DataSourceRef, type QueryVariableModel } from '@grafana/data';
 import { getDataSourceSrv, toDataQueryError } from '@grafana/runtime';
 import { type ThunkResult } from 'app/types/store';
 
@@ -115,7 +115,7 @@ export const changeQueryVariableDataSource = (
 };
 
 export const changeQueryVariableQuery =
-  (identifier: KeyedVariableIdentifier, query: any, definition?: string): ThunkResult<void> =>
+  (identifier: KeyedVariableIdentifier, query: QueryVariableModel['query'], definition?: string): ThunkResult<void> =>
   async (dispatch, getState) => {
     const { rootStateKey } = identifier;
     const variableInState = getVariable(identifier, getState());
@@ -156,7 +156,7 @@ export const changeQueryVariableQuery =
     await dispatch(updateOptions(identifier));
   };
 
-export function hasSelfReferencingQuery(name: string, query: any): boolean {
+export function hasSelfReferencingQuery(name: string, query: unknown): boolean {
   if (typeof query === 'string' && query.match(new RegExp('\\$' + name + '(/| |$)'))) {
     return true;
   }
@@ -175,16 +175,20 @@ export function hasSelfReferencingQuery(name: string, query: any): boolean {
   return false;
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
 /*
  * Function that takes any object and flattens all props into one level deep object
  * */
-export function flattenQuery(query: any) {
-  if (typeof query !== 'object' || query === null) {
+export function flattenQuery(query: unknown): Record<string, unknown> {
+  if (!isPlainObject(query)) {
     return { query };
   }
 
   const keys = Object.keys(query);
-  const flattened = keys.reduce<Record<string, any>>((all, key) => {
+  const flattened = keys.reduce<Record<string, unknown>>((all, key) => {
     const value = query[key];
     if (typeof value !== 'object' || value === null) {
       all[key] = value;

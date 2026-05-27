@@ -2,7 +2,7 @@ import { css } from '@emotion/css';
 
 import { type GrafanaTheme2 } from '@grafana/data';
 import { Trans } from '@grafana/i18n';
-import { LinkButton, CallToActionCard, Icon, useStyles2 } from '@grafana/ui';
+import { LinkButton, CallToActionCard, Icon, TextLink, useStyles2 } from '@grafana/ui';
 import { contextSrv } from 'app/core/services/context_srv';
 import { AccessControlAction } from 'app/types/accessControl';
 
@@ -32,14 +32,12 @@ export const NoDataSourceCallToAction = () => {
           ProTip: You can also define data sources through configuration files.{' '}
         </Trans>
       </>
-      <a
+      <TextLink
         href="http://docs.grafana.org/administration/provisioning/?utm_source=explore#data-sources"
-        target="_blank"
-        rel="noreferrer"
-        className="text-link"
+        external
       >
         <Trans i18nKey="explore.no-data-source-call-to-action.footer.learn-more">Learn more</Trans>
-      </a>
+      </TextLink>
     </>
   );
 

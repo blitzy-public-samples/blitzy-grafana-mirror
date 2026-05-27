@@ -46,6 +46,7 @@ export const getStylesLabelSelector = (theme: GrafanaTheme2) => ({
     marginTop: theme.spacing(1),
     display: 'flex',
     flexWrap: 'wrap',
+    height: '120px',
     maxHeight: '200px',
     overflow: 'auto',
     alignContent: 'flex-start',

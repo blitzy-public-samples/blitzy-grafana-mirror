@@ -42,20 +42,13 @@ const Ellipse = (props: CanvasElementProps<CanvasElementConfig, CanvasElementDat
           </clipPath>
         </defs>
         {/* Apply background image within the clipping area */}
-        <rect
-          x="0"
-          y="0"
-          width="100%"
-          height="100%"
-          clipPath={`url(#ellipseClip-${uniqueId})`}
-          style={{ fill: 'none' }}
-        />
+        <rect x="0" y="0" width="100%" height="100%" clipPath={`url(#ellipseClip-${uniqueId})`} fill="none" />
         <ellipse
           cx="50%"
           cy="50%"
           rx="50%"
           ry="50%"
-          style={{ fill: data?.backgroundImage ? `url(#image-${uniqueId})` : data?.backgroundColor }}
+          fill={data?.backgroundImage ? `url(#image-${uniqueId})` : data?.backgroundColor}
         />
 
         {/* Border */}

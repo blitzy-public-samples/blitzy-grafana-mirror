@@ -68,7 +68,7 @@ describe('DataSourcePicker', () => {
   describe('onClear', () => {
     it('should call onClear when function is passed', async () => {
       const onClear = jest.fn();
-      const select = render(<DataSourcePicker onClear={onClear} />);
+      const select = render(<DataSourcePicker current={null} onChange={jest.fn()} onClear={onClear} />);
 
       const clearButton = select.getByLabelText('Clear value');
       await userEvent.click(clearButton);
@@ -76,7 +76,7 @@ describe('DataSourcePicker', () => {
     });
 
     it('should not render clear button when no onClear function is passed', async () => {
-      const select = render(<DataSourcePicker />);
+      const select = render(<DataSourcePicker current={null} onChange={jest.fn()} />);
 
       expect(() => {
         select.getByLabelText('Clear value');
@@ -84,7 +84,7 @@ describe('DataSourcePicker', () => {
     });
 
     it('should pass disabled prop', async () => {
-      render(<DataSourcePicker disabled={true} />);
+      render(<DataSourcePicker current={null} onChange={jest.fn()} disabled={true} />);
 
       const input = screen.getByLabelText('Select a data source');
       expect(input).toHaveProperty('disabled', true);

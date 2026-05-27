@@ -38,6 +38,7 @@ export enum FieldType {
  *
  * Plugins may extend this with additional properties. Something like series overrides
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic default `TOptions = any` preserved for back-compat: FieldConfig is heavily used across panel plugins; consumers access `config.custom.someField` directly without narrowing in hundreds of call sites
 export interface FieldConfig<TOptions = any> {
   /**
    * The display value for this field.  This supports template variables blank is auto.
@@ -141,6 +142,7 @@ export interface ValueLinkConfig {
   valueRowIndex?: number;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic default `T = any` preserved for back-compat: Field is THE most heavily used type in the entire Grafana ecosystem; thousands of files use bare `Field` and access `field.values[i]` as numeric/string types; changing to `unknown` would cause mass downstream regression (folder requirements explicitly warn this is one of the riskiest changes)
 export interface Field<T = any> {
   /**
    * Name of the field (column)
@@ -275,6 +277,7 @@ export interface DataFrameWithValue extends DataFrame {
  * @public
  * Like a field, but properties are optional and values may be a simple array
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic default `T = any` preserved to match parent Field<T> default for back-compat
 export interface FieldDTO<T = any> {
   name: string; // The column name
   type?: FieldType;
@@ -292,6 +295,7 @@ export interface DataFrameDTO extends QueryResultBase {
   fields: Array<FieldDTO | Field>;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- `Record<string, any>` preserved for back-compat: FieldCalcs holds heterogeneous calculated values (mean, stdDev, min, max, distinct counts) accessed by name without narrowing
 export interface FieldCalcs extends Record<string, any> {}
 
 /** @deprecated check data plane docs: https://grafana.com/developers/dataplane/heatmap **/

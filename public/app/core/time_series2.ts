@@ -8,7 +8,124 @@ import {
   type ValueFormatter,
 } from '@grafana/data';
 
-function matchSeriesOverride(aliasOrRegex: string, seriesAlias: string) {
+/**
+ * Single legacy datapoint tuple: `[value, timestamp]`. Both elements may be
+ * `null` in legacy flot data because gaps and missing timestamps were always
+ * permitted by the historical flot-based panels that consume this class.
+ */
+type TimeSeriesPoint = [number | null, number | null];
+
+/**
+ * Aggregated statistics computed by {@link TimeSeries.getFlotPairs}. Field
+ * names and shapes mirror the legacy flot stats object that older panels
+ * (graph, singlestat, etc.) rely on. Fields that the calculation explicitly
+ * resets to `null` when no data is present remain nullable; running counters
+ * such as `total`, `delta`, and `diffperc` are always numeric.
+ */
+interface TimeSeriesStats {
+  total: number;
+  max: number | null;
+  min: number | null;
+  logmin: number;
+  avg: number | null;
+  current: number | null;
+  first: number | null;
+  delta: number;
+  diff: number | null;
+  diffperc: number;
+  range: number | null;
+  timeStep: number;
+  count?: number;
+}
+
+/** Legacy flot lines configuration consumed by graph-style panels. */
+interface SeriesLines {
+  show?: boolean;
+  lineWidth?: number;
+  fill?: number;
+  fillColor?: string | { colors: Array<{ opacity: number }> } | null;
+  steps?: boolean;
+}
+
+/** Legacy flot dashes configuration. `dashLength` may be sparsely populated. */
+interface SeriesDashes {
+  show?: boolean;
+  lineWidth?: number;
+  dashLength: number[];
+}
+
+/** Legacy flot bars configuration. */
+interface SeriesBars {
+  show?: boolean;
+  fillColor?: string;
+}
+
+/** Legacy flot points configuration. */
+interface SeriesPoints {
+  show?: boolean;
+  radius?: number;
+}
+
+/**
+ * Per-series override entry consumed by
+ * {@link TimeSeries.applySeriesOverrides}. Field shapes match the override
+ * objects produced by the legacy graph-panel editor.
+ */
+interface SeriesOverride {
+  alias?: string;
+  lines?: boolean;
+  dashes?: boolean;
+  points?: boolean;
+  bars?: boolean;
+  fill?: number;
+  fillGradient?: number;
+  stack?: boolean | string | number;
+  linewidth?: number;
+  dashLength?: number;
+  spaceLength?: number;
+  nullPointMode?: string;
+  pointradius?: number;
+  steppedLine?: boolean;
+  zindex?: number;
+  fillBelowTo?: string;
+  color?: string;
+  transform?: string;
+  legend?: boolean;
+  hideTooltip?: boolean;
+  yaxis?: number;
+  hiddenSeries?: boolean;
+}
+
+/** Options for {@link TimeSeries.hideFromLegend}. */
+interface HideFromLegendOptions {
+  hideEmpty?: boolean;
+  hideZero?: boolean;
+}
+
+/** Constructor options for {@link TimeSeries}. */
+interface TimeSeriesOptions {
+  datapoints: TimeSeriesPoint[];
+  alias?: string;
+  color?: string;
+  unit?: string;
+  dataFrameIndex?: number;
+  fieldIndex?: number;
+}
+
+/**
+ * Minimal panel-options shape required by {@link updateLegendValues}. Only
+ * the legend-decimals-related fields are read; the rest of the legacy panel
+ * options object is irrelevant here.
+ */
+interface LegendUpdatePanelOptions {
+  yaxes: Array<{ format?: string; decimals?: DecimalCount }>;
+  decimals?: DecimalCount;
+}
+
+// `aliasOrRegex` is widened to `string | undefined` because legacy override
+// objects may omit `alias` entirely. The leading falsy-guard already handled
+// `undefined` at runtime; the previous `any` typing masked this nuance.
+function matchSeriesOverride(aliasOrRegex: string | undefined, seriesAlias: string) {
   if (!aliasOrRegex) {
     return false;
   }
@@ -41,7 +158,7 @@ function getFillGradient(amount: number) {
  * @param panel
  * @param height
  */
-export function updateLegendValues(data: TimeSeries[], panel: any, height: number) {
+export function updateLegendValues(data: TimeSeries[], panel: LegendUpdatePanelOptions, height: number) {
   for (let i = 0; i < data.length; i++) {
     const series = data[i];
     const yaxes = panel.yaxes;
@@ -66,7 +183,7 @@ export function updateLegendValues(data: TimeSeries[], panel: any, height: numbe
  * Use DataFrame and helpers instead
  */
 export default class TimeSeries {
-  datapoints: any;
+  datapoints: TimeSeriesPoint[];
   id: string;
   // Represents index of original data frame in the quey response
   dataFrameIndex: number;
@@ -76,8 +193,14 @@ export default class TimeSeries {
   alias: string;
   aliasEscaped: string;
   color?: string;
-  valueFormater: any;
-  stats: any;
+  valueFormater: ValueFormatter;
+  // `stats` is initialized in the constructor with sentinel defaults so that
+  // `getFlotPairs()` can write to its fields without dereferencing `undefined`.
+  // The legacy implementation initialized `stats` to `{}` and relied on
+  // `getFlotPairs` overwriting every field before any external read; the
+  // populated default object preserves that contract while satisfying the
+  // strengthened `TimeSeriesStats` typing.
+  stats: TimeSeriesStats;
   legend: boolean;
   hideTooltip?: boolean;
   allIsNull?: boolean;
@@ -86,38 +209,65 @@ export default class TimeSeries {
   hasMsResolution: boolean;
   isOutsideRange?: boolean;
 
-  lines: any;
+  // The following fields are only populated by `applySeriesOverrides()` and
+  // are accessed only after that method runs. Definite-assignment
+  // assertions preserve the existing runtime semantics where these fields
+  // are `undefined` until overrides are applied.
+  lines!: SeriesLines;
   hiddenSeries?: boolean;
-  dashes: any;
-  bars: any;
-  points: any;
-  yaxis: any;
-  zindex: any;
-  stack: any;
-  nullPointMode: any;
-  fillBelowTo: any;
-  transform: any;
-  flotpairs: any;
-  unit: any;
+  dashes!: SeriesDashes;
+  bars: SeriesBars;
+  points!: SeriesPoints;
+  yaxis!: number;
+  zindex!: number;
+  stack?: boolean | string | number;
+  nullPointMode!: string | null;
+  fillBelowTo?: string;
+  transform?: string;
+  flotpairs?: Array<[number | null, number | null]>;
+  unit?: string;
 
-  constructor(opts: any) {
+  constructor(opts: TimeSeriesOptions) {
     this.datapoints = opts.datapoints;
-    this.label = opts.alias;
-    this.id = opts.alias;
-    this.alias = opts.alias;
+    // Historically `opts.alias` is mandatory in production code paths but
+    // omitted by some legacy tests. The non-null assertions preserve the
+    // pre-existing runtime behavior of assigning `undefined` to these
+    // fields when callers omit `alias`; consumers either set `alias`
+    // explicitly afterward or never read these fields.
+    this.label = opts.alias!;
+    this.id = opts.alias!;
+    this.alias = opts.alias!;
     this.aliasEscaped = escape(opts.alias);
     this.color = opts.color;
     this.bars = { fillColor: opts.color };
     this.valueFormater = getValueFormat('none');
-    this.stats = {};
+    // Initialize `stats` with sentinel defaults matching the
+    // `TimeSeriesStats` shape. The legacy code wrote `this.stats = {}` and
+    // relied on `getFlotPairs()` to populate every field on first use; this
+    // typed initialization preserves the same "every field defined after
+    // getFlotPairs" contract without resorting to a banned type assertion.
+    this.stats = {
+      total: 0,
+      max: null,
+      min: null,
+      logmin: 0,
+      avg: null,
+      current: null,
+      first: null,
+      delta: 0,
+      diff: null,
+      diffperc: 0,
+      range: null,
+      timeStep: 0,
+    };
     this.legend = true;
     this.unit = opts.unit;
-    this.dataFrameIndex = opts.dataFrameIndex;
-    this.fieldIndex = opts.fieldIndex;
+    this.dataFrameIndex = opts.dataFrameIndex!;
+    this.fieldIndex = opts.fieldIndex!;
     this.hasMsResolution = this.isMsResolutionNeeded();
   }
 
-  applySeriesOverrides(overrides: any[]) {
+  applySeriesOverrides(overrides: SeriesOverride[]) {
     this.lines = {};
     this.dashes = {
       dashLength: [],
@@ -237,7 +387,13 @@ export default class TimeSeries {
       // Due to missing values we could have different timeStep all along the series
       // so we have to find the minimum one (could occur with aggregators such as ZimSum)
       if (previousTime !== undefined) {
-        const timeStep = currentTime - previousTime;
+        // `currentTime` and `previousTime` are derived from `this.datapoints[i][1]`
+        // which is typed `number | null`. In practice timestamps are always
+        // numeric in production data; the non-null assertions express that
+        // runtime invariant while preserving the original `null - null === 0`
+        // JavaScript semantics in the edge case where a `null` timestamp does
+        // appear (assertions are erased at compile time).
+        const timeStep = currentTime! - previousTime!;
         if (timeStep < this.stats.timeStep) {
           this.stats.timeStep = timeStep;
         }
@@ -336,14 +492,25 @@ export default class TimeSeries {
     if (!isFinite(value)) {
       value = null; // Prevent NaN formatting
     }
-    return formattedValueToString(this.valueFormater(value, this.decimals));
+    // The runtime `ValueFormatter` (produced by `getValueFormat`/`toFixedUnit`)
+    // begins with `if (size === null) return { text: '' };`, so passing `null`
+    // through is safe at runtime even though the public `ValueFormatter` type
+    // declares `value: number`. The non-null assertion preserves byte-identical
+    // behavior; the previous `any` typing masked the signature mismatch.
+    return formattedValueToString(this.valueFormater(value!, this.decimals));
   }
 
   isMsResolutionNeeded() {
     for (let i = 0; i < this.datapoints.length; i++) {
-      if (this.datapoints[i][1] !== null && this.datapoints[i][1] !== undefined) {
-        const timestamp = this.datapoints[i][1].toString();
-        if (timestamp.length === 13 && timestamp % 1000 !== 0) {
+      // Hoist the (possibly null) timestamp into a local so the narrowing flows
+      // into the modulus expression. The legacy code applied `% 1000` to the
+      // stringified form, relying on JavaScript's implicit string-to-number
+      // coercion. Applying the modulus to the numeric form produces the same
+      // result for the always-numeric timestamps that reach this check.
+      const timeValue = this.datapoints[i][1];
+      if (timeValue !== null && timeValue !== undefined) {
+        const timestamp = timeValue.toString();
+        if (timestamp.length === 13 && timeValue % 1000 !== 0) {
           return true;
         }
       }
@@ -351,7 +518,7 @@ export default class TimeSeries {
     return false;
   }
 
-  hideFromLegend(options: any) {
+  hideFromLegend(options: HideFromLegendOptions) {
     if (options.hideEmpty && this.allIsNull) {
       return true;
     }

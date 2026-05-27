@@ -341,7 +341,7 @@ class DataSourceWithBackend<
   /**
    * Make a GET request to the datasource resource path
    */
-  async getResource<T = any>(
+  async getResource<T = unknown>(
     path: string,
     params?: BackendSrvRequest['params'],
     options?: Partial<BackendSrvRequest>
@@ -373,7 +373,7 @@ class DataSourceWithBackend<
         ...options,
         method: 'POST',
         headers: options?.headers ? { ...options.headers, ...headers } : headers,
-        data: data ?? { ...data },
+        data: data ?? {},
         url: this.buildResourcesDatasourceUrl(path),
       })
     );

@@ -59,7 +59,7 @@ export const InfluxInfluxQLConfig = (props: Props) => {
       >
         <Input
           id={`${htmlPrefix}-db`}
-          className="width-20"
+          width={40}
           value={jsonData.dbName ?? database}
           onChange={(event) => {
             onOptionsChange({
@@ -83,7 +83,7 @@ export const InfluxInfluxQLConfig = (props: Props) => {
       >
         <Input
           id={`${htmlPrefix}-user`}
-          className="width-20"
+          width={40}
           value={options.user || ''}
           onChange={onUpdateDatasourceOption(props, 'user')}
           onBlur={trackInfluxDBConfigV1InfluxQLUserInputField}
@@ -100,7 +100,7 @@ export const InfluxInfluxQLConfig = (props: Props) => {
           value={secureJsonData?.password || ''}
           label="Password"
           aria-label="Password"
-          className="width-20"
+          width={40}
           onReset={() => updateDatasourcePluginResetOption(props, 'password')}
           onChange={onUpdateDatasourceSecureJsonDataOption(props, 'password')}
           onBlur={trackInfluxDBConfigV1InfluxQLPasswordInputField}
@@ -124,7 +124,7 @@ export const InfluxInfluxQLConfig = (props: Props) => {
       >
         <Select
           inputId={`${htmlPrefix}-http-method`}
-          className="width-20"
+          width={40}
           value={httpModes.find((httpMode) => httpMode.value === options.jsonData.httpMode)}
           options={httpModes}
           defaultValue={options.jsonData.httpMode}
@@ -146,7 +146,7 @@ export const InfluxInfluxQLConfig = (props: Props) => {
         noMargin
       >
         <Input
-          className="width-20"
+          width={40}
           placeholder="10s"
           value={options.jsonData.timeInterval || ''}
           onChange={onUpdateDatasourceJsonDataOption(props, 'timeInterval')}
@@ -167,7 +167,7 @@ export const InfluxInfluxQLConfig = (props: Props) => {
         noMargin
       >
         <Input
-          className="width-20"
+          width={40}
           placeholder="12h"
           value={options.jsonData.showTagTime || ''}
           onChange={onUpdateDatasourceJsonDataOption(props, 'showTagTime')}

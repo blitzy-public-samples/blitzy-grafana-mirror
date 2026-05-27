@@ -1,4 +1,4 @@
-import { css } from '@emotion/css';
+import { css, cx } from '@emotion/css';
 
 import { type GrafanaTheme2 } from '@grafana/data';
 import { useStyles2 } from '@grafana/ui';
@@ -39,7 +39,7 @@ export function ColorBarCell({
 
   return (
     <div className={styles.colorBarContainer}>
-      <div className={styles.colorBar} style={{ width: barWidth, backgroundColor: barColor }} />
+      <div className={cx(styles.colorBar, css({ width: barWidth, backgroundColor: barColor }))} />
     </div>
   );
 }

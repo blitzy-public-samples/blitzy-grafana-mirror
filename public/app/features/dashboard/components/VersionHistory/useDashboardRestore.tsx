@@ -10,6 +10,13 @@ import { useSelector } from 'app/types/store';
 import { dashboardWatcher } from '../../../live/dashboard/dashboardWatcher';
 import { type DashboardModel } from '../../state/DashboardModel';
 
+interface DashboardRouteState {
+  routeReloadCounter?: number;
+}
+
+const isDashboardRouteState = (s: unknown): s is DashboardRouteState =>
+  typeof s === 'object' && s !== null;
+
 const restoreDashboard = async (version: number, dashboard: DashboardModel) => {
   // Skip the watcher logic for this save since it's handled by the hook
   dashboardWatcher.ignoreNextSave();
@@ -26,7 +33,7 @@ export const useDashboardRestore = (id: number, version: number) => {
     if (state.value) {
       const location = locationService.getLocation();
       const newUrl = locationUtil.stripBaseFromUrl(state.value.url);
-      const prevState = (location.state as any)?.routeReloadCounter;
+      const prevState = isDashboardRouteState(location.state) ? location.state.routeReloadCounter : undefined;
       locationService.replace({
         ...location,
         pathname: newUrl,

@@ -202,6 +202,15 @@ function cleanDashboardFromIgnoredChanges(dashData: Dashboard) {
   return dash;
 }
 
+/**
+ * Legacy `nav` shape from pre-v7 dashboard schemas. Old dashboards stored the
+ * timepicker as `nav[0]` (see DashboardMigrator.ts upgrade to v7). Used here so
+ * the diff in `hasChanges` can align legacy `now` values without flagging them
+ * as meaningful changes. Modern `Dashboard` schemas do not have `nav`, so
+ * `find()` returns `undefined` for them and the alignment block is skipped.
+ */
+type DashboardWithLegacyNav = { nav?: Array<{ type?: string; now?: unknown }> };
+
 // TODO: Adapt original to be Dashboard type instead
 export function hasChanges(current: DashboardModel, original: unknown) {
   if (current.hasUnsavedChanges()) {
@@ -212,8 +221,8 @@ export function hasChanges(current: DashboardModel, original: unknown) {
   const currentClean = cleanDashboardFromIgnoredChanges(current.getSaveModelCloneOld() as unknown as Dashboard);
   const originalClean = cleanDashboardFromIgnoredChanges(original as Dashboard);
 
-  const currentTimepicker = find((currentClean as any).nav, { type: 'timepicker' });
-  const originalTimepicker = find((originalClean as any).nav, { type: 'timepicker' });
+  const currentTimepicker = find((currentClean as DashboardWithLegacyNav).nav, { type: 'timepicker' });
+  const originalTimepicker = find((originalClean as DashboardWithLegacyNav).nav, { type: 'timepicker' });
 
   if (currentTimepicker && originalTimepicker) {
     currentTimepicker.now = originalTimepicker.now;

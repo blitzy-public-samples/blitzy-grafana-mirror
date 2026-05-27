@@ -7,6 +7,7 @@ import { DataSourceWithBackend, getTemplateSrv, type TemplateSrv } from '@grafan
 import ResponseParser from '../azure_monitor/response_parser';
 import { getCredentials } from '../credentials';
 import { AzureQueryType } from '../dataquery.gen';
+import { type AzureLogAnalyticsMetadata } from '../types/logAnalyticsMetadata';
 import { type AzureMonitorQuery } from '../types/query';
 import {
   type AzureMonitorDataSourceJsonData,
@@ -16,6 +17,8 @@ import {
   type Workspace,
   type DatasourceValidationResult,
   type Subscription,
+  type Category,
+  type CheatsheetQuery,
 } from '../types/types';
 import { interpolateVariable, routeNames } from '../utils/common';
 
@@ -97,7 +100,7 @@ export default class AzureLogAnalyticsDatasource extends DataSourceWithBackend<
   async getMetadata(resourceUri: string) {
     const path = `${this.resourcePath}/v1${resourceUri}/metadata`;
 
-    const resp = await this.getResource(path);
+    const resp = await this.getResource<AzureLogAnalyticsMetadata>(path);
     return resp;
   }
 
@@ -251,7 +254,9 @@ export default class AzureLogAnalyticsDatasource extends DataSourceWithBackend<
   }
 
   async getAzureLogAnalyticsCheatsheetQueries() {
-    return await this.getResource(`${this.resourcePath}/v1/metadata`);
+    return await this.getResource<{ categories: Category[]; queries: CheatsheetQuery[] }>(
+      `${this.resourcePath}/v1/metadata`
+    );
   }
 
   async getBasicLogsQueryUsage(query: AzureMonitorQuery, table: string): Promise<number> {

@@ -4,7 +4,8 @@ import {
   createElement,
   type PropsWithChildren,
   type ReactNode,
-  type RefObject,
+  type RefCallback,
+  useCallback,
   useRef,
 } from 'react';
 
@@ -26,9 +27,13 @@ import { SeriesColorPickerPopover } from './SeriesColorPickerPopover';
  * component as a custom trigger you will need to forward the reference to first HTMLElement child.
  */
 type ColorPickerTriggerRenderer = (props: {
-  // This should be a RefObject<HTMLElement> but due to how object refs are defined you cannot downcast from that
-  // to a specific type like RefObject<HTMLDivElement> even though it would be fine in runtime.
-  ref: RefObject<any>;
+  // We use RefCallback<HTMLElement> here (instead of RefObject<HTMLElement>) because RefObject<T>
+  // is covariant via its readonly `current` field, which would prevent consumers from passing this
+  // ref to elements typed for any specific HTMLElement subtype (e.g. HTMLDivElement,
+  // HTMLButtonElement) without TypeScript variance errors. RefCallback<T> uses React's
+  // bivarianceHack so it is bivariant in T, allowing any HTMLElement subtype at the call site
+  // while we still capture the element internally as HTMLElement | null.
+  ref: RefCallback<HTMLElement>;
   showColorPicker: () => void;
   hideColorPicker: () => void;
   isOpen: boolean;
@@ -41,8 +46,17 @@ export const colorPickerFactory = <T extends ColorPickerProps>(
   const ColorPickerComponent = (props: T & { children?: ColorPickerTriggerRenderer }) => {
     const { children, onChange, color, id } = props;
     const theme = useTheme2();
-    const pickerTriggerRef = useRef<any>(null);
+    const pickerTriggerRef = useRef<HTMLElement | null>(null);
     const styles = getStyles(theme);
+
+    // Stable RefCallback<HTMLElement> that captures the trigger element (which may be a div, button,
+    // or any HTMLElement subtype) into our HTMLElement-typed mutable ref. The bivariance of
+    // RefCallback<HTMLElement> is what allows it to be assigned to <ColorSwatch ref={...}> (which
+    // expects Ref<HTMLDivElement>) and to consumer-rendered triggers like <button ref={...}> without
+    // any type assertions.
+    const setPickerTriggerRef = useCallback<RefCallback<HTMLElement>>((el) => {
+      pickerTriggerRef.current = el;
+    }, []);
 
     const popoverElement = createElement(
       popover,
@@ -71,7 +85,7 @@ export const colorPickerFactory = <T extends ColorPickerProps>(
 
               {children ? (
                 children({
-                  ref: pickerTriggerRef,
+                  ref: setPickerTriggerRef,
                   showColorPicker: showPopper,
                   hideColorPicker: hidePopper,
                   isOpen: popperProps.show,
@@ -79,7 +93,7 @@ export const colorPickerFactory = <T extends ColorPickerProps>(
               ) : (
                 <ColorSwatch
                   id={id}
-                  ref={pickerTriggerRef}
+                  ref={setPickerTriggerRef}
                   onClick={showPopper}
                   onMouseLeave={hidePopper}
                   color={theme.visualization.getColorByName(color || '#000000')}

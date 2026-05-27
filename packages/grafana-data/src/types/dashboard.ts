@@ -12,6 +12,7 @@ export enum DashboardCursorSync {
 /**
  * @public
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic defaults `TOptions = any, TCustomFieldConfig = any` preserved for back-compat: PanelModel is heavily used across hundreds of dashboard/panel files; consumers default to `any` for options when not parameterizing
 export interface PanelModel<TOptions = any, TCustomFieldConfig = any> {
   /** ID of the panel within the current dashboard */
   id: number;
@@ -44,5 +45,6 @@ export interface PanelModel<TOptions = any, TCustomFieldConfig = any> {
   transformations?: DataTransformerConfig[];
 
   /** alerting v1 object */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- alerting v1 object structure is heterogeneous and read by external out-of-scope consumers (public/app/features/dashboard/state/DashboardModel.ts, dashboard-scene/serialization, dashboardLoaders); narrowing to `unknown` breaks downstream code per AAP §0.8.7 (public API preservation) and §0.9.2.3 IMMUTABLE plugin API surface
   alert?: any;
 }

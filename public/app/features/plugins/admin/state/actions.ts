@@ -236,7 +236,11 @@ export const install = createAsyncThunk<
     return { id, changes };
   } catch (e) {
     console.error(e);
-    if (isFetchError(e)) {
+    // Narrow with a mutable record shape so we can attach the request id used
+    // to disambiguate errors in multiple parallel install requests. After the
+    // runtime-package `any -> unknown` refactor, `e.data` is `unknown` by
+    // default and must be narrowed before mutation/spread.
+    if (isFetchError<Record<string, unknown>>(e)) {
       // add id to identify errors in multiple requests
       e.data.id = id;
       return thunkApi.rejectWithValue(e.data);

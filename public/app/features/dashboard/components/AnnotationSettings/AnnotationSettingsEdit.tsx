@@ -15,7 +15,19 @@ import { Trans, t } from '@grafana/i18n';
 import { getDataSourceSrv, locationService } from '@grafana/runtime';
 import { usePanelPluginMetasMap } from '@grafana/runtime/internal';
 import { type AnnotationPanelFilter } from '@grafana/schema';
-import { Button, Checkbox, Field, FieldSet, Input, MultiSelect, Select, useStyles2, Stack, Alert } from '@grafana/ui';
+import {
+  Alert,
+  Button,
+  Checkbox,
+  Field,
+  FieldSet,
+  Input,
+  MultiSelect,
+  Select,
+  Stack,
+  Text,
+  useStyles2,
+} from '@grafana/ui';
 import { ColorValueEditor } from 'app/core/components/OptionsUI/color';
 import StandardAnnotationQueryEditor from 'app/features/annotations/components/StandardAnnotationQueryEditor';
 import { DataSourcePicker } from 'app/features/datasources/components/picker/DataSourcePicker';
@@ -264,9 +276,9 @@ export const AnnotationSettingsEdit = ({ editIdx, dashboard }: Props) => {
         </Field>
       </FieldSet>
       <FieldSet>
-        <h3 className="page-heading">
+        <Text element="h3" variant="h3">
           <Trans i18nKey="dashboard.annotation-settings-edit.query">Query</Trans>
-        </h3>
+        </Text>
         {ds?.annotations && dsi && (
           <StandardAnnotationQueryEditor
             datasource={ds}

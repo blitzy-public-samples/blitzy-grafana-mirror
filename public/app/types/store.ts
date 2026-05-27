@@ -1,12 +1,10 @@
 /* eslint-disable no-restricted-imports */
 import {
-  type Action,
   addListener as addListenerUntyped,
   type AsyncThunk,
   type AsyncThunkOptions,
   type AsyncThunkPayloadCreator,
   createAsyncThunk as createAsyncThunkUntyped,
-  type PayloadAction,
   type TypedAddListener,
 } from '@reduxjs/toolkit';
 import {
@@ -14,6 +12,7 @@ import {
   type TypedUseSelectorHook,
   useDispatch as useDispatchUntyped,
 } from 'react-redux';
+import { type UnknownAction } from 'redux';
 import { type ThunkAction, type ThunkDispatch as GenericThunkDispatch } from 'redux-thunk';
 
 import type { createRootReducer } from 'app/core/reducers/root';
@@ -23,11 +22,17 @@ import { dispatch as storeDispatch } from 'app/store/store';
 export type StoreState = ReturnType<ReturnType<typeof createRootReducer>>;
 
 /*
- * Utility type to get strongly types thunks
+ * Utility type to get strongly types thunks.
+ *
+ * The basic-action parameter is `UnknownAction` (rather than the base `Action`) to align with the
+ * Redux Toolkit ecosystem: `configureStore`'s default middleware, RTK Query endpoint thunks, and
+ * the listener middleware all parameterize on `UnknownAction`. This ensures `ThunkResult<R>` is
+ * dispatchable through `AppDispatch` and that nested `dispatch` calls inside thunks can dispatch
+ * any RTK-produced action.
  */
-export type ThunkResult<R> = ThunkAction<R, StoreState, undefined, PayloadAction<any>>;
+export type ThunkResult<R> = ThunkAction<R, StoreState, undefined, UnknownAction>;
 
-export type ThunkDispatch = GenericThunkDispatch<StoreState, undefined, Action>;
+export type ThunkDispatch = GenericThunkDispatch<StoreState, undefined, UnknownAction>;
 
 // Typed useDispatch & useSelector hooks
 export const useDispatch: () => AppDispatch = useDispatchUntyped;

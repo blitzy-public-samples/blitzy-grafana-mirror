@@ -15,11 +15,11 @@ import { OptionField } from './OptionField';
 import { getReceiverFormFieldStyles } from './styles';
 
 interface Props {
-  defaultValue: any;
+  defaultValue: unknown;
   option: NotificationChannelOption;
   getOptionMeta?: (option: NotificationChannelOption) => OptionMeta;
   pathPrefix: string;
-  errors?: DeepMap<any, FieldError>;
+  errors?: DeepMap<Record<string, unknown>, FieldError>;
   readOnly?: boolean;
   secureFields: NotificationChannelSecureFields;
   /**
@@ -77,7 +77,8 @@ export const SubformField = ({
                 onResetSecureField={onResetSecureField}
                 onDeleteSubform={onDelete}
                 secureFields={secureFields}
-                defaultValue={defaultValue?.[subOption.propertyName]}
+                // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- defaultValue is forwarded opaquely from the parent OptionField caller; SubformField is dispatched only when option.element === 'subform', guaranteeing the runtime value is a record-shaped subform configuration
+                defaultValue={(defaultValue as Record<string, unknown> | undefined)?.[subOption.propertyName]}
                 key={subOption.propertyName}
                 option={subOption}
                 pathPrefix={`${name}.`}

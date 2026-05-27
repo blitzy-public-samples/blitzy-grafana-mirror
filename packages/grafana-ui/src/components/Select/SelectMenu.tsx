@@ -50,8 +50,7 @@ export const SelectMenu = ({
     <div
       {...innerProps}
       data-testid={selectors.components.Select.menu}
-      className={styles.menu}
-      style={{ maxHeight }}
+      className={cx(styles.menu, css({ maxHeight }))}
       aria-label={t('grafana-ui.select.menu-label', 'Select options menu')}
     >
       <ScrollContainer ref={innerRef} maxHeight="inherit" overflowX="hidden" showScrollIndicators padding={0.5}>
@@ -148,6 +147,7 @@ export const VirtualizedSelectMenu = ({
         React.cloneElement(child.props.children.at(-1), {
           innerProps: {
             ...child.props.children.at(-1).props.innerProps,
+            // Design system gap: inline style required by react-select component-override API (innerProps.style is spread onto the rendered option DOM via SelectMenuOptions's {...rest})
             style: {
               borderBottom: `1px solid ${theme.colors.border.weak}`,
               height: VIRTUAL_LIST_ITEM_HEIGHT,
@@ -189,7 +189,10 @@ export const VirtualizedSelectMenu = ({
       itemCount={flattenedChildren.length}
       itemSize={VIRTUAL_LIST_ITEM_HEIGHT}
     >
-      {({ index, style }) => <div style={{ ...style, overflow: 'hidden' }}>{flattenedChildren[index]}</div>}
+      {({ index, style }) => (
+        // Design system gap: inline style required by react-window FixedSizeList children render API; the `style` argument carries absolute positioning that MUST be forwarded for correct virtualization
+        <div style={{ ...style, overflow: 'hidden' }}>{flattenedChildren[index]}</div>
+      )}
     </List>
   );
 };

@@ -1,3 +1,4 @@
+import { css } from '@emotion/css';
 import * as React from 'react';
 import { type CSSProperties } from 'react';
 import { type OnDrag, type OnResize, type OnRotate } from 'react-moveable/declaration/types';
@@ -44,6 +45,8 @@ import { type FrameState } from './frame';
 import { type RootElement } from './root';
 import { type Scene } from './scene';
 
+const elementWrapperStyle = css({ userSelect: 'none' });
+
 let counter = 0;
 
 export const SVGElements = new Set<string>(['parallelogram', 'triangle', 'cloud', 'ellipse']);
@@ -62,7 +65,7 @@ export class ElementState implements LayerElement {
   div?: HTMLDivElement;
 
   // Calculated
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- data shape is element-specific and is set by each CanvasElementItem.prepareData implementation; consumers narrow via item.display props at render time
   data?: any; // depends on the type
 
   getLinks?: (config: ValueLinkConfig) => LinkModel[];
@@ -1106,7 +1109,7 @@ export class ElementState implements LayerElement {
           onKeyDown={!scene?.isEditingEnabled ? this.onElementKeyDown : undefined}
           role="button"
           tabIndex={0}
-          style={{ userSelect: 'none' }}
+          className={elementWrapperStyle}
         >
           <item.display key={this.UID} config={this.options.config} data={this.data} isSelected={isSelected} />
         </div>

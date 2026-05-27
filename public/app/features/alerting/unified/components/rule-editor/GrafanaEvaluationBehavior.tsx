@@ -204,7 +204,7 @@ export function GrafanaEvaluationBehaviorStep({
     >
       <Stack direction="column" justify-content="flex-start" align-items="flex-start">
         <Stack alignItems="center">
-          <div style={{ width: 420 }}>
+          <Box width={52.5}>
             <Field
               noMargin
               label={label}
@@ -263,7 +263,7 @@ export function GrafanaEvaluationBehaviorStep({
                 }}
               />
             </Field>
-          </div>
+          </Box>
           <Box gap={1} display={'flex'} alignItems={'center'}>
             <Text color="secondary">
               <Trans i18nKey="alerting.grafana-evaluation-behavior-step.or">or</Trans>
@@ -510,6 +510,12 @@ export function EvaluationGroupCreationModal({
       <div className={styles.modalTitle}>{modalTitle}</div>
 
       <FormProvider {...formAPI}>
+        {/*
+         * Design system gap: the native <form> element is preserved per AAP §0.4.2. This module uses the modern
+         * react-hook-form pattern with useForm() + FormProvider, which is the approach recommended by @grafana/ui's
+         * deprecated <Form> component (see packages/grafana-ui/src/components/Forms/Form.tsx JSDoc). Internal layout
+         * uses <Field> + <Input> design-system primitives composed inside <Stack direction="column">.
+         */}
         <form onSubmit={handleSubmit(() => onSubmit())}>
           <Stack direction="column" gap={2}>
             <Field

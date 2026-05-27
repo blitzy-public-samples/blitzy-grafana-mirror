@@ -1,13 +1,14 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { connect, type ConnectedProps } from 'react-redux';
 
 import { dateTimeFormat } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
-import { LinkButton, Spinner, IconButton } from '@grafana/ui';
+import { InteractiveTable, LinkButton, Spinner, IconButton, type Column, type CellProps } from '@grafana/ui';
 import { Page } from 'app/core/components/Page/Page';
 import { contextSrv } from 'app/core/services/context_srv';
 import { AccessControlAction } from 'app/types/accessControl';
 import { type StoreState } from 'app/types/store';
+import { type SupportBundle } from 'app/types/supportBundles';
 
 import { loadBundles, removeBundle, checkBundles } from './state/actions';
 
@@ -50,6 +51,61 @@ const SupportBundlesUnconnected = ({ supportBundles, isLoading, loadBundles, rem
   const hasAccess = contextSrv.hasPermission(AccessControlAction.ActionSupportBundlesCreate);
   const hasDeleteAccess = contextSrv.hasPermission(AccessControlAction.ActionSupportBundlesDelete);
 
+  const tableData = useMemo<SupportBundle[]>(() => supportBundles ?? [], [supportBundles]);
+
+  const columns = useMemo<Array<Column<SupportBundle>>>(
+    () => [
+      {
+        id: 'createdAt',
+        header: t('support-bundles.support-bundles-unconnected.created-on', 'Created on'),
+        cell: ({ row: { original } }: CellProps<SupportBundle>) => dateTimeFormat(original.createdAt * 1000),
+      },
+      {
+        id: 'creator',
+        header: t('support-bundles.support-bundles-unconnected.requested-by', 'Requested by'),
+        cell: ({ row: { original } }: CellProps<SupportBundle>) => original.creator,
+      },
+      {
+        id: 'expiresAt',
+        header: t('support-bundles.support-bundles-unconnected.expires', 'Expires'),
+        cell: ({ row: { original } }: CellProps<SupportBundle>) => dateTimeFormat(original.expiresAt * 1000),
+      },
+      {
+        id: 'state',
+        disableGrow: true,
+        cell: ({ row: { original } }: CellProps<SupportBundle>) => (original.state === 'pending' ? <Spinner /> : null),
+      },
+      {
+        id: 'download',
+        disableGrow: true,
+        cell: ({ row: { original } }: CellProps<SupportBundle>) => (
+          <LinkButton
+            fill="outline"
+            disabled={original.state !== 'complete'}
+            target={'_self'}
+            href={`/api/support-bundles/${original.uid}`}
+          >
+            <Trans i18nKey="support-bundles.support-bundles-unconnected.download">Download</Trans>
+          </LinkButton>
+        ),
+      },
+      {
+        id: 'actions',
+        disableGrow: true,
+        cell: ({ row: { original } }: CellProps<SupportBundle>) =>
+          hasDeleteAccess ? (
+            <IconButton
+              onClick={() => removeBundle(original.uid)}
+              name="trash-alt"
+              variant="destructive"
+              tooltip={t('support-bundles.support-bundles-unconnected.tooltip-remove-bundle', 'Remove bundle')}
+            />
+          ) : null,
+      },
+    ],
+    [hasDeleteAccess, removeBundle]
+  );
+
   const actions = hasAccess ? NewBundleButton : undefined;
 
   const subTitle = (
@@ -64,54 +120,7 @@ const SupportBundlesUnconnected = ({ supportBundles, isLoading, loadBundles, rem
   return (
     <Page navId="support-bundles" subTitle={subTitle} actions={actions}>
       <Page.Contents isLoading={isLoading}>
-        <table className="filter-table form-inline">
-          <thead>
-            <tr>
-              <th>
-                <Trans i18nKey="support-bundles.support-bundles-unconnected.created-on">Created on</Trans>
-              </th>
-              <th>
-                <Trans i18nKey="support-bundles.support-bundles-unconnected.requested-by">Requested by</Trans>
-              </th>
-              <th>
-                <Trans i18nKey="support-bundles.support-bundles-unconnected.expires">Expires</Trans>
-              </th>
-              <th style={{ width: '32px' }} />
-              <th style={{ width: '1%' }} />
-              <th style={{ width: '1%' }} />
-            </tr>
-          </thead>
-          <tbody>
-            {supportBundles?.map((bundle) => (
-              <tr key={bundle.uid}>
-                <th>{dateTimeFormat(bundle.createdAt * 1000)}</th>
-                <th>{bundle.creator}</th>
-                <th>{dateTimeFormat(bundle.expiresAt * 1000)}</th>
-                <th>{bundle.state === 'pending' && <Spinner />}</th>
-                <th>
-                  <LinkButton
-                    fill="outline"
-                    disabled={bundle.state !== 'complete'}
-                    target={'_self'}
-                    href={`/api/support-bundles/${bundle.uid}`}
-                  >
-                    <Trans i18nKey="support-bundles.support-bundles-unconnected.download">Download</Trans>
-                  </LinkButton>
-                </th>
-                <th>
-                  {hasDeleteAccess && (
-                    <IconButton
-                      onClick={() => removeBundle(bundle.uid)}
-                      name="trash-alt"
-                      variant="destructive"
-                      tooltip={t('support-bundles.support-bundles-unconnected.tooltip-remove-bundle', 'Remove bundle')}
-                    />
-                  )}
-                </th>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <InteractiveTable columns={columns} data={tableData} getRowId={(bundle) => bundle.uid} />
       </Page.Contents>
     </Page>
   );

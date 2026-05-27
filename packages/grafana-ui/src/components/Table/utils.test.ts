@@ -213,7 +213,7 @@ describe('Table utils', () => {
     describe('when called without field', () => {
       it('then it should return an empty object', () => {
         const field = undefined;
-        const rows = [{ index: 0 }];
+        const rows = [{ index: 0 }] as unknown as Row[];
 
         const result = calculateUniqueFieldValues(rows, field);
 
@@ -262,7 +262,7 @@ describe('Table utils', () => {
             text: `${value}.0`,
           })),
         };
-        const rows = [{ index: 0 }, { index: 1 }, { index: 2 }, { index: 3 }, { index: 4 }];
+        const rows = [{ index: 0 }, { index: 1 }, { index: 2 }, { index: 3 }, { index: 4 }] as unknown as Row[];
 
         const result = calculateUniqueFieldValues(rows, field);
 
@@ -283,7 +283,7 @@ describe('Table utils', () => {
           name: 'value',
           type: FieldType.number,
         };
-        const rows = [{ index: 0 }, { index: 1 }, { index: 2 }, { index: 3 }, { index: 4 }];
+        const rows = [{ index: 0 }, { index: 1 }, { index: 2 }, { index: 3 }, { index: 4 }] as unknown as Row[];
 
         const result = calculateUniqueFieldValues(rows, field);
 
@@ -302,7 +302,7 @@ describe('Table utils', () => {
             name: 'value',
             type: FieldType.number,
           };
-          const rows = [{ index: 0 }, { index: 1 }, { index: 2 }, { index: 3 }, { index: 4 }];
+          const rows = [{ index: 0 }, { index: 1 }, { index: 2 }, { index: 3 }, { index: 4 }] as unknown as Row[];
 
           const result = calculateUniqueFieldValues(rows, field);
 
@@ -325,7 +325,7 @@ describe('Table utils', () => {
           config: {},
           values: ['a', 'b', 'c'],
         };
-        const row = { index: 1 };
+        const row = { index: 1 } as unknown as Row;
 
         const result = rowToFieldValue(row, field);
 
@@ -346,7 +346,7 @@ describe('Table utils', () => {
             text: `${value}.0`,
           })),
         };
-        const row = { index: 4 };
+        const row = { index: 4 } as unknown as Row;
 
         const result = rowToFieldValue(row, field);
 
@@ -357,7 +357,7 @@ describe('Table utils', () => {
     describe('quick exist paths', () => {
       describe('field is missing', () => {
         const field = undefined;
-        const row = { index: 0 };
+        const row = { index: 0 } as unknown as Row;
 
         const result = rowToFieldValue(row, field);
 
@@ -370,7 +370,7 @@ describe('Table utils', () => {
           config: {},
           values: ['a', 'b', 'c'],
         };
-        const row = undefined;
+        const row = undefined as unknown as Row;
 
         const result = rowToFieldValue(row, field);
 

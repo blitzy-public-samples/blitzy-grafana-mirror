@@ -15,7 +15,12 @@ interface VariableSelectFieldProps<T> {
   description?: React.ReactNode;
 }
 
-export function VariableSelectField({
+// Generic over the option value type `T` so each call site infers `T` from its own `options` /
+// `onChange` props. Call sites that select between string-literal unions (e.g.
+// `'before' | 'after' | 'sorted'` in `QueryVariableStaticOptions.tsx`) must declare the matching
+// `SelectableValue<T>` shape on their options array so `T` is not widened to `string`; this avoids
+// any `any` annotation while preserving inference for enum-valued and free-form call sites.
+export function VariableSelectField<T>({
   name,
   description,
   value,
@@ -23,14 +28,14 @@ export function VariableSelectField({
   onChange,
   testId,
   width,
-}: PropsWithChildren<VariableSelectFieldProps<any>>) {
+}: PropsWithChildren<VariableSelectFieldProps<T>>) {
   const styles = useStyles2(getStyles);
   const uniqueId = useId();
   const inputId = `variable-select-input-${name}-${uniqueId}`;
 
   return (
     <Field label={name} description={description} htmlFor={inputId}>
-      <Select
+      <Select<T>
         data-testid={testId}
         inputId={inputId}
         onChange={onChange}

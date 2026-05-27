@@ -39,8 +39,8 @@ export default class TempoLanguageProvider extends LanguageProvider {
     this.datasource = datasource;
   }
 
-  request = async (url: string, params = {}) => {
-    return await this.datasource.metadataRequest(url, params);
+  request = async <T = unknown>(url: string, params = {}): Promise<T> => {
+    return await this.datasource.metadataRequest<T>(url, params);
   };
 
   start = async (range?: TimeRange, timeRangeForTags?: number) => {
@@ -91,7 +91,7 @@ export default class TempoLanguageProvider extends LanguageProvider {
       params.start = start;
       params.end = end;
     }
-    const v2Resp = await this.request(`tags`, params);
+    const v2Resp = await this.request<{ scopes?: Scope[] }>(`tags`, params);
 
     if (v2Resp && v2Resp.scopes) {
       this.setV2Tags(v2Resp.scopes);
@@ -157,7 +157,7 @@ export default class TempoLanguageProvider extends LanguageProvider {
 
     // Add the encoded tag as a query parameter for the new resource endpoint
     params.tag = encodedTag;
-    const response = await this.request(`tag-values`, params);
+    const response = await this.request<{ tagValues?: Array<{ type: string; value?: string }> }>(`tag-values`, params);
 
     let options: Array<SelectableValue<string>> = [];
     if (response && response.tagValues) {

@@ -1,5 +1,5 @@
 import { css } from '@emotion/css';
-import { memo, useState, useEffect, useCallback } from 'react';
+import { memo, useState, useEffect, useCallback, useMemo } from 'react';
 
 import {
   type SelectableValue,
@@ -12,8 +12,17 @@ import {
   getValueFormat,
   type GrafanaTheme2,
 } from '@grafana/data';
-import { Trans, t } from '@grafana/i18n';
-import { Select, Tooltip, Icon, useStyles2, Label } from '@grafana/ui';
+import { t } from '@grafana/i18n';
+import {
+  type CellProps,
+  type Column,
+  Icon,
+  InteractiveTable,
+  Label,
+  Select,
+  Tooltip,
+  useStyles2,
+} from '@grafana/ui';
 
 import { getAnnotationEventNames, type AnnotationFieldInfo } from '../standardAnnotationSupport';
 import { type AnnotationQueryResponse } from '../types';
@@ -22,6 +31,11 @@ interface Props {
   response?: AnnotationQueryResponse;
   mappings?: AnnotationEventMappings;
   change: (mappings?: AnnotationEventMappings) => void;
+}
+
+interface AnnotationFieldRow extends AnnotationFieldInfo {
+  mapping: AnnotationEventFieldMapping;
+  preview: string;
 }
 
 export const AnnotationFieldMapper = memo(({ response, mappings, change }: Props) => {
@@ -87,18 +101,10 @@ export const AnnotationFieldMapper = memo(({ response, mappings, change }: Props
     [mappings, change]
   );
 
-  const renderRow = useCallback(
-    (row: AnnotationFieldInfo, mapping: AnnotationEventFieldMapping, first?: AnnotationEvent) => {
-      let picker = [...fieldNames];
-      const current = mapping.value;
-      let currentValue = fieldNames.find((f) => current === f.value);
-      if (current && !currentValue) {
-        picker.push({
-          label: current,
-          value: current,
-        });
-      }
-
+  const data = useMemo<AnnotationFieldRow[]>(() => {
+    const first = response?.events?.[0];
+    const currentMappings = mappings || {};
+    return getAnnotationEventNames().map((row) => {
       let value = first ? first[row.key] : '';
       if (value && row.key.startsWith('time')) {
         const fmt = getValueFormat('dateTimeAsIso');
@@ -107,27 +113,51 @@ export const AnnotationFieldMapper = memo(({ response, mappings, change }: Props
       if (value === null || value === undefined) {
         value = ''; // empty string
       }
+      return {
+        ...row,
+        mapping: currentMappings[row.key] || {},
+        preview: typeof value === 'string' ? value : String(value),
+      };
+    });
+  }, [response, mappings]);
 
-      return (
-        <tr key={row.key}>
-          <td>
-            <Label htmlFor={`select-${row.key}`}>
-              {row.label || row.key}{' '}
-              {row.help && (
-                <Tooltip content={row.help}>
-                  <Icon name="info-circle" />
-                </Tooltip>
-              )}
-            </Label>
-          </td>
-          <td>
+  const columns = useMemo<Array<Column<AnnotationFieldRow>>>(
+    () => [
+      {
+        id: 'annotation',
+        header: t('annotations.annotation-field-mapper.annotation', 'Annotation'),
+        cell: ({ row: { original } }: CellProps<AnnotationFieldRow>) => (
+          <Label htmlFor={`select-${original.key}`}>
+            {original.label || original.key}{' '}
+            {original.help && (
+              <Tooltip content={original.help}>
+                <Icon name="info-circle" />
+              </Tooltip>
+            )}
+          </Label>
+        ),
+      },
+      {
+        id: 'from',
+        header: t('annotations.annotation-field-mapper.from', 'From'),
+        cell: ({ row: { original } }: CellProps<AnnotationFieldRow>) => {
+          let picker = [...fieldNames];
+          const current = original.mapping.value;
+          let currentValue = fieldNames.find((f) => current === f.value);
+          if (current && !currentValue) {
+            picker.push({
+              label: current,
+              value: current,
+            });
+          }
+          return (
             <Select
               value={currentValue}
               options={picker}
-              inputId={`select-${row.key}`}
-              placeholder={row.placeholder || row.key}
+              inputId={`select-${original.key}`}
+              placeholder={original.placeholder || original.key}
               onChange={(v: SelectableValue<string>) => {
-                onFieldNameChange(row.key, v);
+                onFieldNameChange(original.key, v);
               }}
               noOptionsMessage={t(
                 'annotations.annotation-field-mapper.noOptionsMessage-unknown-field-names',
@@ -136,53 +166,31 @@ export const AnnotationFieldMapper = memo(({ response, mappings, change }: Props
               allowCustomValue={true}
               isClearable
             />
-          </td>
-          <td className={styles.valueCell}>
-            {value ? (
-              <Tooltip content={value}>
-                <span>{value}</span>
-              </Tooltip>
-            ) : (
-              ''
-            )}
-          </td>
-        </tr>
-      );
-    },
+          );
+        },
+      },
+      {
+        id: 'preview',
+        header: t('annotations.annotation-field-mapper.first-value', 'First value'),
+        cell: ({ row: { original } }: CellProps<AnnotationFieldRow>) =>
+          original.preview ? (
+            <Tooltip content={original.preview}>
+              <span className={styles.valueCell}>{original.preview}</span>
+            </Tooltip>
+          ) : null,
+      },
+    ],
     [fieldNames, onFieldNameChange, styles.valueCell]
   );
 
-  const first = response?.events?.[0];
-  const currentMappings = mappings || {};
-
-  return (
-    <table className="filter-table">
-      <thead>
-        <tr>
-          <th>
-            <Trans i18nKey="annotations.annotation-field-mapper.annotation">Annotation</Trans>
-          </th>
-          <th>
-            <Trans i18nKey="annotations.annotation-field-mapper.from">From</Trans>
-          </th>
-          <th>
-            <Trans i18nKey="annotations.annotation-field-mapper.first-value">First value</Trans>
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        {getAnnotationEventNames().map((row) => {
-          return renderRow(row, currentMappings[row.key] || {}, first);
-        })}
-      </tbody>
-    </table>
-  );
+  return <InteractiveTable columns={columns} data={data} getRowId={(row) => row.key} />;
 });
 
 AnnotationFieldMapper.displayName = 'AnnotationFieldMapper';
 
 const getStyles = (theme: GrafanaTheme2) => ({
   valueCell: css({
+    display: 'block',
     maxWidth: 200,
     overflow: 'hidden',
     textOverflow: 'ellipsis',

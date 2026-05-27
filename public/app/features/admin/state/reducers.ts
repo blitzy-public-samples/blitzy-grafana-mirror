@@ -133,7 +133,7 @@ const initialUserListAdminState: UserListAdminState = {
   isLoading: true,
 };
 
-interface UsersFetched {
+export interface UsersFetched {
   users: UserDTO[];
   perPage: number;
   page: number;
@@ -212,7 +212,7 @@ const initialUserListAnonymousDevicesState: UserListAnonymousDevicesState = {
   filters: [{ name: 'activeLast30Days', value: true }],
 };
 
-interface UsersAnonymousDevicesFetched {
+export interface UsersAnonymousDevicesFetched {
   devices: UserAnonymousDeviceDTO[];
   perPage: number;
   page: number;

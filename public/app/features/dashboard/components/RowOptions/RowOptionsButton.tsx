@@ -1,7 +1,9 @@
+import { css } from '@emotion/css';
 import * as React from 'react';
 
+import type { GrafanaTheme2 } from '@grafana/data';
 import { t } from '@grafana/i18n';
-import { Icon, ModalsController } from '@grafana/ui';
+import { Icon, ModalsController, useStyles2 } from '@grafana/ui';
 
 import { type OnRowOptionsUpdate } from './RowOptionsForm';
 import { RowOptionsModal } from './RowOptionsModal';
@@ -14,6 +16,7 @@ export interface RowOptionsButtonProps {
 }
 
 export const RowOptionsButton = ({ repeat, title, onUpdate, warning }: RowOptionsButtonProps) => {
+  const styles = useStyles2(getStyles);
   const onUpdateChange = (hideModal: () => void) => (title: string, repeat?: string | null) => {
     onUpdate(title, repeat);
     hideModal();
@@ -25,7 +28,7 @@ export const RowOptionsButton = ({ repeat, title, onUpdate, warning }: RowOption
         return (
           <button
             type="button"
-            className="pointer"
+            className={styles.pointer}
             aria-label={t('dashboard.row-options-button.aria-label-row-options', 'Row options')}
             onClick={() => {
               showModal(RowOptionsModal, {
@@ -46,3 +49,9 @@ export const RowOptionsButton = ({ repeat, title, onUpdate, warning }: RowOption
 };
 
 RowOptionsButton.displayName = 'RowOptionsButton';
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  pointer: css({
+    cursor: 'pointer',
+  }),
+});

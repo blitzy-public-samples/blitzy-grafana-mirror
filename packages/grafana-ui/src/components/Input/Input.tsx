@@ -4,7 +4,7 @@ import { useMeasure } from 'react-use';
 
 import { type GrafanaTheme2 } from '@grafana/data';
 
-import { useTheme2 } from '../../themes/ThemeContext';
+import { useStyles2, useTheme2 } from '../../themes/ThemeContext';
 import { stylesFactory } from '../../themes/stylesFactory';
 import { getFocusStyle, sharedInputStyle } from '../Forms/commonStyles';
 import { Spinner } from '../Spinner/Spinner';
@@ -73,16 +73,23 @@ export const Input = forwardRef<HTMLInputElement, Props>((props, ref) => {
   // Don't pass the width prop, as this causes an unnecessary amount of Emotion calls when auto sizing
   const styles = getInputStyles({ theme, invalid: !!invalid, width: autoSizeWidth ? undefined : width });
 
+  // Migrated from inline `style={{...}}` per AAP §0.5.3 / Rule T3 (inline-style migration).
+  // The dynamic wrapper width (autosize) and dynamic input padding (measured prefix/suffix
+  // accessory widths) are computed at runtime, so they are passed as primitive arguments to
+  // useStyles2 which uses micro-memoize (maxSize: 10) to cache generated Emotion classes.
+  const dynamicStyles = useStyles2(
+    getDynamicStyles,
+    autoSizeWidth,
+    !!prefix,
+    prefixRect.width || 0,
+    !!(suffixProp || loading),
+    suffixRect.width || 0
+  );
+
   const suffix = suffixProp || (loading && <Spinner inline={true} />);
 
   return (
-    <div
-      className={cx(styles.wrapper, className)}
-      // If the component is in an AutoSizeInput, set the width here to prevent emotion doing stuff
-      // on every keypress
-      style={autoSizeWidth ? { width: theme.spacing(autoSizeWidth) } : undefined}
-      data-testid="input-wrapper"
-    >
+    <div className={cx(styles.wrapper, dynamicStyles.wrapper, className)} data-testid="input-wrapper">
       {!!addonBefore && <div className={styles.addon}>{addonBefore}</div>}
       <div className={styles.inputWrapper}>
         {prefix && (
@@ -93,7 +100,7 @@ export const Input = forwardRef<HTMLInputElement, Props>((props, ref) => {
 
         <input
           ref={ref}
-          className={styles.input}
+          className={cx(styles.input, dynamicStyles.input)}
           {...restProps}
           onWheel={
             restProps.type === 'number'
@@ -103,10 +110,6 @@ export const Input = forwardRef<HTMLInputElement, Props>((props, ref) => {
                 }
               : restProps.onWheel
           }
-          style={{
-            paddingLeft: prefix ? prefixRect.width + 12 : undefined,
-            paddingRight: suffix || loading ? suffixRect.width + 12 : undefined,
-          }}
         />
 
         {suffix && (
@@ -301,4 +304,40 @@ export const getInputStyles = stylesFactory(({ theme, invalid = false, width }: 
       },
     }),
   };
+});
+
+// Dynamic styles factory (AAP §0.5.3 file-tail pattern). These styles depend on values
+// measured/computed at runtime (auto-size wrapper width and input padding based on prefix/suffix
+// client rect widths). Keeping them out of `getInputStyles` ensures the public, externally-consumed
+// `getInputStyles` signature is unchanged and that downstream callers do not need to thread the
+// dynamic args through. Emotion `&&` / `&&&` selectors boost specificity to win the cascade against
+// the static rules nested inside `getInputStyles`'s `inputWrapper.input` block.
+const getDynamicStyles = (
+  theme: GrafanaTheme2,
+  autoSizeWidth: number | undefined,
+  hasPrefix: boolean,
+  prefixWidth: number,
+  hasSuffix: boolean,
+  suffixWidth: number
+) => ({
+  // When in AutoSizeInput, set the wrapper width based on the dynamically computed
+  // width (which depends on text content + measured accessory widths). When not in
+  // AutoSizeInput, autoSizeWidth is undefined and this rule contributes nothing —
+  // the base `styles.wrapper` width takes effect. `&&` doubles class specificity to (0,2,0)
+  // to beat the base wrapper class (0,1,0) regardless of source order.
+  wrapper: css({
+    '&&': {
+      width: autoSizeWidth ? theme.spacing(autoSizeWidth) : undefined,
+    },
+  }),
+  // Apply input padding based on measured prefix/suffix accessory widths so the
+  // input text content does not overlap the accessories. `&&&` triples class specificity
+  // to (0,3,0) to beat the static `.inputWrapper input:not(:first-child)` rule (specificity
+  // (0,2,1)) declared inside `getInputStyles` for non-React-component callers.
+  input: css({
+    '&&&': {
+      paddingLeft: hasPrefix ? prefixWidth + 12 : undefined,
+      paddingRight: hasSuffix ? suffixWidth + 12 : undefined,
+    },
+  }),
 });

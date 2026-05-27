@@ -91,12 +91,14 @@ export class UnifiedSearcher implements GrafanaSearcher {
     let starsIds: string[] | undefined = [];
     if (config.featureToggles.starsFromAPIServer) {
       const name = `user-${contextSrv.user.uid}`;
-      const result: { data: ListStarsApiResponse } = await dispatch(
+      // Use RTK Query's `.unwrap()` to extract the response data and throw on error.
+      // Mirrors the legacy branch below which already uses the same pattern.
+      const data: ListStarsApiResponse = await dispatch(
         generatedAPI.endpoints.listStars.initiate({
           fieldSelector: `metadata.name=${name}`,
         })
-      );
-      const items = result.data.items;
+      ).unwrap();
+      const items = data.items;
       starsIds = items?.length
         ? items[0].spec.resource.find(({ group, kind }) => group === DASHBOARD_API_GROUP && kind === 'Dashboard')
             ?.names || []

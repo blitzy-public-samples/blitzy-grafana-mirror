@@ -1,6 +1,7 @@
 import { type BaseVariableModel, DataLinkBuiltInVars } from '@grafana/data';
 import { t } from '@grafana/i18n';
 import { type Graph } from 'app/core/utils/dag';
+import { isRecord } from 'app/core/utils/isRecord';
 import { mapSet } from 'app/core/utils/set';
 import { stringifyPanelModel } from 'app/features/dashboard/state/PanelModel';
 
@@ -122,9 +123,18 @@ const validVariableNames: Record<string, RegExp[]> = {
   query: [/^timeFilter$/],
 };
 
-export const getPropsWithVariable = (variableId: string, parent: { key: string; value: any }, result: any) => {
-  const stringValues = Object.keys(parent.value).reduce<Record<string, string>>((all, key) => {
-    const value = parent.value[key];
+export const getPropsWithVariable = (
+  variableId: string,
+  parent: { key: string; value: unknown },
+  result: Record<string, unknown>
+): Record<string, unknown> => {
+  if (!isRecord(parent.value)) {
+    return result;
+  }
+  const parentValue = parent.value;
+
+  const stringValues = Object.keys(parentValue).reduce<Record<string, string>>((all, key) => {
+    const value = parentValue[key];
     if (!value || typeof value !== 'string') {
       return all;
     }
@@ -149,11 +159,11 @@ export const getPropsWithVariable = (variableId: string, parent: { key: string; 
     return all;
   }, {});
 
-  const objectValues = Object.keys(parent.value).reduce<Record<string, object>>((all, key) => {
-    const value = parent.value[key];
-    if (value && typeof value === 'object' && Object.keys(value).length) {
+  const objectValues = Object.keys(parentValue).reduce<Record<string, object>>((all, key) => {
+    const value = parentValue[key];
+    if (isRecord(value) && Object.keys(value).length) {
       let id = value.title || value.name || value.id || key;
-      if (Array.isArray(parent.value) && parent.key === 'panels') {
+      if (Array.isArray(parentValue) && parent.key === 'panels') {
         id = `${id}[${value.id}]`;
       }
 
@@ -162,7 +172,7 @@ export const getPropsWithVariable = (variableId: string, parent: { key: string; 
       if (Object.keys(newResult).length) {
         all = {
           ...all,
-          [id]: newResult,
+          [`${id}`]: newResult,
         };
       }
     }
@@ -282,7 +292,7 @@ export function getDependentPanels(variables: string[], panelsByVarUsage: Record
   return new Set(thePanels);
 }
 
-export const traverseTree = (usage: UsagesToNetwork, parent: { id: string; value: any }): UsagesToNetwork => {
+export const traverseTree = (usage: UsagesToNetwork, parent: { id: string; value: unknown }): UsagesToNetwork => {
   const { id, value } = parent;
   const { nodes, edges } = usage;
 
@@ -294,7 +304,7 @@ export const traverseTree = (usage: UsagesToNetwork, parent: { id: string; value
     return usage;
   }
 
-  if (value && typeof value === 'object') {
+  if (isRecord(value)) {
     const keys = Object.keys(value);
     for (const key of keys) {
       const leafId = `${parent.id}-${key}`;

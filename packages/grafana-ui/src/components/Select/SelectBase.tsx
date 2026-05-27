@@ -16,7 +16,9 @@ import { t, Trans } from '@grafana/i18n';
 
 import { useTheme2 } from '../../themes/ThemeContext';
 import { Icon } from '../Icon/Icon';
+import { Stack } from '../Layout/Stack/Stack';
 import { getPortalContainer } from '../Portal/Portal';
+import { Text } from '../Text/Text';
 
 import { CustomInput } from './CustomInput';
 import { DropdownIndicator } from './DropdownIndicator';
@@ -34,6 +36,7 @@ import { useCustomSelectStyles } from './resetSelectStyles';
 import { type ActionMeta, type InputActionMeta, type SelectBaseProps, ToggleAllState } from './types';
 import { cleanValue, findSelectedValue, omitDescriptions } from './utils';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- react-select Control component override; props are heterogeneous (typing as ControlProps<unknown, boolean> would cause a type error at `getValue()[0]` because OnChangeValue<unknown, boolean> resolves to `readonly unknown[] | unknown | null` which is not array-indexable; narrowing requires a forbidden `as` cast under repository-wide consistent-type-assertions: 'never')
 const CustomControl = (props: any) => {
   const {
     children,
@@ -44,7 +47,7 @@ const CustomControl = (props: any) => {
     getValue,
     innerRef,
   } = props;
-  const selectProps = props.selectProps as SelectBaseProps<any>;
+  const selectProps = props.selectProps as SelectBaseProps<unknown>;
 
   if (selectProps.renderControl) {
     return React.createElement(selectProps.renderControl, {
@@ -195,7 +198,9 @@ export function SelectBase<T, Rest = {}>({
   let ReactSelectComponent = ReactSelect;
 
   const creatableProps: ComponentProps<typeof Creatable<SelectableValue<T>>> = {};
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- asyncSelectProps is spread as {...asyncSelectProps} on the dynamically-resolved <ReactSelectComponent> JSX element below. Narrowing its type to `Pick<SelectAsyncProps<T>, 'loadOptions' | 'cacheOptions' | 'defaultOptions'>` (the structurally correct concrete type) propagates strict generic inference through the JSX spread and reveals two pre-existing latent type incompatibilities elsewhere in this JSX block: (1) `ref={reactSelectRef}` is typed `RefObject<HTMLElement & { controlRef: HTMLElement }>` but react-select expects `LegacyRef<Select<SelectableValue<T>, boolean, GroupBase<SelectableValue<T>>>>`; (2) `styles={selectStyles}` is `Partial<StylesConfig>` (returned by the non-generic `useCustomSelectStyles` in resetSelectStyles.ts) but react-select expects `StylesConfig<SelectableValue<T>, boolean, GroupBase<SelectableValue<T>>>`. Both are out-of-scope for this refactor (minimal-change mandate) and cannot be fixed without modifying unrelated code in this file and in resetSelectStyles.ts. Retaining `any` here per AAP §0.8.6 step 7 preserves the existing type-widening behavior that masks those latent issues.
   let asyncSelectProps: any = {};
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- selectedValue receives heterogeneous values across conditional branches: pass-through props.value (T | SelectValue<T> | null | undefined) in multi+async mode, mapped Array<SelectableValue<T> | T> in multi+sync mode, [hasValue] in async mode, or cleanValue() Array<SelectableValue<T>> | undefined in default; consolidating to a single concrete type is intractable under repository-wide consistent-type-assertions: 'never' (forbids the `as` casts that narrowing would require) without behavior-changing transformations forbidden by the minimal-change mandate
   let selectedValue: any;
   if (isMulti && loadOptions) {
     selectedValue = value;
@@ -419,13 +424,14 @@ export function SelectBase<T, Rest = {}>({
 
 function defaultFormatCreateLabel(input: string) {
   return (
-    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+    <Stack direction="row" gap={1} alignItems="center" justifyContent="space-between">
       <div>{input}</div>
-      <div style={{ flexGrow: 1 }} />
-      <div className="muted small" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-        <Trans i18nKey="grafana-ui.select.default-create-label">Hit enter to add</Trans>
-      </div>
-    </div>
+      <Text variant="bodySmall" color="secondary">
+        <Stack direction="row" gap={1} alignItems="center">
+          <Trans i18nKey="grafana-ui.select.default-create-label">Hit enter to add</Trans>
+        </Stack>
+      </Text>
+    </Stack>
   );
 }
 

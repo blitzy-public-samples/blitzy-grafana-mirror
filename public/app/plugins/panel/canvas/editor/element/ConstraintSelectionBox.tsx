@@ -50,7 +50,7 @@ export const ConstraintSelectionBox = ({
       height="75.000000pt"
       viewBox="0 0 228.000000 228.000000"
       preserveAspectRatio="xMidYMid meet"
-      style={{ marginBottom: '4.8px' }}
+      className={styles.svg}
     >
       <g transform="translate(0.000000,228.000000) scale(0.100000,-0.100000)" fill="#000000" stroke="none">
         <path
@@ -141,6 +141,9 @@ const getStyles = (currentConstraints: Constraint) => (theme: GrafanaTheme2) => 
   const selectionBoxColor = theme.isDark ? '#ffffff' : '#000000';
 
   return {
+    svg: css({
+      marginBottom: theme.spacing(0.6),
+    }),
     constraintHover: css({
       '&:hover': {
         fill: HOVER_COLOR,

@@ -4,7 +4,7 @@ import { useToggle } from 'react-use';
 
 import { CoreApp, type GrafanaTheme2 } from '@grafana/data';
 import { EditorField, EditorRow } from '@grafana/plugin-ui';
-import { AutoSizeInput, RadioButtonGroup, TextLink, useStyles2 } from '@grafana/ui';
+import { AutoSizeInput, RadioButtonGroup, Stack, TextLink, useStyles2 } from '@grafana/ui';
 
 import { QueryOptionGroup } from '../_importedDependencies/datasources/prometheus/QueryOptionGroup';
 import { SearchTableType, MetricsQueryType } from '../dataquery.gen';
@@ -110,7 +110,7 @@ export const TempoQueryBuilderOptions = React.memo<Props>(
             >
               <EditorField label="Limit" tooltip="Maximum number of traces to return.">
                 <AutoSizeInput
-                  className="width-4"
+                  className={styles.widthFour}
                   placeholder="auto"
                   type="number"
                   min={1}
@@ -121,7 +121,7 @@ export const TempoQueryBuilderOptions = React.memo<Props>(
               </EditorField>
               <EditorField label="Span Limit" tooltip="Maximum number of spans to return for each span set.">
                 <AutoSizeInput
-                  className="width-4"
+                  className={styles.widthFour}
                   placeholder="auto"
                   type="number"
                   min={1}
@@ -158,7 +158,7 @@ export const TempoQueryBuilderOptions = React.memo<Props>(
                 tooltip="Defines the step for metric queries. Use duration notation, for example 30s or 1m"
               >
                 <AutoSizeInput
-                  className="width-4"
+                  className={styles.widthFour}
                   placeholder="auto"
                   type="string"
                   defaultValue={query.step}
@@ -203,21 +203,23 @@ export const TempoQueryBuilderOptions = React.memo<Props>(
 );
 
 const StreamingTooltip = () => {
+  const styles = useStyles2(getStyles);
   return (
-    <div style={{ display: 'flex', gap: '4px' }}>
+    <Stack direction="row" gap={0.5}>
       <span>
         Indicates if streaming is currently enabled. Streaming allows you to view partial query results before the
         entire query completes.
       </span>
-      <TextLink
-        external
-        href={'https://grafana.com/docs/tempo/latest/traceql/#stream-query-results'}
-        aria-label={'Learn more about streaming query results'}
-        style={{ textDecoration: 'underline' }}
-      >
-        Learn more
-      </TextLink>
-    </div>
+      <span className={styles.streamingLink}>
+        <TextLink
+          external
+          href={'https://grafana.com/docs/tempo/latest/traceql/#stream-query-results'}
+          aria-label={'Learn more about streaming query results'}
+        >
+          Learn more
+        </TextLink>
+      </span>
+    </Stack>
   );
 };
 
@@ -232,6 +234,14 @@ const getStyles = (theme: GrafanaTheme2) => {
 
       '> div': {
         width: 'auto',
+      },
+    }),
+    widthFour: css({
+      width: `${theme.spacing(8)} !important`,
+    }),
+    streamingLink: css({
+      '& a, & a:hover': {
+        textDecoration: 'underline',
       },
     }),
   };

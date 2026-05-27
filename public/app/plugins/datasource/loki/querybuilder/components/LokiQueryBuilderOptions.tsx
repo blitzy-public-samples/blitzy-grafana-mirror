@@ -161,7 +161,7 @@ export const LokiQueryBuilderOptions = React.memo<Props>(
             <>
               <EditorField label="Line limit" tooltip="Upper limit for number of log lines returned by query.">
                 <AutoSizeInput
-                  className="width-4"
+                  minWidth={8}
                   placeholder={maxLines.toString()}
                   type="number"
                   min={0}
@@ -187,7 +187,7 @@ export const LokiQueryBuilderOptions = React.memo<Props>(
                 error={'Invalid step. Example valid values: 1s, 5m, 10h, 1d.'}
               >
                 <AutoSizeInput
-                  className="width-6"
+                  minWidth={12}
                   placeholder={'auto'}
                   type="string"
                   value={query.step ?? ''}

@@ -27,7 +27,7 @@ import { ThresholdControlsPlugin } from '../timeseries/plugins/ThresholdControls
 import { getXAnnotationFrames } from '../timeseries/plugins/utils';
 
 import { prepareCandlestickFields } from './fields';
-import { defaultCandlestickColors, type Options, VizDisplayMode } from './panelcfg.gen';
+import { type CandlestickFieldMap, defaultCandlestickColors, type Options, VizDisplayMode } from './panelcfg.gen';
 import { drawMarkers, type FieldIndices } from './utils';
 
 interface CandlestickPanelProps extends PanelProps<Options> {}
@@ -238,7 +238,7 @@ export const CandlestickPanel = ({
   if (shouldRenderPrice) {
     // hide series from legend that are rendered as composite markers
     for (let key in renderers[0].fieldMap) {
-      let field: Field = (info as any)[key];
+      let field: Field = info[key as keyof CandlestickFieldMap]!;
       field.config = {
         ...field.config,
         custom: {

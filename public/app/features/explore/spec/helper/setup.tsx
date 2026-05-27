@@ -311,7 +311,7 @@ export function makeDatasourceSetup({
       query: jest.fn(),
       getRef: () => ({ type, uid }),
       meta,
-    } as any,
+    } as unknown as DataSourceApi,
   };
 }
 

@@ -74,6 +74,7 @@ export interface LiveChannelStatusEvent {
   /**
    * When joining a channel, there may be an initial packet in the subscribe method
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- preserved as any because downstream consumers narrow LiveChannelEvent via property existence (e.g., `'message' in evt`) which keeps LiveChannelStatusEvent in the union, and they then access message subfields directly without a type guard
   message?: any;
 
   /**
@@ -99,6 +100,7 @@ export interface LiveChannelMessageEvent<T> {
   message: T;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- preserved as default for back-compat with subscribers that omit the T parameter and access message directly
 export type LiveChannelEvent<T = any> =
   | LiveChannelStatusEvent
   | LiveChannelJoinEvent

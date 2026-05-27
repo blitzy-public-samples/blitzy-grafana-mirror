@@ -2,6 +2,8 @@ import { asyncScheduler, type Observable, of, scheduled } from 'rxjs';
 
 import { type AnnotationEvent, getDefaultTimeRange, type PanelModel } from '@grafana/data';
 
+import { type DashboardModel } from '../../../dashboard/state/DashboardModel';
+
 import { type DashboardQueryRunnerOptions } from './types';
 
 // function that creates an async of result Observable
@@ -12,7 +14,7 @@ export function toAsyncOfResult<T>(result: T): Observable<T> {
 export const LEGACY_DS_NAME = 'Legacy';
 export const NEXT_GEN_DS_NAME = 'NextGen';
 
-function getSnapshotData(annotation: any): AnnotationEvent[] {
+function getSnapshotData(annotation: unknown): AnnotationEvent[] {
   return [{ annotation, source: {}, timeEnd: 2, time: 1 }];
 }
 
@@ -39,7 +41,7 @@ function getAnnotation({
 export function getDefaultOptions(): DashboardQueryRunnerOptions {
   const legacy = getAnnotation({ datasource: LEGACY_DS_NAME });
   const nextGen = getAnnotation({ datasource: NEXT_GEN_DS_NAME });
-  const dashboard: any = {
+  const dashboard = {
     id: 1,
     uid: '1',
     annotations: {
@@ -57,7 +59,7 @@ export function getDefaultOptions(): DashboardQueryRunnerOptions {
     },
     panels: [{ alert: {} } as PanelModel],
     meta: {},
-  };
+  } as unknown as DashboardModel;
   const range = getDefaultTimeRange();
 
   return { dashboard, range };

@@ -4,7 +4,6 @@ import {
   dateTimeFormat,
   type TimeRange,
   type PanelData,
-  type DataTransformerConfig,
   type DataFrameJSON,
   LoadingState,
   dataFrameToJSON,
@@ -12,6 +11,7 @@ import {
 } from '@grafana/data';
 import { config } from '@grafana/runtime';
 import { type VizPanel } from '@grafana/scenes';
+import { type Panel } from '@grafana/schema';
 import { GrafanaQueryType } from 'app/plugins/datasource/grafana/types';
 
 import { type DashboardGridItem } from '../../scene/layout-default/DashboardGridItem';
@@ -19,6 +19,27 @@ import { gridItemToPanel, vizPanelToPanel } from '../../serialization/transformS
 import { getQueryRunnerFor, isLibraryPanel } from '../../utils/utils';
 
 import { type Randomize, randomizeData } from './randomizer';
+
+export interface EmbeddedDashboardPanel {
+  id: number;
+  title?: string;
+  type?: string;
+  datasource?: { type?: string; uid?: string };
+  gridPos: { h: number; w: number; x: number; y: number };
+  options?: Record<string, unknown>;
+  targets?: Array<Record<string, unknown>>;
+  pluginVersion?: string;
+  libraryPanel?: { name?: string; uid?: string };
+  transformations?: Panel['transformations'];
+}
+
+export interface EmbeddedDashboard {
+  panels: EmbeddedDashboardPanel[];
+  schemaVersion: number;
+  title?: string;
+  tags?: string[];
+  time?: { from: string; to: string };
+}
 
 export function getPanelDataFrames(data?: PanelData): DataFrameJSON[] {
   const frames: DataFrameJSON[] = [];
@@ -138,13 +159,13 @@ export async function getDebugDashboard(panel: VizPanel, rand: Randomize, timeRa
 
   if (saveModel.transformations?.length) {
     const last = dashboard.panels[dashboard.panels.length - 1];
-    last.title = last.title + ' (after transformations)';
+    last.title = (last.title ?? '') + ' (after transformations)';
 
     const before = cloneDeep(last);
     before.id = 100;
     before.title = 'Data (before transformations)';
     before.gridPos.w = 24; // full width
-    before.targets[0].withTransforms = false;
+    before.targets![0].withTransforms = false;
     dashboard.panels.push(before);
   }
 
@@ -182,8 +203,8 @@ export async function getDebugDashboard(panel: VizPanel, rand: Randomize, timeRa
     });
   }
 
-  dashboard.panels[1].options.content = html;
-  dashboard.panels[2].options.content = JSON.stringify(saveModel, null, 2);
+  dashboard.panels[1].options!.content = html;
+  dashboard.panels[2].options!.content = JSON.stringify(saveModel, null, 2);
 
   dashboard.title = `Debug: ${saveModel.title} // ${dateTimeFormat(new Date())}`;
   dashboard.tags = ['debug', `debug-${info.panelType}`];
@@ -195,14 +216,13 @@ export async function getDebugDashboard(panel: VizPanel, rand: Randomize, timeRa
   return dashboard;
 }
 
-// eslint-disable-next-line
-function getTransformsRow(saveModel: any): string {
+function getTransformsRow(saveModel: Panel): string {
   if (!saveModel.transformations) {
     return '';
   }
   return `<tr>
       <th>Transform</th>
-      <td>${saveModel.transformations.map((t: DataTransformerConfig) => t.id).join(', ')}</td>
+      <td>${saveModel.transformations.map((t) => t.id).join(', ')}</td>
   </tr>`;
 }
 
@@ -238,8 +258,7 @@ function getAnnotationsRow(data: PanelData): string {
 </tr>`;
 }
 
-// eslint-disable-next-line
-const embeddedDataTemplate: any = {
+const embeddedDataTemplate: EmbeddedDashboard = {
   // should be dashboard model when that is accurate enough
   panels: [
     {

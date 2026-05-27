@@ -43,6 +43,7 @@ export const HeaderRow = (props: HeaderRowProps) => {
   );
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- react-table HeaderGroup with mixed UseSortByColumnProps/UseResizeColumnsColumnProps/UseFiltersColumnProps/useAbsoluteLayout/GrafanaTableColumn extensions not narrowable without breaking call-site signature compatibility
 function renderHeaderCell(column: any, tableStyles: TableStyles, showTypeIcons?: boolean) {
   const { key, ...headerProps } = column.getHeaderProps();
   const field: Field = column.field ?? null;
@@ -65,6 +66,7 @@ function renderHeaderCell(column: any, tableStyles: TableStyles, showTypeIcons?:
 
   let sortHeaderContent = column.canSort && (
     <>
+      {/* Design system gap: this file is internal to the @grafana/ui Table/TableRT primitive; the raw <button> here is the canonical column-header sort-toggle implementation (wraps column.getSortByToggleProps from react-table). Kept as raw per refactor protocol (AAP §0.4.4). */}
       <button {...column.getSortByToggleProps()} className={tableStyles.headerCellLabel} aria-label={ariaLabel}>
         {showTypeIcons && (
           <Icon name={getFieldTypeIcon(field)} title={field?.type} size="sm" className={tableStyles.typeIcon} />

@@ -1,10 +1,20 @@
+import { css } from '@emotion/css';
 import { type FormEvent } from 'react';
 
-import { type CustomVariableModel } from '@grafana/data';
+import { type CustomVariableModel, type GrafanaTheme2 } from '@grafana/data';
 import { selectors } from '@grafana/e2e-selectors';
 import { Trans, t } from '@grafana/i18n';
 import { config } from '@grafana/runtime';
-import { Alert, FieldValidationMessage, Icon, RadioButtonGroup, Stack, TextLink, Tooltip } from '@grafana/ui';
+import {
+  Alert,
+  FieldValidationMessage,
+  Icon,
+  RadioButtonGroup,
+  Stack,
+  TextLink,
+  Tooltip,
+  useStyles2,
+} from '@grafana/ui';
 
 import { SelectionOptionsForm } from './SelectionOptionsForm';
 import { VariableLegend } from './VariableLegend';
@@ -170,6 +180,7 @@ function CustomVariableFormNonMultiProps({
   onAllValueChange,
   onAllowCustomValueChange,
 }: CustomVariableFormProps & { displayMultiPropsWarningBanner: boolean }) {
+  const styles = useStyles2(getStyles);
   return (
     <>
       <VariableLegend>
@@ -177,7 +188,7 @@ function CustomVariableFormNonMultiProps({
       </VariableLegend>
 
       {displayMultiPropsWarningBanner && (
-        <div style={{ maxWidth: '25%' }}>
+        <div className={styles.warningBanner}>
           {/* eslint-disable-next-line @grafana/i18n/no-untranslated-strings */}
           <Alert severity="warning" title="Custom options with multi-properties are unavailable">
             This feature is temporarily disabled, sorry for any inconvenience. Please recreate these options without
@@ -212,3 +223,9 @@ function CustomVariableFormNonMultiProps({
     </>
   );
 }
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  warningBanner: css({
+    maxWidth: '25%',
+  }),
+});

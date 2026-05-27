@@ -1,5 +1,6 @@
 import { useState } from 'react';
 
+import { type SelectableValue } from '@grafana/data';
 import { selectors } from '@grafana/e2e-selectors';
 import { t, Trans } from '@grafana/i18n';
 import { config } from '@grafana/runtime';
@@ -14,6 +15,11 @@ import { useGetPropertiesFromOptions } from 'app/features/dashboard-scene/settin
 export type StaticOptionsType = QueryVariable['state']['staticOptions'];
 export type StaticOptionsOrderType = QueryVariable['state']['staticOptionsOrder'];
 
+// Non-undefined values that the QueryVariable scene supports for `staticOptionsOrder` — used as the
+// `value` type of the SORT_OPTIONS so `VariableSelectField<T>` infers a string-literal `T` instead
+// of widening to `string`.
+type StaticOptionsOrderValue = NonNullable<StaticOptionsOrderType>;
+
 interface QueryVariableStaticOptionsProps {
   options: VariableValueOption[];
   staticOptions: StaticOptionsType;
@@ -22,7 +28,11 @@ interface QueryVariableStaticOptionsProps {
   onStaticOptionsOrderChange: (staticOptionsOrder: StaticOptionsOrderType) => void;
 }
 
-const SORT_OPTIONS = [
+// Explicit `SelectableValue<StaticOptionsOrderValue>[]` typing keeps the `value` literals narrow
+// (`'before' | 'after' | 'sorted'`) so `VariableSelectField` infers the matching `T` and the
+// `onChange` callback can forward `opt.value` to `onStaticOptionsOrderChange` without an `any`
+// annotation or type assertion.
+const SORT_OPTIONS: Array<SelectableValue<StaticOptionsOrderValue>> = [
   { label: 'Before query values', value: 'before' },
   { label: 'After query values', value: 'after' },
   { label: 'Sorted with query values', value: 'sorted' },

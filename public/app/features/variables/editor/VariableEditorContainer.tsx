@@ -1,11 +1,9 @@
-import { PureComponent } from 'react';
-import { connect, type ConnectedProps } from 'react-redux';
-import { bindActionCreators } from 'redux';
+import { useEffect, useState } from 'react';
 
 import { locationService } from '@grafana/runtime';
 import { Page } from 'app/core/components/Page/Page';
 import { type SettingsPageProps } from 'app/features/dashboard/components/DashboardSettings/types';
-import { type StoreState, type ThunkDispatch } from 'app/types/store';
+import { type StoreState, useDispatch, useSelector } from 'app/types/store';
 
 import { VariablesUnknownTable } from '../inspect/VariablesUnknownTable';
 import { toKeyedAction } from '../state/keyedVariablesReducer';
@@ -19,125 +17,92 @@ import { VariableEditorEditor } from './VariableEditorEditor';
 import { VariableEditorList } from './VariableEditorList';
 import { createNewVariable, initListMode } from './actions';
 
-const mapStateToProps = (state: StoreState, ownProps: OwnProps) => {
-  const { uid } = ownProps.dashboard;
-  const templatingState = getVariablesState(uid, state);
-  return {
-    variables: getEditorVariables(uid, state),
-    idInEditor: templatingState.editor.id,
-    usagesNetwork: templatingState.inspect.usagesNetwork,
-    usages: templatingState.inspect.usages,
-  };
-};
-
-const mapDispatchToProps = (dispatch: ThunkDispatch) => {
-  return {
-    ...bindActionCreators({ createNewVariable, initListMode }, dispatch),
-    changeVariableOrder: (identifier: KeyedVariableIdentifier, fromIndex: number, toIndex: number) =>
-      dispatch(
-        toKeyedAction(
-          identifier.rootStateKey,
-          changeVariableOrder(toVariablePayload(identifier, { fromIndex, toIndex }))
-        )
-      ),
-    duplicateVariable: (identifier: KeyedVariableIdentifier) =>
-      dispatch(
-        toKeyedAction(
-          identifier.rootStateKey,
-          duplicateVariable(toVariablePayload(identifier, { newId: undefined as unknown as string }))
-        )
-      ),
-    removeVariable: (identifier: KeyedVariableIdentifier) => {
-      dispatch(
-        toKeyedAction(identifier.rootStateKey, removeVariable(toVariablePayload(identifier, { reIndex: true })))
-      );
-    },
-  };
-};
-
 interface OwnProps extends SettingsPageProps {}
 
-const connector = connect(mapStateToProps, mapDispatchToProps);
+export const VariableEditorContainer = ({ dashboard, sectionNav, editIndex }: OwnProps) => {
+  const dispatch = useDispatch();
 
-type Props = OwnProps & ConnectedProps<typeof connector>;
+  const variables = useSelector((state: StoreState) => getEditorVariables(dashboard.uid, state));
+  const usagesNetwork = useSelector(
+    (state: StoreState) => getVariablesState(dashboard.uid, state).inspect.usagesNetwork
+  );
+  const usages = useSelector((state: StoreState) => getVariablesState(dashboard.uid, state).inspect.usages);
 
-interface State {
-  variableId?: KeyedVariableIdentifier;
-}
+  const [variableId, setVariableId] = useState<KeyedVariableIdentifier | undefined>(undefined);
 
-class VariableEditorContainerUnconnected extends PureComponent<Props, State> {
-  state: State = {
-    variableId: undefined,
-  };
+  useEffect(() => {
+    dispatch(initListMode(dashboard.uid));
+  }, [dispatch, dashboard.uid]);
 
-  componentDidMount() {
-    this.props.initListMode(this.props.dashboard.uid);
-  }
-
-  onEditVariable = (identifier: KeyedVariableIdentifier) => {
-    const index = this.props.variables.findIndex((x) => x.id === identifier.id);
+  const onEditVariable = (identifier: KeyedVariableIdentifier) => {
+    const index = variables.findIndex((x) => x.id === identifier.id);
     locationService.partial({ editIndex: index });
   };
 
-  onNewVariable = () => {
-    this.props.createNewVariable(this.props.dashboard.uid);
+  const onNewVariable = () => {
+    dispatch(createNewVariable(dashboard.uid));
   };
 
-  onChangeVariableOrder = (identifier: KeyedVariableIdentifier, fromIndex: number, toIndex: number) => {
-    this.props.changeVariableOrder(identifier, fromIndex, toIndex);
-  };
-
-  onDuplicateVariable = (identifier: KeyedVariableIdentifier) => {
-    this.props.duplicateVariable(identifier);
-  };
-
-  onModalOpen = (identifier: KeyedVariableIdentifier) => {
-    this.setState({ variableId: identifier });
-  };
-
-  onModalClose = () => {
-    this.setState({ variableId: undefined });
-  };
-
-  onRemoveVariable = () => {
-    this.props.removeVariable(this.state.variableId!);
-    this.onModalClose();
-  };
-
-  render() {
-    const { editIndex, variables, sectionNav } = this.props;
-    const variableToEdit = editIndex != null ? variables[editIndex] : undefined;
-    const node = sectionNav.node;
-    const parentItem = node.parentItem;
-    const subPageNav = variableToEdit ? { text: variableToEdit.name, parentItem } : parentItem;
-
-    return (
-      <Page navModel={this.props.sectionNav} pageNav={subPageNav}>
-        {!variableToEdit && (
-          <VariableEditorList
-            variables={this.props.variables}
-            onAdd={this.onNewVariable}
-            onEdit={this.onEditVariable}
-            onChangeOrder={this.onChangeVariableOrder}
-            onDuplicate={this.onDuplicateVariable}
-            onDelete={this.onModalOpen}
-            usages={this.props.usages}
-            usagesNetwork={this.props.usagesNetwork}
-          />
-        )}
-        {!variableToEdit && this.props.variables.length > 0 && (
-          <VariablesUnknownTable variables={this.props.variables} dashboard={this.props.dashboard} />
-        )}
-        {variableToEdit && <VariableEditorEditor identifier={toKeyedVariableIdentifier(variableToEdit)} />}
-        <ConfirmDeleteModal
-          isOpen={this.state.variableId !== undefined}
-          varName={this.state.variableId?.id ?? ''}
-          onConfirm={this.onRemoveVariable}
-          onDismiss={this.onModalClose}
-        />
-      </Page>
+  const onChangeVariableOrder = (identifier: KeyedVariableIdentifier, fromIndex: number, toIndex: number) => {
+    dispatch(
+      toKeyedAction(identifier.rootStateKey, changeVariableOrder(toVariablePayload(identifier, { fromIndex, toIndex })))
     );
-  }
-}
+  };
 
-export const VariableEditorContainer = connector(VariableEditorContainerUnconnected);
+  const onDuplicateVariable = (identifier: KeyedVariableIdentifier) => {
+    dispatch(
+      toKeyedAction(
+        identifier.rootStateKey,
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- preserved verbatim from the pre-conversion implementation; `newId` is generated by the reducer when undefined
+        duplicateVariable(toVariablePayload(identifier, { newId: undefined as unknown as string }))
+      )
+    );
+  };
+
+  const onModalOpen = (identifier: KeyedVariableIdentifier) => {
+    setVariableId(identifier);
+  };
+
+  const onModalClose = () => {
+    setVariableId(undefined);
+  };
+
+  const onRemoveVariable = () => {
+    if (variableId) {
+      dispatch(
+        toKeyedAction(variableId.rootStateKey, removeVariable(toVariablePayload(variableId, { reIndex: true })))
+      );
+    }
+    onModalClose();
+  };
+
+  const variableToEdit = editIndex != null ? variables[editIndex] : undefined;
+  const node = sectionNav.node;
+  const parentItem = node.parentItem;
+  const subPageNav = variableToEdit ? { text: variableToEdit.name, parentItem } : parentItem;
+
+  return (
+    <Page navModel={sectionNav} pageNav={subPageNav}>
+      {!variableToEdit && (
+        <VariableEditorList
+          variables={variables}
+          onAdd={onNewVariable}
+          onEdit={onEditVariable}
+          onChangeOrder={onChangeVariableOrder}
+          onDuplicate={onDuplicateVariable}
+          onDelete={onModalOpen}
+          usages={usages}
+          usagesNetwork={usagesNetwork}
+        />
+      )}
+      {!variableToEdit && variables.length > 0 && <VariablesUnknownTable variables={variables} dashboard={dashboard} />}
+      {variableToEdit && <VariableEditorEditor identifier={toKeyedVariableIdentifier(variableToEdit)} />}
+      <ConfirmDeleteModal
+        isOpen={variableId !== undefined}
+        varName={variableId?.id ?? ''}
+        onConfirm={onRemoveVariable}
+        onDismiss={onModalClose}
+      />
+    </Page>
+  );
+};

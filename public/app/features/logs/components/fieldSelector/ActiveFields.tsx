@@ -5,7 +5,7 @@ import { useCallback, useMemo } from 'react';
 import { type GrafanaTheme2 } from '@grafana/data';
 import { t, Trans } from '@grafana/i18n';
 import { reportInteraction } from '@grafana/runtime';
-import { useStyles2 } from '@grafana/ui';
+import { Button, useStyles2 } from '@grafana/ui';
 
 import { Field } from './Field';
 import { type FieldWithStats } from './FieldSelector';
@@ -86,9 +86,9 @@ export const ActiveFields = ({
           <div className={styles.columnHeader}>
             <Trans i18nKey="explore.logs-table-multi-select.selected-fields">Selected fields</Trans>
             {active.length > 0 && (
-              <button onClick={clear} className={styles.columnHeaderButton}>
+              <Button variant="secondary" fill="text" size="sm" onClick={clear} className={styles.columnHeaderButton}>
                 <Trans i18nKey="explore.logs-table-multi-select.reset">Reset</Trans>
-              </button>
+              </Button>
             )}
           </div>
           <DragDropContext onDragEnd={onDragEnd}>

@@ -73,7 +73,7 @@ export function toDataQueryResponse(
   }
 
   // If the response isn't in a correct shape we just ignore the data and pass empty DataQueryResponse.
-  const fetchResponse = res as FetchResponse;
+  const fetchResponse = res as FetchResponse<BackendDataSourceResponse | undefined>;
   if (fetchResponse.data?.results) {
     const results = fetchResponse.data.results;
     const refIDs = queries?.length ? queries.map((q) => q.refId) : Object.keys(results);
@@ -198,7 +198,31 @@ export interface TestingStatus {
  * @returns {TestingStatus}
  */
 export function toTestingStatus(err: FetchError): TestingStatus {
-  const queryResponse = toDataQueryResponse(err);
+  // After the foundational `any -> unknown` refactor (commit 088f3c7da2),
+  // `FetchError<T = unknown>.data` is `unknown`. The receiving `toDataQueryResponse`
+  // signature expects `{ data: BackendDataSourceResponse | undefined }` but
+  // internally re-narrows via `res as FetchResponse<BackendDataSourceResponse | undefined>`
+  // at line 76 and tolerates arbitrary err-shaped inputs at runtime.
+  //
+  // Two distinct error-traversal paths exercised by queryResponse.test.ts must
+  // both be preserved:
+  //   (1) `data.results.{refId}.error` — per-refId result error iteration produced
+  //       by `toDataQueryResponse`'s `fetchResponse.data?.results` loop; covered by
+  //       test "from api/ds/query result errors" with input
+  //       `{ status: 400, data: { results: { A: { error: 'error' } } } }`.
+  //   (2) `data.message` / `data.error` — top-level error wrapper produced by the
+  //       `toDataQueryError(res)` fallback path; covered by test "from api/ds/query
+  //       generic errors" with input `{ status: 500, data: { message, error } }`.
+  //
+  // Re-shaping `err` at this boundary (e.g., into a synthesized `DataQueryError`
+  // that copies only top-level `data.message`/`data.error` strings) drops path (1)
+  // and causes a runtime regression in datasource testing flows. Forwarding `err`
+  // verbatim preserves both paths; this is the original (pre-refactor) behavior
+  // and is the minimum-impact resolution per the AAP §0.9.2.12 minimal-change
+  // mandate and the QA report's explicit guidance for this site.
+  //
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- AAP §0.8.6 Step 7 LAST RESORT: see comment above. The cast is scoped to this single boundary; `toDataQueryResponse` internally re-narrows and is documented to accept err-shaped inputs.
+  const queryResponse = toDataQueryResponse(err as FetchResponse<BackendDataSourceResponse | undefined>);
   // POST api/ds/query errors returned as { message: string, error: string } objects
   if (queryResponse.error?.data?.message) {
     return {

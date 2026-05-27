@@ -1,9 +1,10 @@
+import { css } from '@emotion/css';
 import { type PropsWithChildren, type ReactElement, useMemo } from 'react';
 
-import { type TypedVariableModel, VariableHide } from '@grafana/data';
+import { type GrafanaTheme2, type TypedVariableModel, VariableHide } from '@grafana/data';
 import { selectors } from '@grafana/e2e-selectors';
 import { Trans } from '@grafana/i18n';
-import { Stack, Tooltip } from '@grafana/ui';
+import { Stack, Tooltip, useStyles2 } from '@grafana/ui';
 
 import { variableAdapters } from '../adapters';
 import { VARIABLE_PREFIX } from '../constants';
@@ -36,6 +37,7 @@ export const PickerRenderer = (props: Props) => {
 
 function PickerLabel({ variable }: PropsWithChildren<Props>): ReactElement | null {
   const labelOrName = useMemo(() => variable.label || variable.name, [variable]);
+  const styles = useStyles2(getStyles);
 
   if (variable.hide !== VariableHide.dontHide) {
     return null;
@@ -46,7 +48,7 @@ function PickerLabel({ variable }: PropsWithChildren<Props>): ReactElement | nul
     return (
       <Tooltip content={variable.description} placement={'bottom'}>
         <label
-          className="gf-form-label gf-form-label--variable"
+          className={styles.formLabelVariable}
           data-testid={selectors.pages.Dashboard.SubMenu.submenuItemLabels(labelOrName)}
           htmlFor={elementId}
         >
@@ -58,7 +60,7 @@ function PickerLabel({ variable }: PropsWithChildren<Props>): ReactElement | nul
 
   return (
     <label
-      className="gf-form-label gf-form-label--variable"
+      className={styles.formLabelVariable}
       data-testid={selectors.pages.Dashboard.SubMenu.submenuItemLabels(labelOrName)}
       htmlFor={elementId}
     >
@@ -66,3 +68,22 @@ function PickerLabel({ variable }: PropsWithChildren<Props>): ReactElement | nul
     </label>
   );
 }
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  formLabelVariable: css({
+    display: 'flex',
+    alignItems: 'center',
+    padding: theme.spacing(0, 1),
+    flexShrink: 0,
+    fontWeight: theme.typography.fontWeightMedium,
+    fontSize: theme.typography.size.sm,
+    height: '32px',
+    lineHeight: '32px',
+    marginRight: theme.spacing(0.5),
+    borderRadius: theme.shape.radius.default,
+    justifyContent: 'space-between',
+    color: theme.colors.primary.text,
+    background: theme.components.panel.background,
+    border: `1px solid ${theme.components.panel.borderColor}`,
+  }),
+});

@@ -56,6 +56,7 @@ export class CloudWatchLogsLanguageProvider extends LanguageProvider {
     return syntax;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- inherited signature from `LanguageProvider` abstract class in @grafana/data; strengthening params to MetricRequest would diverge from the SDK contract (LanguageProvider.request: (url: string, params?: any) => Promise<any>) which is out-of-scope per public API preservation.
   request = (url: string, params?: any): Promise<FetchResponse<BackendDataSourceResponse>> => {
     return lastValueFrom(this.datasource.logsQueryRunner.awsRequest(url, params));
   };

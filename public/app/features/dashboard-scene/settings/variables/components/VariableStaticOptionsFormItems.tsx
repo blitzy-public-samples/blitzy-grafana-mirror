@@ -54,6 +54,8 @@ export function VariableStaticOptionsFormItems({ items, onChange }: VariableStat
   };
 
   return (
+    // Design system gap: InteractiveTable does not support @hello-pangea/dnd row reordering;
+    // kept as raw per AAP §0.4.4 Gaps Inventory.
     <table className={styles.table}>
       <thead>
         <tr>

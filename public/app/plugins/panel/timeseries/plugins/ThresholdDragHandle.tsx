@@ -73,7 +73,12 @@ export const ThresholdDragHandle = ({
       position={{ x: 0, y: yPos }}
       bounds={dragBounds}
     >
-      <div className={styles.handle} style={{ color: textColor }}>
+      <div
+        className={styles.handle}
+        // Per-step dynamic text contrast color computed from step.color via theme.colors.getContrastText() at render time;
+        // kept inline per AAP §0.4.4 plugin-overlay exemption. Threading via useStyles2 parameter would generate a new Emotion class per textColor variant.
+        style={{ color: textColor }}
+      >
         <span className={styles.handleText}>{formatValue(currentValue)}</span>
       </div>
     </Draggable>

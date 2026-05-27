@@ -4,7 +4,18 @@ import * as React from 'react';
 import { type SelectableValue } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
 import { type DashboardLink } from '@grafana/schema';
-import { CollapsableSection, TagsInput, Select, Field, Input, Checkbox, Button, Stack, useStyles2 } from '@grafana/ui';
+import {
+  Box,
+  Button,
+  Checkbox,
+  CollapsableSection,
+  Field,
+  Input,
+  Select,
+  Stack,
+  TagsInput,
+  useStyles2,
+} from '@grafana/ui';
 
 import { LINK_ICON_MAP, NEW_LINK } from './utils';
 
@@ -66,7 +77,7 @@ export function DashboardLinkForm({ link, onUpdate, onGoBack }: DashboardLinkFor
   const isNew = link.title === NEW_LINK.title;
 
   return (
-    <div style={{ maxWidth: '600px' }}>
+    <Box maxWidth={75}>
       <Stack direction="column" gap={2}>
         {/* Title */}
         <Field noMargin label={t('dashboard-scene.dashboard-link-form.label-title', 'Title')}>
@@ -181,7 +192,7 @@ export function DashboardLinkForm({ link, onUpdate, onGoBack }: DashboardLinkFor
           </Button>
         </div>
       </Stack>
-    </div>
+    </Box>
   );
 }
 

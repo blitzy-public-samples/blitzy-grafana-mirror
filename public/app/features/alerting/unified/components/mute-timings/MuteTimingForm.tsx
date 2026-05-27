@@ -119,6 +119,13 @@ const MuteTimingForm = ({ muteTiming, showError, loading, provenance, editMode }
       {isProvisioned && isImported && <ImportedTimeIntervalAlert />}
       {isProvisioned && !isImported && <ProvisioningAlert resource={ProvisionedResource.MuteTiming} />}
       <FormProvider {...formApi}>
+        {/*
+          Design system gap: @grafana/ui <Form> is @deprecated and would replace this raw <form>,
+          but <Form> does not wrap children in <FormProvider>, while MuteTimingTimeInterval (a child)
+          consumes form state via useFormContext. Keeping raw <form> + react-hook-form FormProvider
+          per refactor protocol (AAP §0.4.2: "the <form> element itself stays; the internal layout
+          becomes Field/FieldSet-based"). Internal layout already uses <FieldSet>/<Field>/<Input>.
+        */}
         <form onSubmit={formApi.handleSubmit(onSubmit)} data-testid="mute-timing-form">
           <FieldSet disabled={isProvisioned || updating}>
             <Field

@@ -21,8 +21,9 @@ export function useTableStateReducer({ onColumnResize, onSortByChange, data }: T
       switch (action.type) {
         case 'columnDoneResizing':
           if (onColumnResize) {
-            const info = (newState.columnResizing?.headerIdWidths as any)?.[0];
-            const columnIdString = info?.[0];
+            const headerIdWidths: unknown = newState.columnResizing?.headerIdWidths;
+            const info = (headerIdWidths as Array<[string, number]> | undefined)?.[0];
+            const columnIdString = info?.[0] ?? '';
             const fieldIndex = parseInt(columnIdString, 10);
             const width = Math.round(newState.columnResizing.columnWidths?.[columnIdString]);
 

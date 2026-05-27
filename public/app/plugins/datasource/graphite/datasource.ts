@@ -11,11 +11,13 @@ import {
   type DataFrame,
   type DataQueryRequest,
   type DataQueryResponse,
+  type DataSourceInstanceSettings,
   type DataSourceWithQueryExportSupport,
   dateMath,
   type DateTime,
   dateTime,
   getSearchFilterScopedVar,
+  type LegacyMetricFindQueryOptions,
   type MetricFindValue,
   type QueryResultMetaStat,
   type ScopedVars,
@@ -73,6 +75,57 @@ function convertGlobToRegEx(text: string): string {
   }
 }
 
+/**
+ * Shape of a single Graphite series entry in the query response.
+ * Mirrors the structure consumed by `convertResponseToDataFrames`.
+ *
+ * Notes on optionality:
+ * - `title` is computed in-place by `convertResponseToDataFrames` (it is set to
+ *   `target` after parsing the refID suffix), so the Graphite/Metrictank wire
+ *   format does not include it.
+ * - `tags` is consumed downstream by `toDataFrame`, but is not present on every
+ *   series the Graphite/Metrictank backends emit.
+ * - `meta` is only populated by Metrictank, so it is optional in the underlying
+ *   protocol; plain Graphite responses omit it entirely.
+ */
+type GraphiteSeries = {
+  target: string;
+  title?: string;
+  tags?: Record<string, string | number>;
+  datapoints: Array<[number, number]>;
+  meta?: MetricTankSeriesMeta[];
+};
+
+/**
+ * Shape of the data returned by a Graphite `/render` query.
+ * Plain Graphite returns an array of series; Metrictank wraps them in an
+ * object with `series` and `meta`. Either form is supported.
+ */
+type GraphiteQueryResponseData = { series?: GraphiteSeries[]; meta?: MetricTankRequestMeta } | GraphiteSeries[];
+
+/**
+ * Shape of an item returned by the `/metrics/find` endpoint.
+ */
+type GraphiteMetricFindItem = { text: string; expandable: boolean | number };
+
+/**
+ * Shape of the response returned by the `/metrics/expand` endpoint.
+ * `results` is the list of fully-expanded metric names (strings).
+ */
+type GraphiteMetricExpandResponse = { results: string[] };
+
+/**
+ * Options accepted by the legacy `metricFindQuery` family of methods on this datasource.
+ * Extends the canonical `LegacyMetricFindQueryOptions` shape (`searchFilter`, `scopedVars`,
+ * `range`, `variable`) with the Graphite-specific extras (`requestId`, `timezone`, `limit`)
+ * that the runtime callers and template-variable picker pass through.
+ */
+type GraphiteMetricFindOptions = LegacyMetricFindQueryOptions & {
+  requestId?: string;
+  timezone?: string;
+  limit?: number;
+};
+
 export class GraphiteDatasource
   extends DataSourceWithBackend<GraphiteQuery, GraphiteOptions>
   implements DataSourceWithQueryExportSupport<GraphiteQuery>
@@ -93,12 +146,17 @@ export class GraphiteDatasource
   private readonly metricMappings: GraphiteLokiMapping[];
 
   constructor(
-    instanceSettings: any,
+    // `cacheTimeout` is not declared on `DataSourceInstanceSettings`; Grafana sets it on the
+    // runtime settings object, so it is added here as an optional intersection field.
+    instanceSettings: DataSourceInstanceSettings<GraphiteOptions> & { cacheTimeout?: number },
     private readonly templateSrv: TemplateSrv = getTemplateSrv()
   ) {
     super(instanceSettings);
-    this.basicAuth = instanceSettings.basicAuth;
-    this.url = instanceSettings.url;
+    // The following four fields are declared as required on the class but are optional on
+    // `DataSourceInstanceSettings`; assertions preserve the pre-existing runtime semantics
+    // (the previous `any`-typed parameter accepted whatever shape the caller supplied).
+    this.basicAuth = instanceSettings.basicAuth!;
+    this.url = instanceSettings.url!;
     this.name = instanceSettings.name;
     // graphiteVersion is set when a datasource is created but it hadn't been set in the past so we're
     // still falling back to the default behavior here for backwards compatibility (see also #17429)
@@ -106,9 +164,9 @@ export class GraphiteDatasource
     this.metricMappings = instanceSettings.jsonData.importConfiguration?.loki?.mappings || [];
     this.isMetricTank = instanceSettings.jsonData.graphiteType === GraphiteType.Metrictank;
     this.supportsTags = supportsTags(this.graphiteVersion);
-    this.cacheTimeout = instanceSettings.cacheTimeout;
-    this.rollupIndicatorEnabled = instanceSettings.jsonData.rollupIndicatorEnabled;
-    this.withCredentials = instanceSettings.withCredentials;
+    this.cacheTimeout = instanceSettings.cacheTimeout!;
+    this.rollupIndicatorEnabled = instanceSettings.jsonData.rollupIndicatorEnabled!;
+    this.withCredentials = instanceSettings.withCredentials!;
     this.funcDefs = null;
     this.funcDefsPromise = null;
     this._seriesRefLetters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -149,7 +207,9 @@ export class GraphiteDatasource
       {
         ...query,
         target: query.target || '',
+        targetFull: query.targetFull ?? '',
         textEditor: false,
+        paused: false,
       },
       this.templateSrv
     );
@@ -257,7 +317,7 @@ export class GraphiteDatasource
       httpOptions.requestId = this.name + '.panelId.' + options.panelId;
     }
 
-    return this.doGraphiteRequest(httpOptions).pipe(
+    return this.doGraphiteRequest<GraphiteQueryResponseData>(httpOptions).pipe(
       map((result) => this.convertResponseToDataFrames(result, formattedRefIdsMap))
     );
   }
@@ -394,20 +454,22 @@ export class GraphiteDatasource
     }
   }
 
-  convertResponseToDataFrames = (result: FetchResponse, refIdMap: { [key: string]: string }): DataQueryResponse => {
+  convertResponseToDataFrames = (
+    result: FetchResponse<GraphiteQueryResponseData>,
+    refIdMap: { [key: string]: string }
+  ): DataQueryResponse => {
     const data: DataFrame[] = [];
     if (!result || !result.data) {
       return { data };
     }
 
+    // Narrow the response shape: either a Metrictank-style wrapped object with
+    // `series` + `meta`, or a plain Graphite-style array of series.
+    const responseData = result.data;
     // Series are either at the root or under a node called 'series'
-    const series: Array<{
-      target: string;
-      title: string;
-      tags: Record<string, string | number>;
-      datapoints: Array<[number, number]>;
-      meta: MetricTankSeriesMeta[];
-    }> = result.data.series || result.data;
+    const series: GraphiteSeries[] | undefined = isArray(responseData) ? responseData : responseData.series;
+    // Metrictank request metadata is only present on the wrapped-object form.
+    const requestMeta: MetricTankRequestMeta | undefined = isArray(responseData) ? undefined : responseData.meta;
 
     if (!isArray(series)) {
       throw { message: 'Missing series in result', data: result };
@@ -439,7 +501,7 @@ export class GraphiteDatasource
       if (s.meta) {
         frame.meta = {
           custom: {
-            requestMetaList: result.data.meta, // info for the whole request
+            requestMetaList: requestMeta, // info for the whole request
             seriesMetaList: s.meta, // Array of metadata
           },
         };
@@ -456,8 +518,8 @@ export class GraphiteDatasource
         }
 
         // only add the request stats to the first frame
-        if (i === 0 && result.data.meta.stats) {
-          frame.meta.stats = this.getRequestStats(result.data.meta);
+        if (i === 0 && requestMeta?.stats) {
+          frame.meta.stats = this.getRequestStats(requestMeta);
         }
       }
 
@@ -658,8 +720,11 @@ export class GraphiteDatasource
     return parsedDate.unix();
   }
 
-  metricFindQuery(findQuery: string | GraphiteQuery, optionalOptions?: any): Promise<MetricFindValue[]> {
-    const options = optionalOptions || {};
+  metricFindQuery(
+    findQuery: string | GraphiteQuery,
+    optionalOptions?: GraphiteMetricFindOptions
+  ): Promise<MetricFindValue[]> {
+    const options: GraphiteMetricFindOptions = optionalOptions || {};
 
     const queryObject = convertToGraphiteQueryObject(findQuery);
     if (queryObject.queryType === GraphiteQueryType.Value || queryObject.queryType === GraphiteQueryType.MetricName) {
@@ -708,9 +773,13 @@ export class GraphiteDatasource
     }
 
     if (useExpand) {
-      return this.requestMetricExpand(interpolatedQuery, options.requestId, range);
+      // Non-null assertions preserve the pre-existing runtime behavior: when the previous
+      // `any`-typed `optionalOptions` was undefined, `undefined` flowed through to
+      // `BackendSrvRequest.requestId` (which is itself optional). Asserting here keeps that
+      // contract intact without altering the private method signatures.
+      return this.requestMetricExpand(interpolatedQuery, options.requestId!, range);
     } else {
-      return this.requestMetricFind(interpolatedQuery, options.requestId, range);
+      return this.requestMetricFind(interpolatedQuery, options.requestId!, range);
     }
   }
 
@@ -729,7 +798,7 @@ export class GraphiteDatasource
    */
   private async requestMetricRender(
     queryObject: GraphiteQuery,
-    options: any,
+    options: GraphiteMetricFindOptions,
     queryType: GraphiteQueryType
   ): Promise<MetricFindValue[]> {
     const requestId: string = options.requestId ?? `Q${this.requestCounter++}`;
@@ -831,9 +900,9 @@ export class GraphiteDatasource
     };
 
     return lastValueFrom(
-      this.doGraphiteRequest(httpOptions).pipe(
-        map((results: FetchResponse) => {
-          return _map(results.data, (metric) => {
+      this.doGraphiteRequest<GraphiteMetricFindItem[]>(httpOptions).pipe(
+        map((results) => {
+          return _map(results.data, (metric): MetricFindValue => {
             return {
               text: metric.text,
               expandable: metric.expandable ? true : false,
@@ -884,9 +953,9 @@ export class GraphiteDatasource
     };
 
     return lastValueFrom(
-      this.doGraphiteRequest(httpOptions).pipe(
-        map((results: FetchResponse) => {
-          return _map(results.data.results, (metric) => {
+      this.doGraphiteRequest<GraphiteMetricExpandResponse>(httpOptions).pipe(
+        map((results) => {
+          return _map(results.data.results, (metric): MetricFindValue => {
             return {
               text: metric,
               expandable: false,
@@ -897,8 +966,8 @@ export class GraphiteDatasource
     );
   }
 
-  async getTagsAutoComplete(expressions: string[], tagPrefix?: string, optionalOptions?: any) {
-    const options = optionalOptions || {};
+  async getTagsAutoComplete(expressions: string[], tagPrefix?: string, optionalOptions?: GraphiteMetricFindOptions) {
+    const options: GraphiteMetricFindOptions = optionalOptions || {};
     const params: BackendSrvRequest['params'] = {
       expr: _map(expressions, (expression) => this.templateSrv.replace((expression || '').trim())),
     };
@@ -937,8 +1006,13 @@ export class GraphiteDatasource
     return lastValueFrom(this.doGraphiteRequest(httpOptions).pipe(mapToTags()));
   }
 
-  async getTagValuesAutoComplete(expressions: string[], tag: string, valuePrefix?: string, optionalOptions?: any) {
-    const options = optionalOptions || {};
+  async getTagValuesAutoComplete(
+    expressions: string[],
+    tag: string,
+    valuePrefix?: string,
+    optionalOptions?: GraphiteMetricFindOptions
+  ) {
+    const options: GraphiteMetricFindOptions = optionalOptions || {};
     const params: BackendSrvRequest['params'] = {
       expr: _map(expressions, (expression) => this.templateSrv.replace((expression || '').trim())),
       tag: this.templateSrv.replace((tag || '').trim()),
@@ -979,7 +1053,7 @@ export class GraphiteDatasource
     return lastValueFrom(this.doGraphiteRequest(httpOptions).pipe(mapToTags()));
   }
 
-  async getVersion(optionalOptions: any) {
+  async getVersion(optionalOptions?: { requestId?: string }) {
     const options = optionalOptions || {};
 
     const httpOptions = {
@@ -995,8 +1069,8 @@ export class GraphiteDatasource
     }
 
     return lastValueFrom(
-      this.doGraphiteRequest(httpOptions).pipe(
-        map((results: FetchResponse) => {
+      this.doGraphiteRequest<string>(httpOptions).pipe(
+        map((results) => {
           if (results.data) {
             const semver = new SemVer(results.data);
             return valid(semver) ? results.data : '';
@@ -1043,7 +1117,7 @@ export class GraphiteDatasource
 
     if (config.featureToggles.graphiteBackendMode) {
       try {
-        const functions = await this.getResource<string>('functions');
+        const functions = await this.getResource<Parameters<typeof gfunc.parseFuncDefs>[0]>('functions');
         this.funcDefs = gfunc.parseFuncDefs(functions);
         return this.funcDefs;
       } catch (error) {
@@ -1054,8 +1128,8 @@ export class GraphiteDatasource
     }
 
     return lastValueFrom(
-      this.doGraphiteRequest(httpOptions).pipe(
-        map((results: FetchResponse) => {
+      this.doGraphiteRequest<string>(httpOptions).pipe(
+        map((results) => {
           // Fix for a Graphite bug: https://github.com/graphite-project/graphite-web/issues/2609
           // There is a fix for it https://github.com/graphite-project/graphite-web/pull/2612 but
           // it was merged to master in July 2020 but it has never been released (the last Graphite
@@ -1102,7 +1176,7 @@ export class GraphiteDatasource
 
   doGraphiteRequest<T>(
     options: BackendSrvRequest & {
-      inspect?: any;
+      inspect?: { type: string };
     }
   ) {
     if (this.basicAuth || this.withCredentials) {
@@ -1122,14 +1196,18 @@ export class GraphiteDatasource
         catchError((err) => {
           return throwError(() => {
             const reduced = reduceError(err);
-            return new Error(`${reduced.data.message}`);
+            return new Error(`${reduced.data?.message}`);
           });
         })
       );
   }
 
   // Can be removed when the frontend query path is removed
-  buildGraphiteParams(options: any, originalTargetMap: { [key: string]: string }, scopedVars?: ScopedVars): string[] {
+  buildGraphiteParams(
+    options: { targets: GraphiteQuery[]; format?: string; [key: string]: unknown },
+    originalTargetMap: { [key: string]: string },
+    scopedVars?: ScopedVars
+  ): string[] {
     const graphiteOptions = ['from', 'until', 'rawData', 'format', 'maxDataPoints', 'cacheTimeout'];
     const cleanOptions = [],
       targets: Record<string, string> = {};
@@ -1191,7 +1269,13 @@ export class GraphiteDatasource
         return;
       }
       if (value) {
-        cleanOptions.push(key + '=' + encodeURIComponent(value));
+        // `value` is typed `unknown` via the index signature on `options`; at runtime it is
+        // always one of the known graphite-option scalars (string/number/boolean) because
+        // `graphiteOptions` whitelists `from`, `until`, `rawData`, `format`, `maxDataPoints`,
+        // and `cacheTimeout`. `String(value)` performs the same `ToString` conversion that
+        // `encodeURIComponent` would do internally, so runtime behavior is preserved while
+        // satisfying the strict `consistent-type-assertions` rule without a cast.
+        cleanOptions.push(key + '=' + encodeURIComponent(String(value)));
       }
     });
 

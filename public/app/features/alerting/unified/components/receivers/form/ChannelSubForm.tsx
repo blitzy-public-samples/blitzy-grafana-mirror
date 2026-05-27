@@ -187,14 +187,13 @@ export function ChannelSubForm<R extends ChannelValues>({
       ({ dto: { name, type }, meta }) => {
         return {
           // ReactNode is supported in Select label, but types don't reflect it
-          /* eslint-disable @typescript-eslint/consistent-type-assertions, @typescript-eslint/no-explicit-any */
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- SelectableValue.label is typed as string in @grafana/data, but Select renders the ReactNode at runtime; SDK type is in the public API surface and cannot be widened (AAP §0.3.2)
           label: (
             <Stack alignItems="center" gap={1}>
               {name}
               {meta?.badge}
             </Stack>
-          ) as any,
-          /* eslint-enable @typescript-eslint/consistent-type-assertions, @typescript-eslint/no-explicit-any */
+          ) as unknown as string,
           value: type,
           description: meta?.description,
           isDisabled: meta ? !meta.enabled : false,

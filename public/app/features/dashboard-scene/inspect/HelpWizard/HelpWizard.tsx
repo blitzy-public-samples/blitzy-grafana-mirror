@@ -81,14 +81,14 @@ export function HelpWizard({ panel, onClose }: Props) {
               <Trans i18nKey="dashboard-scene.help-wizard.troubleshooting-docs">Troubleshooting docs</Trans>
             </TextLink>
           </Stack>
-          <span className="muted">
+          <span className={styles.muted}>
             <Trans i18nKey="dashboard-scene.help-wizard.troubleshooting-request-help">
               To request troubleshooting help, send a snapshot of this panel to Grafana Labs Technical Support. The
               snapshot contains query response data and panel settings.
             </Trans>
           </span>
           {hasSupportBundleAccess && (
-            <span className="muted">
+            <span className={styles.muted}>
               <Trans i18nKey="dashboard-scene-help-wizard.support-bundle">
                 You can also retrieve a support bundle containing information concerning your Grafana instance and
                 configured datasources in the <TextLink href="/support-bundles">support bundles section</TextLink>.
@@ -203,9 +203,7 @@ export function HelpWizard({ panel, onClose }: Props) {
             </Stack>
           </Field>
 
-          <div style={{ height: '100%', overflow: 'auto', display: 'flex' }}>
-            {scene && <scene.Component model={scene} />}
-          </div>
+          <div className={styles.previewWrapper}>{scene && <scene.Component model={scene} />}</div>
         </>
       )}
     </Drawer>
@@ -232,6 +230,14 @@ const getStyles = (theme: GrafanaTheme2) => {
       '& button': {
         marginLeft: theme.spacing(1),
       },
+    }),
+    muted: css({
+      color: theme.colors.text.secondary,
+    }),
+    previewWrapper: css({
+      height: '100%',
+      overflow: 'auto',
+      display: 'flex',
     }),
   };
 };

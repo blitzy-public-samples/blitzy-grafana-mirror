@@ -1,8 +1,10 @@
+import { css } from '@emotion/css';
 import { debounce } from 'lodash';
 import { memo, useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import * as React from 'react';
 
-import { Field, Input } from '@grafana/ui';
+import { type GrafanaTheme2 } from '@grafana/data';
+import { Field, Input, useStyles2 } from '@grafana/ui';
 
 interface Props {
   id?: string;
@@ -30,6 +32,7 @@ export const NumberInput = memo(
     const [text, setText] = useState('');
     const [inputCorrected, setInputCorrected] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
+    const styles = useStyles2(getStyles);
 
     useEffect(() => {
       setText(isNaN(value!) ? '' : `${value}`);
@@ -118,7 +121,7 @@ export const NumberInput = memo(
           invalid={inputCorrected}
           error={`Out of range ${range}`}
           validationMessageHorizontalOverflow={true}
-          style={{ direction: 'rtl' }}
+          className={styles.rtlField}
         >
           {renderInput()}
         </Field>
@@ -130,3 +133,9 @@ export const NumberInput = memo(
 );
 
 NumberInput.displayName = 'NumberInput';
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  rtlField: css({
+    direction: 'rtl',
+  }),
+});

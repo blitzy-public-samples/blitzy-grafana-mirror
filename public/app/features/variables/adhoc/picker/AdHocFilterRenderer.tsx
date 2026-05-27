@@ -1,4 +1,5 @@
 import { type AdHocVariableFilter, type DataSourceRef, type SelectableValue } from '@grafana/data';
+import { Stack } from '@grafana/ui';
 
 import { AdHocFilterKey } from './AdHocFilterKey';
 import { AdHocFilterValue } from './AdHocFilterValue';
@@ -34,9 +35,9 @@ export const AdHocFilterRenderer = ({
         onChange={onKeyChange}
         allFilters={allFilters}
       />
-      <div className="gf-form" data-testid="OperatorSegment-value-wrapper">
+      <Stack direction="row" gap={0.5} alignItems="center" data-testid="OperatorSegment-value-wrapper">
         <OperatorSegment disabled={disabled} value={operator} onChange={onOperatorChange} />
-      </div>
+      </Stack>
       <AdHocFilterValue
         disabled={disabled}
         datasource={datasource}

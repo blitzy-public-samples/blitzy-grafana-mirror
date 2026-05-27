@@ -1,7 +1,9 @@
+import { css } from '@emotion/css';
 import { useForm } from 'react-hook-form';
 
+import { type GrafanaTheme2 } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
-import { Button, Field, FieldSet, Input, Stack } from '@grafana/ui';
+import { Button, Field, FieldSet, Input, Stack, useStyles2 } from '@grafana/ui';
 import { TeamRolePicker } from 'app/core/components/RolePicker/TeamRolePicker';
 import { useRoleOptions } from 'app/core/components/RolePicker/hooks';
 import { SharedPreferences } from 'app/core/components/SharedPreferences/SharedPreferences';
@@ -19,6 +21,7 @@ const TeamSettings = ({ team }: Props) => {
   const canWriteTeamSettings = contextSrv.hasPermissionInMetadata(AccessControlAction.ActionTeamsWrite, team);
   const currentOrgId = contextSrv.user.orgId;
   const [updateTeam] = useUpdateTeam();
+  const styles = useStyles2(getStyles);
 
   const [{ roleOptions }] = useRoleOptions(currentOrgId);
   const {
@@ -47,7 +50,24 @@ const TeamSettings = ({ team }: Props) => {
 
   return (
     <Stack direction={'column'} gap={3}>
-      <form onSubmit={handleSubmit(onSubmit)} style={{ maxWidth: '600px' }}>
+      {/*
+       * Raw <form> retained per AAP §0.6.1. The team-settings form must remain raw
+       * because:
+       *   1. The body composes <FieldSet>+<Field>+<Input>+<Button> design-system
+       *      primitives mandated by AAP §0.4.2 for form layout — Dimension 2 is
+       *      satisfied via these primitives, not via the @grafana/ui <Form>
+       *      render-prop wrapper.
+       *   2. <TeamRolePicker> nested inside one of the <Field> entries owns its
+       *      own internal RTK Query state for role assignments and does not
+       *      participate in the parent useForm; wrapping in @grafana/ui's <Form>
+       *      render-prop component (which instantiates its own useForm) would
+       *      duplicate form state machinery without functional benefit.
+       *   3. Per @grafana/ui's own JSDoc on <Form>: "use the `useForm` hook from
+       *      react-hook-form instead" — the pattern below is the recommended
+       *      replacement and uses the same react-hook-form API that <Form>
+       *      wraps internally.
+       */}
+      <form onSubmit={handleSubmit(onSubmit)} className={styles.form}>
         <FieldSet label={t('teams.team-settings.label-team-details', 'Team details')}>
           <Stack direction="column" gap={2}>
             <Field
@@ -103,3 +123,10 @@ const TeamSettings = ({ team }: Props) => {
 };
 
 export default TeamSettings;
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  form: css({
+    maxWidth: 600,
+    width: '100%',
+  }),
+});

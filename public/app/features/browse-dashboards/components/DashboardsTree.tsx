@@ -8,7 +8,7 @@ import InfiniteLoader from 'react-window-infinite-loader';
 import { type GrafanaTheme2, isTruthy } from '@grafana/data';
 import { selectors } from '@grafana/e2e-selectors';
 import { Trans, t } from '@grafana/i18n';
-import { useStyles2 } from '@grafana/ui';
+import { Box, useStyles2 } from '@grafana/ui';
 import { type DashboardViewItem } from 'app/features/search/types';
 
 import { canSelectItems } from '../permissions';
@@ -90,9 +90,9 @@ export function DashboardsTree({
       id: 'name',
       width: 3,
       Header: (
-        <span style={{ paddingLeft: 24 }}>
+        <Box element="span" paddingLeft={3}>
           <Trans i18nKey="browse-dashboards.dashboards-tree.name-column">Name</Trans>
-        </span>
+        </Box>
       ),
       Cell: (props: DashboardsTreeCellProps) => <NameCell {...props} onFolderClick={onFolderClick} />,
     };

@@ -62,15 +62,18 @@ type Transformations = keyof typeof transformsMap;
 
 type Transformation = {
   id: string;
-  options: ReduceTransformerOptions;
+  // The `options` may carry the strict `ReduceTransformerOptions` shape (from `@grafana/data/internal`)
+  // or a permissive structural shape produced by the legacy-Angular migration. The migration emits
+  // reducer identifiers as plain strings (sourced from `columnsMap` value keys, all of which are
+  // valid `ReducerID` enum values at runtime). The strict `ReduceTransformerOptions['reducers']`
+  // is `ReducerID[]` (a nominal string enum), which TypeScript cannot accept from a `string[]`
+  // produced by an indexed-map lookup. Widening to the union preserves backward compatibility
+  // (any value satisfying `ReduceTransformerOptions` still satisfies the union) while permitting
+  // the migration's structural literals to type-check without an unsafe assertion.
+  options: ReduceTransformerOptions | { reducers: string[]; includeTimeField?: boolean };
 };
 
 type Columns = keyof typeof columnsMap;
-
-type Column = {
-  value: Columns;
-  text: string;
-};
 
 type ColorModes = keyof typeof colorModeMap;
 
@@ -83,16 +86,22 @@ const generateThresholds = (thresholds: string[], colors: string[]) => {
 
 const migrateTransformations = (
   panel: PanelModel<Partial<Options>>,
-  oldOpts: { columns: any; transform: Transformations }
+  oldOpts: { columns?: LegacyTableColumn[]; transform?: string }
 ) => {
   const transformations: Transformation[] = panel.transformations ?? [];
-  if (Object.keys(transformsMap).includes(oldOpts.transform)) {
-    const opts: ReduceTransformerOptions = {
+  if (isLegacyTableTransform(oldOpts.transform)) {
+    // `opts` is typed structurally (matching the permissive second branch of `Transformation.options`)
+    // so the `string[]` produced by the `columnsMap` lookups below can be assigned without an
+    // unsafe `as ReducerID[]` cast. The runtime values of `columnsMap` are all valid `ReducerID`
+    // enum members, so this widening preserves the original runtime behavior.
+    const opts: { reducers: string[]; includeTimeField?: boolean } = {
       reducers: [],
     };
     if (oldOpts.transform === 'timeseries_aggregations') {
       opts.includeTimeField = false;
-      opts.reducers = oldOpts.columns.map((column: Column) => columnsMap[column.value]);
+      opts.reducers = (oldOpts.columns ?? []).flatMap((column) =>
+        isLegacyTableColumnReducer(column.value) ? [columnsMap[column.value]] : []
+      );
     }
     transformations.push({
       id: transformsMap[oldOpts.transform],
@@ -102,24 +111,49 @@ const migrateTransformations = (
   return transformations;
 };
 
-type Style = {
-  unit: string;
-  type: string;
-  alias: string;
-  decimals: number;
-  colors: string[];
-  colorMode: ColorModes;
+interface LegacyTableStyle {
   pattern: string;
-  thresholds: string[];
+  unit?: string;
+  type?: string;
+  alias?: string;
+  decimals?: number;
+  colors?: string[];
+  colorMode?: string | null;
+  thresholds?: string[];
   align?: string;
-  dateFormat: string;
-  link: boolean;
+  dateFormat?: string;
+  link?: boolean;
   linkTargetBlank?: boolean;
   linkTooltip?: string;
   linkUrl?: string;
+}
+
+interface LegacyTableColumn {
+  text?: string;
+  value?: string;
+}
+
+interface LegacyTableOptions {
+  angular?: {
+    columns?: LegacyTableColumn[];
+    transform?: string;
+    styles?: LegacyTableStyle[];
+  };
+}
+
+const isLegacyTableTransform = (transform: string | undefined): transform is Transformations => {
+  return transform !== undefined && transform in transformsMap;
 };
 
-const migrateTableStyleToOverride = (style: Style) => {
+const isLegacyTableColumnReducer = (value: string | undefined): value is Columns => {
+  return value !== undefined && value in columnsMap;
+};
+
+const isLegacyColorMode = (mode: string | null | undefined): mode is ColorModes => {
+  return typeof mode === 'string' && mode in colorModeMap;
+};
+
+const migrateTableStyleToOverride = (style: LegacyTableStyle) => {
   const fieldMatcherId = /^\/.*\/$/.test(style.pattern) ? FieldMatcherID.byRegexp : FieldMatcherID.byName;
   const override: ConfigOverrideRule = {
     matcher: {
@@ -177,7 +211,7 @@ const migrateTableStyleToOverride = (style: Style) => {
     });
   }
 
-  if (style.colorMode) {
+  if (isLegacyColorMode(style.colorMode)) {
     override.properties.push({
       id: 'custom.cellOptions',
       value: {
@@ -206,7 +240,7 @@ const migrateTableStyleToOverride = (style: Style) => {
   return override;
 };
 
-const migrateDefaults = (prevDefaults: Style) => {
+const migrateDefaults = (prevDefaults: LegacyTableStyle | undefined) => {
   let defaults: FieldConfig = {
     custom: {},
   };
@@ -226,12 +260,16 @@ const migrateDefaults = (prevDefaults: Style) => {
     if (prevDefaults.thresholds && prevDefaults.thresholds.length) {
       const thresholds: ThresholdsConfig = {
         mode: ThresholdsMode.Absolute,
-        steps: generateThresholds(prevDefaults.thresholds, prevDefaults.colors),
+        // `LegacyTableStyle.colors` is optional: legacy fixtures (e.g., a `time` hidden-style
+        // entry) may omit it entirely. Default to an empty array so `generateThresholds`'s
+        // strict `string[]` parameter is satisfied; the resulting step `color` fields will be
+        // `undefined`, matching the original runtime behavior when `colors` was missing.
+        steps: generateThresholds(prevDefaults.thresholds, prevDefaults.colors ?? []),
       };
       defaults.thresholds = thresholds;
     }
 
-    if (prevDefaults.colorMode) {
+    if (isLegacyColorMode(prevDefaults.colorMode)) {
       defaults.custom.cellOptions = {
         type: colorModeMap[prevDefaults.colorMode],
       };
@@ -246,15 +284,16 @@ const migrateDefaults = (prevDefaults: Style) => {
 export const tablePanelChangedHandler = (
   panel: PanelModel<Partial<Options>>,
   prevPluginId: string,
-  prevOptions: any
+  prevOptions: LegacyTableOptions
 ) => {
   // Changing from angular table panel
   if (prevPluginId === 'table-old' && prevOptions.angular) {
     const oldOpts = prevOptions.angular;
     const transformations = migrateTransformations(panel, oldOpts);
-    const prevDefaults = oldOpts.styles.find((style: any) => style.pattern === '/.*/');
+    const prevDefaults = oldOpts.styles?.find((style) => style.pattern === '/.*/');
     const defaults = migrateDefaults(prevDefaults);
-    const overrides = oldOpts.styles.filter((style: any) => style.pattern !== '/.*/').map(migrateTableStyleToOverride);
+    const overrides =
+      oldOpts.styles?.filter((style) => style.pattern !== '/.*/').map(migrateTableStyleToOverride) ?? [];
 
     panel.transformations = transformations;
     panel.fieldConfig = {

@@ -1,15 +1,46 @@
-import { FieldColorModeId, FieldConfigProperty, FieldMatcherID, type PanelModel } from '@grafana/data';
+import {
+  FieldColorModeId,
+  FieldConfigProperty,
+  FieldMatcherID,
+  type PanelTypeChangedHandler,
+} from '@grafana/data';
 import { LegendDisplayMode } from '@grafana/schema';
 
 import { type Options, PieChartLabels, PieChartLegendValues, PieChartType } from './panelcfg.gen';
 
-export const PieChartPanelChangedHandler = (
-  panel: PanelModel<Partial<Options>> | any,
-  prevPluginId: string,
-  prevOptions: any
+/**
+ * Shape of the legend block on the legacy `grafana-piechart-panel` (Angular) options.
+ * Modeled here so the migration handler can read `prevOptions.angular.legend` without `any`.
+ */
+interface LegacyAngularPieLegend {
+  show?: boolean;
+  values?: boolean;
+  percentage?: boolean;
+}
+
+/**
+ * Shape of the legacy `grafana-piechart-panel` (Angular) options the migration handler reads
+ * from `prevOptions.angular`.
+ */
+interface LegacyAngularPieOptions {
+  aliasColors?: Record<string, string>;
+  format?: string;
+  decimals?: number;
+  valueName?: string;
+  legendType?: string;
+  pieType?: string;
+  legend?: LegacyAngularPieLegend;
+}
+
+export const PieChartPanelChangedHandler: PanelTypeChangedHandler<Options> = (
+  panel,
+  prevPluginId,
+  prevOptions
 ) => {
   if (prevPluginId === 'grafana-piechart-panel' && prevOptions.angular) {
-    const angular = prevOptions.angular;
+    // Assign through a typed local to narrow the legacy `prevOptions.angular` shape without an
+    // `as` assertion, matching the canonical assignment-based narrowing in `barchart/migrations.ts`.
+    const angular: LegacyAngularPieOptions = prevOptions.angular;
     const overrides = [];
     let options: Options = panel.options;
 
@@ -108,10 +139,10 @@ export const PieChartPanelChangedHandler = (
     if (angular.legendType === 'On graph') {
       options.legend.showLegend = false;
       options.displayLabels = [PieChartLabels.Name];
-      if (angular.legend.values) {
+      if (angular.legend?.values) {
         options.displayLabels.push(PieChartLabels.Value);
       }
-      if (angular.legend.percentage) {
+      if (angular.legend?.percentage) {
         options.displayLabels.push(PieChartLabels.Percent);
       }
     }

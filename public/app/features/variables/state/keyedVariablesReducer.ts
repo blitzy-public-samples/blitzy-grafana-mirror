@@ -15,7 +15,7 @@ export const initialKeyedVariablesState: KeyedVariablesState = { keys: {} };
 
 export interface KeyedAction {
   key: string;
-  action: PayloadAction<any>;
+  action: PayloadAction<unknown>;
 }
 
 const keyedAction = (payload: KeyedAction) => ({
@@ -23,7 +23,7 @@ const keyedAction = (payload: KeyedAction) => ({
   payload,
 });
 
-export function toKeyedAction(key: string, action: PayloadAction<any>): PayloadAction<KeyedAction> {
+export function toKeyedAction(key: string, action: PayloadAction<unknown>): PayloadAction<KeyedAction> {
   const keyAsString = toStateKey(key);
   return keyedAction({ key: keyAsString, action });
 }

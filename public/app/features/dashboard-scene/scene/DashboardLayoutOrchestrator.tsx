@@ -1001,6 +1001,7 @@ function DragPreviewRenderer({ model }: SceneComponentProps<DashboardLayoutOrche
   const preview = (
     <div
       className={styles.preview}
+      // Design system gap: dynamic drag preview style — runtime values (left/top/width/height from pointer events) cannot use static useStyles2 emotion class
       style={{
         left: previewLeft,
         top: previewTop,

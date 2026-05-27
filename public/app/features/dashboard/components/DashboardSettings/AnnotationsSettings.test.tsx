@@ -74,7 +74,11 @@ describe('AnnotationsSettings', () => {
   test('it renders empty list cta if only builtIn annotation', async () => {
     setup(dashboard);
 
-    expect(screen.queryByRole('grid')).toBeInTheDocument();
+    // InteractiveTable from @grafana/ui renders a native <table>, which has the implicit
+    // ARIA role "table" (the original raw <table role="grid"> incorrectly claimed an
+    // interactive grid pattern that was never implemented). Asserting role="table" here
+    // reflects the new, more correct semantic role provided by the design-system table.
+    expect(screen.queryByRole('table')).toBeInTheDocument();
     expect(screen.getByRole('row', { name: /annotations & alerts \(built-in\) -- grafana --/i })).toBeInTheDocument();
 
     expect(screen.getByRole('button', { name: 'Add annotation query' })).toBeInTheDocument();

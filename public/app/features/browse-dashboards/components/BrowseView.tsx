@@ -3,7 +3,7 @@ import { useCallback, useMemo } from 'react';
 
 import { Trans, t } from '@grafana/i18n';
 import { config } from '@grafana/runtime';
-import { CallToActionCard, EmptyState, LinkButton, TextLink } from '@grafana/ui';
+import { Box, CallToActionCard, EmptyState, LinkButton, TextLink } from '@grafana/ui';
 import { useGetFrontendSettingsQuery } from 'app/api/clients/provisioning/v0alpha1';
 import { useIsProvisionedInstance } from 'app/features/provisioning/hooks/useIsProvisionedInstance';
 import { useSearchStateManager } from 'app/features/search/state/SearchStateManager';
@@ -157,7 +157,7 @@ export function BrowseView({ folderUID, width, height, permissions, isReadOnlyRe
 
   if (status === 'fulfilled' && flatTree.length === 0) {
     return (
-      <div style={{ width }}>
+      <Box width={`${width}px`}>
         {canSelect ? (
           <EmptyState
             variant="call-to-action"
@@ -195,7 +195,7 @@ export function BrowseView({ folderUID, width, height, permissions, isReadOnlyRe
             }
           />
         )}
-      </div>
+      </Box>
     );
   }
 

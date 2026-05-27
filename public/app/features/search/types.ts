@@ -93,7 +93,7 @@ export interface DashboardViewItem {
 }
 
 export interface SearchAction extends Action {
-  payload?: any;
+  payload?: unknown;
 }
 
 export type EventTrackingNamespace = 'manage_dashboards' | 'dashboard_search';

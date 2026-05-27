@@ -1,6 +1,6 @@
 import { lastValueFrom } from 'rxjs';
 
-import { type DataSourceSettings, type DataSourceJsonData } from '@grafana/data';
+import { type DataSourcePluginMeta, type DataSourceSettings, type DataSourceJsonData } from '@grafana/data';
 import { config } from '@grafana/runtime';
 import { getFeatureFlagClient } from '@grafana/runtime/internal';
 import { getBackendSrv } from 'app/core/services/backend_srv';
@@ -246,16 +246,22 @@ export const createDataSourceWithK8sAPI = async (dataSource: Partial<DataSourceS
       }
     }
   }
-  return getBackendSrv().post(
+  return getBackendSrv().post<DataSourceSettingsK8s>(
     `/apis/${dsK8sSettings.apiVersion}/namespaces/${config.namespace}/datasources`,
     dsK8sSettings
   );
 };
 
-export const createDataSource = (dataSource: Partial<DataSourceSettings>) =>
-  getBackendSrv().post('/api/datasources', dataSource);
+interface CreateDataSourceResponse {
+  datasource: DataSourceSettings;
+  meta?: { info?: { version?: string } };
+}
 
-export const getDataSourcePlugins = () => getBackendSrv().get('/api/plugins', { enabled: 1, type: 'datasource' });
+export const createDataSource = (dataSource: Partial<DataSourceSettings>) =>
+  getBackendSrv().post<CreateDataSourceResponse>('/api/datasources', dataSource);
+
+export const getDataSourcePlugins = () =>
+  getBackendSrv().get<DataSourcePluginMeta[]>('/api/plugins', { enabled: 1, type: 'datasource' });
 
 export const updateDataSource = async (dataSource: DataSourceSettings) => {
   if (getFeatureFlagClient().getBooleanValue('datasources.config.ui.useNewDatasourceCRUDAPIs', false)) {

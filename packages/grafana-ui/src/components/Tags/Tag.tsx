@@ -39,6 +39,7 @@ const TagComponent = forwardRef<HTMLElement, Props>(({ name, onClick, icon, clas
   const classes = cx(styles.wrapper, className, { [styles.hover]: onClick !== undefined });
 
   return onClick ? (
+    // Design system gap: this file IS the @grafana/ui Tag primitive. The raw <button> element is the canonical clickable-tag implementation. Kept as raw per refactor protocol (AAP §0.4.4).
     <button {...rest} className={classes} onClick={onTagClick} ref={ref as React.ForwardedRef<HTMLButtonElement>}>
       {icon && <Icon name={icon} />}
       {name}

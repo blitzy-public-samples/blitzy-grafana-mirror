@@ -1,11 +1,12 @@
+import { css } from '@emotion/css';
 import debounce from 'debounce-promise';
 import { isNil } from 'lodash';
 import { useState, useEffect, useMemo } from 'react';
 
-import { type SelectableValue } from '@grafana/data';
+import { type GrafanaTheme2, type SelectableValue } from '@grafana/data';
 import { t } from '@grafana/i18n';
 import { getBackendSrv } from '@grafana/runtime';
-import { AsyncSelect } from '@grafana/ui';
+import { AsyncSelect, useStyles2 } from '@grafana/ui';
 import { type Team } from 'app/types/teams';
 
 export interface Props {
@@ -15,6 +16,7 @@ export interface Props {
 }
 
 export const TeamPicker = ({ onSelected, className, teamId }: Props) => {
+  const styles = useStyles2(getStyles);
   const [isLoading, setIsLoading] = useState(false);
   const [value, setValue] = useState<SelectableValue<Team> | undefined>();
 
@@ -24,8 +26,8 @@ export const TeamPicker = ({ onSelected, className, teamId }: Props) => {
     }
 
     getBackendSrv()
-      .get(`/api/teams/${teamId}`)
-      .then((team: Team) => {
+      .get<Team>(`/api/teams/${teamId}`)
+      .then((team) => {
         setValue({
           value: team,
           label: team.name,
@@ -45,8 +47,8 @@ export const TeamPicker = ({ onSelected, className, teamId }: Props) => {
           }
 
           return getBackendSrv()
-            .get(`/api/teams/search?perpage=100&page=1&query=${query}`)
-            .then((result: { teams: Team[] }) => {
+            .get<{ teams: Team[] }>(`/api/teams/search?perpage=100&page=1&query=${query}`)
+            .then((result) => {
               const teams: Array<SelectableValue<Team>> = result.teams.map((team) => {
                 return {
                   value: team,
@@ -66,7 +68,7 @@ export const TeamPicker = ({ onSelected, className, teamId }: Props) => {
   );
 
   return (
-    <div className="user-picker" data-testid="teamPicker">
+    <div className={styles.wrapper} data-testid="teamPicker">
       <AsyncSelect
         isLoading={isLoading}
         defaultOptions={true}
@@ -81,3 +83,7 @@ export const TeamPicker = ({ onSelected, className, teamId }: Props) => {
     </div>
   );
 };
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  wrapper: css({}),
+});

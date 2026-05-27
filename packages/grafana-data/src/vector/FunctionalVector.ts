@@ -62,6 +62,7 @@ export abstract class FunctionalVector<T = unknown> {
     return this.toArray().join(separator);
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- toJSON() is overridden by subclasses (MutableDataFrame returns DataFrameDTO, not T[]); narrowing breaks override
   toJSON(): any {
     return this.toArray();
   }
@@ -117,11 +118,14 @@ export abstract class FunctionalVector<T = unknown> {
   lastIndexOf(searchElement: T, fromIndex?: number | undefined): number {
     return this.toArray().lastIndexOf(searchElement, fromIndex);
   }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches lib.es5.d.ts Array.prototype thisArg signature
   every<S extends T>(predicate: (value: T, index: number, array: T[]) => value is S, thisArg?: any): this is S[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches lib.es5.d.ts Array.prototype thisArg signature
   every(predicate: (value: T, index: number, array: T[]) => unknown, thisArg?: any): boolean;
-  every(predicate: any, thisArg?: unknown): boolean {
+  every(predicate: (value: T, index: number, array: T[]) => unknown, thisArg?: unknown): boolean {
     return this.toArray().every(predicate, thisArg);
   }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches lib.es5.d.ts Array.prototype thisArg signature
   some(predicate: (value: T, index: number, array: T[]) => unknown, thisArg?: any): boolean {
     return this.toArray().some(predicate, thisArg);
   }
@@ -145,11 +149,14 @@ export abstract class FunctionalVector<T = unknown> {
   }
   find<S extends T>(
     predicate: (this: void, value: T, index: number, obj: T[]) => value is S,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches lib.es5.d.ts Array.prototype thisArg signature
     thisArg?: any
   ): S | undefined;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches lib.es5.d.ts Array.prototype thisArg signature
   find(predicate: (value: T, index: number, obj: T[]) => unknown, thisArg?: any): T | undefined {
     return this.toArray().find(predicate, thisArg);
   }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches lib.es5.d.ts Array.prototype thisArg signature
   findIndex(predicate: (value: T, index: number, obj: T[]) => unknown, thisArg?: any): number {
     return this.toArray().findIndex(predicate, thisArg);
   }
@@ -176,14 +183,14 @@ export abstract class FunctionalVector<T = unknown> {
   }
 }
 
-const emptyarray: any[] = [];
-
 /**
  * Use functional programming with your vector
  *
  * @deprecated use a simple Arrays
  */
 export function vectorator<T>(vector: FunctionalVector<T>) {
+  const emptyarray: T[] = [];
+
   return {
     *[Symbol.iterator]() {
       for (let i = 0; i < vector.length; i++) {

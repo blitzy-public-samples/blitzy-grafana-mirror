@@ -420,6 +420,7 @@ export const Combobox = <T extends string | number>(props: ComboboxProps<T>) => 
       <Portal root={portalContainer}>
         <div
           className={cx(styles.menu, !isOpen && styles.menuClosed)}
+          // Design system gap: inline style required by floating-ui; cannot migrate without breaking floating-ui positioning
           style={{
             ...floatStyles,
             pointerEvents: 'auto', // Override container's pointer-events: none

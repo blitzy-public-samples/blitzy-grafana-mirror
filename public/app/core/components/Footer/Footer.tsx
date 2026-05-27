@@ -105,7 +105,7 @@ export const Footer = memo(({ customLinks, hideEdition }: Props) => {
 
   return (
     <footer className={styles.footer}>
-      <div className="text-center">
+      <div className={styles.textCenter}>
         <ul className={styles.list}>
           {links.map((link, index) => (
             <li className={styles.listItem} key={index}>
@@ -167,5 +167,8 @@ const getStyles = (theme: GrafanaTheme2) => ({
       content: "''",
       paddingLeft: 0,
     },
+  }),
+  textCenter: css({
+    textAlign: 'center',
   }),
 });

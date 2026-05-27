@@ -109,6 +109,18 @@ export function AddToDashboardForm<TOptions extends AbsolutePathOptions | undefi
   }, []);
 
   return (
+    /*
+     * Design system gap: this file cannot migrate to @grafana/ui <Form>. The form has TWO
+     * submit buttons ("Open in new tab" and "Open dashboard") that each route the same
+     * react-hook-form data through a DIFFERENT handler via
+     *   handleSubmit(partial(onSubmit, true))  // openInNewTab=true
+     *   handleSubmit(partial(onSubmit, false)) // openInNewTab=false
+     * The <Form> render-prop API accepts a single `onSubmit={handler}` and internally wires
+     * it as `<form onSubmit={handleSubmit(handler)}>`, so it cannot dispatch to two
+     * different submit handlers selected by which button was clicked. Per AAP §0.6.4
+     * minimal-change mandate, the raw <form> with imperative `useForm()` + per-button
+     * `onClick={handleSubmit(partial(...))}` is retained.
+     */
     <form>
       {/* For custom form options */}
       {children}

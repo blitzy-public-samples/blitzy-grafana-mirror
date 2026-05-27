@@ -14,6 +14,9 @@ export const parseInitFromOptions = (options: BackendSrvRequest): RequestInit =>
   return {
     method,
     headers,
+    // `parseBody` returns `BodyInit | null | undefined` after explicit runtime
+    // narrowing, so `body` can be passed directly to `RequestInit.body` without
+    // a type assertion.
     body,
     credentials,
     signal: options.abortSignal,
@@ -72,7 +75,10 @@ function sanitizeHeader(v: string) {
 export const parseHeaders = (options: BackendSrvRequest) => {
   const safeHeaders: Record<string, string> = {};
   for (let [key, value] of Object.entries(options.headers ?? {})) {
-    safeHeaders[sanitizeHeader(key)] = sanitizeHeader(value);
+    // Header values are `unknown` per BackendSrvRequest's public type; coerce to
+    // string before sanitization so the runtime behavior (string round-trip)
+    // is unchanged.
+    safeHeaders[sanitizeHeader(key)] = sanitizeHeader(String(value));
   }
   const headers = new Headers(safeHeaders);
   const parsers = headerParsers.filter((parser) => parser.canParse(options));
@@ -104,19 +110,56 @@ export const isContentTypeJson = (headers: Headers) => {
   return false;
 };
 
-export const parseBody = (options: BackendSrvRequest, isAppJson: boolean) => {
+export const parseBody = (options: BackendSrvRequest, isAppJson: boolean): BodyInit | null | undefined => {
   if (!options) {
-    return options;
+    return undefined;
   }
 
-  if (!options.data || typeof options.data === 'string') {
-    return options.data;
+  // `options.data` is typed `unknown` on BackendSrvRequest (per the
+  // `<T = unknown>` defaulting introduced in @grafana/runtime). The branches
+  // below narrow `data` via runtime checks rather than via a type assertion,
+  // which lets us advertise an explicit `BodyInit | null | undefined` return
+  // type that flows directly into `RequestInit.body` at the call site.
+  const data = options.data;
+
+  if (data == null) {
+    return undefined;
   }
-  if (options.data instanceof Blob) {
-    return options.data;
+  if (typeof data === 'string') {
+    return data;
+  }
+  if (data instanceof Blob) {
+    return data;
   }
 
-  return isAppJson ? JSON.stringify(options.data) : new URLSearchParams(options.data);
+  if (isAppJson) {
+    // JSON.stringify accepts `unknown` and returns a string — always BodyInit.
+    return JSON.stringify(data);
+  }
+
+  // URL-encoded form body. URLSearchParams' constructor accepts
+  // `URLSearchParams | string | string[][] | Record<string, string>`. After the
+  // narrows above, `data` is one of: an existing `URLSearchParams` instance
+  // (passthrough), an array (treated as the `string[][]` init form), a non-null
+  // object (treated as the `Record<string, string>` init form via
+  // `Object.entries`), or some other primitive (number, boolean) that we
+  // coerce to a string. Inner values are passed through `String()` to match
+  // URLSearchParams' default value-coercion behavior, preserving the prior
+  // implementation's runtime semantics.
+  if (data instanceof URLSearchParams) {
+    return data;
+  }
+  if (Array.isArray(data)) {
+    const entries: string[][] = data.map((pair) =>
+      Array.isArray(pair) && pair.length >= 2 ? [String(pair[0]), String(pair[1])] : ['', '']
+    );
+    return new URLSearchParams(entries);
+  }
+  if (typeof data === 'object') {
+    const entries: string[][] = Object.entries(data).map(([key, value]) => [key, String(value)]);
+    return new URLSearchParams(entries);
+  }
+  return new URLSearchParams(String(data));
 };
 
 export async function parseResponseBody<T>(
@@ -158,14 +201,22 @@ export async function parseResponseBody<T>(
   return textData as T;
 }
 
-function serializeParams(data: Record<string, string | number | boolean | Array<string | number | boolean>>): string {
+function serializeParams(data: Record<string, unknown>): string {
+  // Values arrive typed as `unknown` (the field type on `BackendSrvRequest.params`).
+  // The runtime invariant — enforced by callers across the codebase — is that
+  // remaining values are strings, numbers, booleans, or arrays of those
+  // primitives. Inner values are passed through `String()` before
+  // `encodeURIComponent` to preserve the prior implementation's behavior of
+  // coercing primitives to their string form for URL encoding.
   return Object.keys(data)
     .map((key) => {
       const value = data[key];
       if (Array.isArray(value)) {
-        return value.map((arrayValue) => `${encodeURIComponent(key)}=${encodeURIComponent(arrayValue)}`).join('&');
+        return value
+          .map((arrayValue) => `${encodeURIComponent(key)}=${encodeURIComponent(String(arrayValue))}`)
+          .join('&');
       }
-      return `${encodeURIComponent(key)}=${encodeURIComponent(value)}`;
+      return `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`;
     })
     .join('&');
 }
@@ -178,7 +229,22 @@ function serializeParams(data: Record<string, string | number | boolean | Array<
  */
 export const parseUrlFromOptions = (options: BackendSrvRequest): Observable<string> => {
   try {
-    const cleanParams = omitBy(options.params, (v) => v === undefined || (v && v.length === 0));
+    // `options.params` values are typed `unknown` on BackendSrvRequest. Drop
+    // undefined entries and empty arrays/strings; non-array, non-string truthy
+    // values (numbers, booleans) are preserved for serialization.
+    const cleanParams = omitBy(options.params, (v) => {
+      if (v === undefined) {
+        return true;
+      }
+      if (Array.isArray(v) || typeof v === 'string') {
+        return v.length === 0;
+      }
+      return false;
+    });
+    // After omitBy the values are still typed `unknown`. `serializeParams`
+    // accepts `Record<string, unknown>` and coerces inner values via `String()`
+    // for the URL-encoded output, preserving the prior runtime behavior of
+    // passing raw values to `encodeURIComponent`.
     const serializedParams = serializeParams(cleanParams);
 
     const url = options.validatePath //

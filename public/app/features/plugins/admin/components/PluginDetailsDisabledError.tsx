@@ -3,7 +3,7 @@ import { type ReactElement } from 'react';
 import { PluginErrorCode } from '@grafana/data';
 import { selectors } from '@grafana/e2e-selectors';
 import { Trans, t } from '@grafana/i18n';
-import { Alert, Stack } from '@grafana/ui';
+import { Alert, Stack, TextLink } from '@grafana/ui';
 
 import { getLatestCompatibleVersion, isDisabledAngularPlugin, isNonAngularVersion } from '../helpers';
 import { type CatalogPlugin } from '../types';
@@ -32,25 +32,15 @@ export function PluginDetailsDisabledError({ className, plugin }: Props): ReactE
         </p>
       )}
       <Stack direction="column" gap={1}>
-        <a
-          href="https://grafana.com/docs/grafana/latest/administration/cli/#plugins-commands"
-          className="external-link"
-          target="_blank"
-          rel="noreferrer"
-        >
+        <TextLink href="https://grafana.com/docs/grafana/latest/administration/cli/#plugins-commands" external>
           <Trans i18nKey="plugins.details.disabled-error.manage-plugins-link">Read more about managing plugins</Trans>
-        </a>
+        </TextLink>
         {plugin.error === PluginErrorCode.angular && (
-          <a
-            href="https://grafana.com/docs/grafana/latest/developers/angular_deprecation/"
-            className="external-link"
-            target="_blank"
-            rel="noreferrer"
-          >
+          <TextLink href="https://grafana.com/docs/grafana/latest/developers/angular_deprecation/" external>
             <Trans i18nKey="plugins.details.disabled-error.angular-deprecation-link">
               Read more about angular deprecation
             </Trans>
-          </a>
+          </TextLink>
         )}
       </Stack>
     </Alert>

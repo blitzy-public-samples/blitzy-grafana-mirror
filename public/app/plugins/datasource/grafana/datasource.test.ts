@@ -22,11 +22,15 @@ describe('grafana data source', () => {
   });
 
   describe('when executing an annotations query', () => {
-    let calledBackendSrvParams: Parameters<(typeof backendSrv)['get']>[1];
+    // The Grafana annotation backend endpoint accepts query params where `tags`
+    // is a string array (after template-variable interpolation). The captured
+    // params shape is narrower than the runtime-level `Record<string, unknown>`
+    // typing on `BackendSrvRequest.params`, so we narrow here.
+    let calledBackendSrvParams: { tags?: string[] } | undefined;
     let ds: GrafanaDatasource;
     beforeEach(() => {
       getMock.mockImplementation((url, options) => {
-        calledBackendSrvParams = options;
+        calledBackendSrvParams = options as { tags?: string[] } | undefined;
         return Promise.resolve([]);
       });
 
@@ -41,7 +45,10 @@ describe('grafana data source', () => {
       });
 
       it('should interpolate template variables in tags in query options', () => {
-        expect(calledBackendSrvParams?.tags[0]).toBe('tag1:replaced');
+        // `tags` is typed as optional on the narrowed test-local type because
+        // the dashboard-annotation case below intentionally omits it; chain the
+        // optional accessor through the array index as well.
+        expect(calledBackendSrvParams?.tags?.[0]).toBe('tag1:replaced');
       });
     });
 
@@ -53,8 +60,9 @@ describe('grafana data source', () => {
       });
 
       it('should interpolate template variables in tags in query options', () => {
-        expect(calledBackendSrvParams?.tags[0]).toBe('replaced');
-        expect(calledBackendSrvParams?.tags[1]).toBe('replaced2');
+        // See note above on optional-chaining the array index.
+        expect(calledBackendSrvParams?.tags?.[0]).toBe('replaced');
+        expect(calledBackendSrvParams?.tags?.[1]).toBe('replaced2');
       });
     });
 

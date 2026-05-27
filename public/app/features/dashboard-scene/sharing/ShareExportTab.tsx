@@ -272,26 +272,41 @@ export class ShareExportTab extends SceneObjectBase<ShareExportTabState> impleme
   };
 }
 
-function stripMetadataForExport(metadata: ObjectMeta, isSharingExternally: boolean): Partial<ObjectMeta> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const result: Record<string, any> = cloneDeep(metadata);
+// Local type that augments the codebase's ObjectMeta with the Kubernetes-runtime fields
+// (`managedFields`, `uid`) that exist on the wire but are not enumerated by the local
+// ObjectMeta interface, and widens `labels`/`annotations` to a string-indexable record so
+// we can safely iterate and delete arbitrary `grafana.app/*` keys without falling back to
+// `any`. Replaces the prior `Record<string, any>` typing while preserving runtime behavior.
+type ExportableObjectMeta = Omit<Partial<ObjectMeta>, 'labels' | 'annotations'> & {
+  managedFields?: unknown;
+  uid?: unknown;
+  labels?: Record<string, unknown>;
+  annotations?: Record<string, unknown>;
+};
 
-  delete result['managedFields'];
+function stripMetadataForExport(metadata: ObjectMeta, isSharingExternally: boolean): Partial<ObjectMeta> {
+  const result: ExportableObjectMeta = cloneDeep(metadata);
+
+  delete result.managedFields;
 
   if (isSharingExternally) {
-    delete result['uid'];
-    delete result['resourceVersion'];
-    delete result['namespace'];
+    delete result.uid;
+    delete result.resourceVersion;
+    delete result.namespace;
 
-    for (const key in result['labels']) {
-      if (key.startsWith('grafana.app/')) {
-        delete result['labels'][key];
+    if (result.labels) {
+      for (const key in result.labels) {
+        if (key.startsWith('grafana.app/')) {
+          delete result.labels[key];
+        }
       }
     }
 
-    for (const key in result['annotations']) {
-      if (key.startsWith('grafana.app/')) {
-        delete result['annotations'][key];
+    if (result.annotations) {
+      for (const key in result.annotations) {
+        if (key.startsWith('grafana.app/')) {
+          delete result.annotations[key];
+        }
       }
     }
   }

@@ -15,13 +15,14 @@ export interface MutableColumn extends Column {
 
 export default class TableModel implements TableData {
   columns: MutableColumn[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- legacy table model accepts heterogeneous row shapes (number | string | boolean | null | Date | object) from many datasource adapters; tightening to unknown[][] cascades into widespread `as` assertions at consumer call sites which violate `@typescript-eslint/consistent-type-assertions: 'never'`. Full typing requires refactoring all callers, which is out of scope per AAP §0.9.2.12 minimal change mandate.
   rows: any[];
   type: string;
   columnMap: Record<string, Column>;
   refId?: string;
   meta?: QueryResultMeta;
 
-  constructor(table?: any) {
+  constructor(table?: { columns?: MutableColumn[]; rows?: unknown[][]; type?: string }) {
     this.columns = [];
     this.columnMap = {};
     this.rows = [];

@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 
 import { Trans, t } from '@grafana/i18n';
-import { Field, Icon, Label, Stack, Tooltip } from '@grafana/ui';
+import { Box, Field, Icon, Label, Stack, Tooltip } from '@grafana/ui';
 import { NestedFolderPicker } from 'app/core/components/NestedFolderPicker/NestedFolderPicker';
 
 import { type Folder, type RuleFormValues } from '../../types/rule-form';
@@ -58,7 +58,7 @@ export function FolderSelectorV2() {
           <Stack direction="column" alignItems="flex-start" gap={1}>
             <Controller
               render={({ field: { ref, ...field } }) => (
-                <div style={{ width: 420 }}>
+                <Box width={52.5}>
                   <NestedFolderPicker
                     permission="view"
                     showRootFolder={false}
@@ -75,7 +75,7 @@ export function FolderSelectorV2() {
                       resetGroup();
                     }}
                   />
-                </div>
+                </Box>
               )}
               name="folder"
               rules={{

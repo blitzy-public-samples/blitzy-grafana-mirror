@@ -18,6 +18,8 @@ import { type TimeZone } from '@grafana/schema';
 import { ClickOutsideWrapper, floatingUtils, useStyles2 } from '@grafana/ui';
 import { getDataLinks, getFieldActions } from 'app/plugins/panel/status-history/utils';
 
+import { type AnnoVals } from '../utils';
+
 import { AnnotationEditor2 } from './AnnotationEditor2';
 import { AnnotationTooltip2 } from './AnnotationTooltip2';
 
@@ -25,7 +27,7 @@ interface AnnotationMarkerProps {
   // Annotation dataframe
   frame: DataFrame;
   // The values from the annotation fields
-  annoVals: Record<string, any[]>;
+  annoVals: AnnoVals;
   // The value index, sometimes called rowIndex
   annoIdx: number;
   // Styles calculated from plot, e.g. calculated region width & annotation offset

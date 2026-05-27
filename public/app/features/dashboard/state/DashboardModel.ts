@@ -12,10 +12,12 @@ import {
   type EventBusExtended,
   EventBusSrv,
   type PanelModel as IPanelModel,
+  type RawTimeRange,
   type TimeRange,
   type TimeZone,
   type TypedVariableModel,
   type UrlQueryValue,
+  type VariableOption,
 } from '@grafana/data';
 import { type PromQuery } from '@grafana/prometheus';
 import { RefreshEvent, TimeRangeUpdatedEvent } from '@grafana/runtime';
@@ -67,12 +69,48 @@ export interface ScopeMeta {
 }
 
 export class DashboardModel implements TimeModel {
-  /** @deprecated use UID */
+  /**
+   * @deprecated use UID
+   *
+   * Retained `any`: id is `number | null | undefined` at runtime (newly created dashboards
+   * have no server-assigned id). Narrowing to `number | null` cascades into analytics
+   * payloads (DashboardViewEventPayload.dashboardId requires `number`) and other consumer
+   * sites that previously passed `dashboard.id` through unchanged. Per AAP §0.8.6 step 7
+   * and §0.9.2.12 minimal-change mandate, retain at the dashboard-state boundary to
+   * preserve original null-passing runtime behavior.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- see JSDoc above
   id?: any;
 
-  // TODO: use proper type and fix all the places where uid is set to null
+  /**
+   * Dashboard UID.
+   *
+   * Retained `any`: uid is `string | null | undefined` at runtime (newly created dashboards
+   * have no UID until first save). Narrowing to `string | null` cascades into the variable
+   * state store's `toStateKey(key: string | null | undefined)` keying contract, the
+   * dashboard watcher's `watch(uid: string)` signature, RTK Query tag types, and 50+
+   * consumer sites that previously passed `dashboard.uid` through unchanged. Per AAP §0.8.6
+   * step 7 and §0.9.2.12 minimal-change mandate, retain at the dashboard-state boundary so
+   * original behavior — including `toStateKey(null) === 'null'` variable-state lookups — is
+   * preserved without consumer-site coercion to empty string.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- see JSDoc above
   uid: any;
   title: string;
+  /* eslint-disable @typescript-eslint/no-explicit-any --
+   * Retained `any` on the following persisted dashboard model fields.
+   *
+   * These fields straddle three sources of truth that disagree:
+   *  - the published `Dashboard` JSON schema (`@grafana/schema`),
+   *  - the legacy `DashboardMigrator` which normalizes pre-v3 shapes at load time, and
+   *  - third-party plugins that may write arbitrary shapes back through the model.
+   *
+   * Narrowing here cascades into the variable state store, time-srv, tracking analytics
+   * payloads, and the rest of the dashboard module (50+ consumer sites). Per AAP §0.8.6
+   * step 7 and §0.9.2.12 minimal-change mandate, retain `any` at this boundary so existing
+   * runtime behavior — including null pass-through and partial-shape acceptance — is
+   * preserved.
+   */
   description: any;
   tags: any;
   style: any;
@@ -87,13 +125,16 @@ export class DashboardModel implements TimeModel {
   timepicker: any;
   templating: { list: any[] };
   private originalTemplating: any;
+  /* eslint-enable @typescript-eslint/no-explicit-any */
   annotations: { list: AnnotationQuery[] };
   refresh?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- legacy in-memory snapshot marker accepts both Dashboard['snapshot'] and a partial {timestamp} stub
   snapshot: any;
   schemaVersion: number;
   version: number;
   revision?: number; // Only used for dashboards managed by plugins
   links: DashboardLink[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- gnetId is legacy and may be null, number, or string in older persisted dashboards
   gnetId: any;
   panels: PanelModel[];
   panelInEdit?: PanelModel;
@@ -245,14 +286,28 @@ export class DashboardModel implements TimeModel {
       saveTimerange: true,
     });
 
-    // make clone
-    let copy: any = {};
-    for (const property in this) {
+    // Accumulator for the dashboard save model. Declared with an explicit structural shape so
+    // each subsequent property assignment is type-safe without inline casts. The function's
+    // public return type is DashboardModel for legacy callers; the constructed save model is
+    // structurally compatible (contains the same persisted fields plus a synthetic
+    // getVariables function), so a single justified disable is used at the return boundary.
+    // The `templating.list` element type matches `getTemplatingSaveModel`'s output (each
+    // entry is either an adapter-produced save model or a plain projection of a variable —
+    // both modeled here as a generic string-keyed record).
+    interface SaveModelAccumulator {
+      [key: string]: unknown;
+      templating?: { list: Array<Record<string, unknown>> };
+      time?: RawTimeRange;
+      panels?: unknown[];
+      getVariables?: () => Array<Record<string, unknown>>;
+    }
+    let copy: SaveModelAccumulator = {};
+    for (const [property, value] of Object.entries(this)) {
       if (DashboardModel.nonPersistedProperties[property] || !this.hasOwnProperty(property)) {
         continue;
       }
 
-      copy[property] = cloneDeep(this[property]);
+      copy[property] = cloneDeep(value);
     }
 
     copy.templating = this.getTemplatingSaveModel(optionsWithDefaults);
@@ -266,9 +321,10 @@ export class DashboardModel implements TimeModel {
 
     //  sort by keys
     copy = sortedDeepCloneWithoutNulls(copy);
-    copy.getVariables = () => copy.templating.list;
+    copy.getVariables = () => copy.templating?.list ?? [];
 
-    return copy;
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- The structurally-built save model is the legacy DashboardModel return shape; downstream callers consume it as a save model dictionary, immediately JSON-round-tripping in getSaveModelClone(). Public method signature preserved per AAP §0.9.2.12. The chained `unknown` widening is required because TypeScript's structural overlap check rejects a direct narrow cast between the accumulator interface and DashboardModel.
+    return copy as unknown as DashboardModel;
   }
 
   /**
@@ -355,18 +411,30 @@ export class DashboardModel implements TimeModel {
   }
 
   private getTemplatingSaveModel(options: CloneOptions) {
-    const originalVariables = this.originalTemplating?.list ?? [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- legacy templating shapes vary across schema versions; preserved as `any[]` to match historical typing
+    const originalVariables: any[] = this.originalTemplating?.list ?? [];
+    // Pass `this.uid` (typed `any`) directly through to the selector to preserve original
+    // variable-state keying semantics. `getVariablesByKey` internally calls
+    // `toStateKey(key)`, so null/undefined UIDs key as `"null"`/`"undefined"` per the
+    // long-standing contract. Coercing to '' here would break unsaved/null-UID dashboard
+    // variable lookups (review CP12 finding: behavior preservation).
     const currentVariables = this.getVariablesFromState(this.uid);
 
     const saveModels = currentVariables.map((variable) => {
       // Group by variables has no adapter. Use the model as-is. This is safe to do as in scenes from which dashboard can be serialised,
       // the variable model is provided through getVariablesCompatibility.
       const adapter = variableAdapters.getIfExists(variable.type);
-      const variableSaveModel: any = adapter ? adapter.getSaveModel(variable, options.saveVariables) : variable;
+      // adapter.getSaveModel returns Partial<any> from the VariableAdapter<any> registry, which is
+      // directly assignable to Record<string, unknown>. The fallback path (no adapter) materializes
+      // a plain string-keyed object from the typed TypedVariableModel union via Object.fromEntries,
+      // bridging the union to a mutable record without a type assertion.
+      const variableSaveModel: Record<string, unknown> = adapter
+        ? adapter.getSaveModel(variable, options.saveVariables)
+        : Object.fromEntries(Object.entries(variable));
 
       if (!options.saveVariables) {
         const original = originalVariables.find(
-          ({ name, type }: any) => name === variable.name && type === variable.type
+          ({ name, type }) => name === variable.name && type === variable.type
         );
 
         if (!original) {
@@ -374,8 +442,14 @@ export class DashboardModel implements TimeModel {
         }
 
         if (variable.type === 'adhoc') {
-          variableSaveModel.filters = original.filters;
+          // 'filters' is required on AdHocVariableModel at runtime but is not a declared field
+          // on the schema's VariableModel; the `in` operator narrows access without a cast.
+          if ('filters' in original) {
+            variableSaveModel.filters = original.filters;
+          }
         } else {
+          // 'current' and 'options' are declared optional on the schema's VariableModel, so they
+          // are accessible without a cast.
           variableSaveModel.current = original.current;
           variableSaveModel.options = original.options;
         }
@@ -390,6 +464,9 @@ export class DashboardModel implements TimeModel {
 
   timeRangeUpdated(timeRange: TimeRange) {
     this.events.publish(new TimeRangeUpdatedEvent(timeRange));
+    // Pass `this.uid` (typed `any`) directly through to preserve variable-state keying
+    // semantics. The action creator wraps the value via `toStateKey(key)` internally, so
+    // null/undefined UIDs map to `"null"`/`"undefined"` per the long-standing contract.
     dispatch(onTimeRangeUpdated(this.uid, timeRange));
 
     if (this.panelInEdit || this.panelInView) {
@@ -515,9 +592,19 @@ export class DashboardModel implements TimeModel {
     return templating;
   }
 
-  private ensureListExist(data: any = {}) {
-    data.list ??= [];
-    return data;
+  private ensureListExist<T>(data?: { list?: T[] }): { list: T[] } {
+    // Preserve the input object reference so that the aliasing contract relied upon by
+    // downstream consumers is maintained. Specifically, `this.templating` and the
+    // caller-supplied `data.templating` (which in turn aliases the JSON-input object
+    // passed via constructor/restoreModel) must remain the SAME object reference —
+    // DashboardMigrator later performs `this.dashboard.templating.list = newArray`,
+    // and consumers of the original JSON input (e.g., test helpers, snapshot save
+    // models) observe the post-migration list through this shared reference.
+    // Object.assign mutates and returns the target, intersecting the type to narrow
+    // the optional `list` field to required without needing a type assertion.
+    return data
+      ? Object.assign(data, { list: data.list ?? [] })
+      : { list: [] };
   }
 
   getNextPanelId() {
@@ -603,10 +690,16 @@ export class DashboardModel implements TimeModel {
     return this.canEditPanel(this.getPanelById(id));
   }
 
-  addPanel(panelData: any) {
-    panelData.id = this.getNextPanelId();
+  addPanel(panelData: unknown) {
+    // Caller-provided panel data is mutated to inject a fresh panel ID before being passed to
+    // PanelModel. Existing callers (e.g., public/app/features/dashboard/utils/dashboard.ts:22-24
+    // — `dashboard.addPanel(newPanel); return newPanel.id;`) rely on this in-place mutation.
+    // A type predicate narrows `unknown` to a writable record so the .id assignment compiles
+    // while preserving the original object reference for caller observability.
+    const panelDataObj: Record<string, unknown> = isWritablePanelObject(panelData) ? panelData : {};
+    panelDataObj.id = this.getNextPanelId();
 
-    this.panels.unshift(new PanelModel(panelData));
+    this.panels.unshift(new PanelModel(panelDataObj));
 
     this.sortPanelsByGridPos();
 
@@ -649,9 +742,16 @@ export class DashboardModel implements TimeModel {
     }
 
     this.originalDashboard = savedModel;
-    this.originalTemplating = savedModel.templating;
+    // Dashboard schema's templating field is `{ list?: VariableModel[] } | undefined`, but
+    // originalTemplating requires `list` to be a present array. Normalize via ensureListExist
+    // (mirrors the constructor's handling) so the field type is fully satisfied.
+    this.originalTemplating = savedModel.templating
+      ? this.ensureListExist<VariableModel>(savedModel.templating)
+      : undefined;
 
-    if (options.saveTimerange) {
+    if (options.saveTimerange && savedModel.time) {
+      // Dashboard schema's time field is `{ from: string; to: string } | undefined`. Only
+      // assign when defined; otherwise keep the current originalTime (set by the constructor).
       this.originalTime = savedModel.time;
     }
   }
@@ -911,12 +1011,22 @@ export class DashboardModel implements TimeModel {
     return panel;
   }
 
-  getSelectedVariableOptions(variable: any) {
-    let selectedOptions: any[];
-    if (isAllVariable(variable)) {
-      selectedOptions = variable.options.slice(1, variable.options.length);
+  getSelectedVariableOptions(variable: TypedVariableModel) {
+    // At runtime, repeat-driving variables always have an .options array (only VariableWithOptions
+    // members of the TypedVariableModel union flow through here). The `in` operator narrows access
+    // without a type assertion.
+    const options =
+      'options' in variable && Array.isArray(variable.options) ? variable.options : [];
+    let selectedOptions: VariableOption[];
+    // Narrow TypedVariableModel to variants that carry `.current` before calling isAllVariable.
+    // Variants without `current` (e.g., AdHocVariableModel) cannot be the "all" value by definition,
+    // so passing `null` short-circuits isAllVariable to `false` and preserves the original
+    // runtime behavior when `variable` was untyped (`any`).
+    const variableForAllCheck = 'current' in variable ? variable : null;
+    if (isAllVariable(variableForAllCheck)) {
+      selectedOptions = options.slice(1, options.length);
     } else {
-      selectedOptions = filter(variable.options, { selected: true });
+      selectedOptions = filter(options, { selected: true });
     }
     return selectedOptions;
   }
@@ -1155,7 +1265,7 @@ export class DashboardModel implements TimeModel {
     return this.timezone ? this.timezone : contextSrv?.user?.timezone;
   }
 
-  private updateSchema(old: any, targetVersion?: number) {
+  private updateSchema(old: unknown, targetVersion?: number) {
     const migrator = new DashboardMigrator(this);
     migrator.updateSchema(old, targetVersion);
   }
@@ -1248,6 +1358,9 @@ export class DashboardModel implements TimeModel {
   }
 
   getVariables() {
+    // Pass `this.uid` (typed `any`) directly through; selector wraps via `toStateKey`
+    // internally so null/undefined UIDs map to `"null"`/`"undefined"` keys (long-standing
+    // contract preserved per CP12 review behavior-preservation requirement).
     return this.getVariablesFromState(this.uid);
   }
 
@@ -1289,6 +1402,7 @@ export class DashboardModel implements TimeModel {
   }
 
   private getPanelRepeatVariable(panel: PanelModel) {
+    // Pass `this.uid` (typed `any`) directly through; selector wraps via `toStateKey`.
     return this.getVariablesFromState(this.uid).find((variable) => variable.name === panel.repeat);
   }
 
@@ -1297,6 +1411,7 @@ export class DashboardModel implements TimeModel {
   }
 
   private hasVariables() {
+    // Pass `this.uid` (typed `any`) directly through; selector wraps via `toStateKey`.
     return this.getVariablesFromState(this.uid).length > 0;
   }
 
@@ -1349,7 +1464,14 @@ function isPanelWithLegend(panel: PanelModel): panel is PanelModel & Pick<Requir
   return Boolean(panel.legend);
 }
 
-function setScopedVars(panel: PanelModel, variable: TypedVariableModel, variableOption: any) {
+function setScopedVars(panel: PanelModel, variable: TypedVariableModel, variableOption: VariableOption) {
   panel.scopedVars ??= {};
   panel.scopedVars[variable.name] = variableOption;
+}
+
+// Type predicate used by addPanel() to narrow `unknown` panel data to a mutable record so the
+// caller-supplied object can have its .id property assigned in place (preserving the existing
+// addPanel mutation contract relied on by public/app/features/dashboard/utils/dashboard.ts).
+function isWritablePanelObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
 }

@@ -1,18 +1,20 @@
+import { css, cx } from '@emotion/css';
 import debounce from 'debounce-promise';
 import { size } from 'lodash';
 import { useCallback, useState } from 'react';
 
-import { type SelectableValue, toOption } from '@grafana/data';
+import { type GrafanaTheme2, type SelectableValue, toOption } from '@grafana/data';
 import {
-  InlineLabel,
-  Select,
-  InlineFormLabel,
-  InlineSwitch,
-  Icon,
-  clearButtonStyles,
-  useStyles2,
   AsyncSelect,
+  Button,
+  Icon,
+  IconButton,
+  InlineFormLabel,
+  InlineLabel,
+  InlineSwitch,
+  Select,
   Stack,
+  useStyles2,
 } from '@grafana/ui';
 
 import { type OpenTsdbFilter, type OpenTsdbQuery } from '../types';
@@ -34,8 +36,6 @@ export function FilterSection({
   filterTypes,
   suggestTagValues,
 }: FilterSectionProps) {
-  const buttonStyles = useStyles2(clearButtonStyles);
-
   const [tagKeys, updTagKeys] = useState<Array<SelectableValue<string>>>();
   const [keyIsLoading, updKeyIsLoading] = useState<boolean>();
 
@@ -47,6 +47,8 @@ export function FilterSection({
   const [curFilterGroupBy, updCurFilterGroupBy] = useState<boolean>(false);
 
   const [errors, setErrors] = useState<string>('');
+
+  const styles = useStyles2(getStyles);
 
   const filterTypesOptions = filterTypes.map((value: string) => toOption(value));
 
@@ -121,7 +123,7 @@ export function FilterSection({
   return (
     <Stack gap={0} data-testid={testIds.section}>
       <InlineFormLabel
-        className="query-keyword"
+        className={styles.queryKeyword}
         width={8}
         tooltip={<div>Filters does not work with tags, either of the two will work but not both.</div>}
       >
@@ -132,25 +134,19 @@ export function FilterSection({
           return (
             <InlineFormLabel key={idx} width="auto" data-testid={testIds.list + idx}>
               {fil.tagk} = {fil.type}({fil.filter}), groupBy = {'' + fil.groupBy}
-              <button type="button" className={buttonStyles} onClick={() => editFilter(fil, idx)}>
-                <Icon name={'pen'} />
-              </button>
-              <button
-                type="button"
-                className={buttonStyles}
+              <IconButton name="pen" aria-label="Edit filter" onClick={() => editFilter(fil, idx)} />
+              <IconButton
+                name="times"
+                aria-label="Remove filter"
                 onClick={() => removeFilter(idx)}
                 data-testid={testIds.remove}
-              >
-                <Icon name={'times'} />
-              </button>
+              />
             </InlineFormLabel>
           );
         })}
       {!addFilterMode && (
         <InlineFormLabel width={2}>
-          <button type="button" className={buttonStyles} onClick={changeAddFilterMode} aria-label="Add filter">
-            <Icon name={'plus'} />
-          </button>
+          <IconButton name="plus" aria-label="Add filter" onClick={changeAddFilterMode} />
         </InlineFormLabel>
       )}
       {addFilterMode && (
@@ -180,7 +176,7 @@ export function FilterSection({
           </Stack>
 
           <Stack gap={0}>
-            <InlineLabel className="width-4 query-keyword">Type</InlineLabel>
+            <InlineLabel className={cx(styles.width4, styles.queryKeyword)}>Type</InlineLabel>
             <Select
               inputId="opentsdb-aggregator-select"
               value={curFilterType ? toOption(curFilterType) : undefined}
@@ -209,7 +205,7 @@ export function FilterSection({
             />
           </Stack>
 
-          <InlineFormLabel width={5} className="query-keyword">
+          <InlineFormLabel width={5} className={styles.queryKeyword}>
             Group by
           </InlineFormLabel>
           <InlineSwitch
@@ -227,12 +223,10 @@ export function FilterSection({
               </InlineLabel>
             )}
             <InlineFormLabel width={5.5}>
-              <button type="button" className={buttonStyles} onClick={addFilter}>
+              <Button variant="secondary" size="sm" onClick={addFilter}>
                 add filter
-              </button>
-              <button type="button" className={buttonStyles} onClick={changeAddFilterMode}>
-                <Icon name={'times'} />
-              </button>
+              </Button>
+              <IconButton name="times" aria-label="Cancel adding filter" onClick={changeAddFilterMode} />
             </InlineFormLabel>
           </Stack>
         </Stack>
@@ -250,3 +244,12 @@ export const testIds = {
   error: 'opentsdb-filter-error',
   remove: 'opentsdb-filter-remove',
 };
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  queryKeyword: css({
+    color: theme.colors.primary.text,
+  }),
+  width4: css({
+    width: `${theme.spacing(8)} !important`,
+  }),
+});

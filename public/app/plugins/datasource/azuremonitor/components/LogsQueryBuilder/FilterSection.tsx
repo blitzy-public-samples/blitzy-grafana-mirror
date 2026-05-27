@@ -2,7 +2,7 @@ import { css } from '@emotion/css';
 import React, { useEffect, useRef, useState } from 'react';
 import { lastValueFrom } from 'rxjs';
 
-import { CoreApp, getDefaultTimeRange, type SelectableValue, type TimeRange } from '@grafana/data';
+import { CoreApp, getDefaultTimeRange, type GrafanaTheme2, type SelectableValue, type TimeRange } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
 import { EditorField, EditorFieldGroup, EditorRow, InputGroup } from '@grafana/plugin-ui';
 import { Button, type ComboboxOption, Label, useStyles2 } from '@grafana/ui';
@@ -44,7 +44,7 @@ export const FilterSection: React.FC<FilterSectionProps> = ({
   datasource,
   timeRange,
 }) => {
-  const styles = useStyles2(() => ({ filters: css({ marginBottom: '8px' }) }));
+  const styles = useStyles2(getStyles);
   const builderQuery = query.azureLogAnalytics?.builderQuery;
 
   const prevTable = useRef<string | null>(builderQuery?.from?.property.name || null);
@@ -231,7 +231,7 @@ export const FilterSection: React.FC<FilterSectionProps> = ({
                 {filters.map((group, groupIndex) => (
                   <div key={groupIndex}>
                     {groupIndex > 0 && filters[groupIndex - 1]?.expressions.length > 0 && (
-                      <Label style={{ padding: '9px 14px' }}>
+                      <Label className={styles.andLabel}>
                         <Trans i18nKey="components.filter-section.label-and">AND</Trans>
                       </Label>
                     )}
@@ -255,7 +255,7 @@ export const FilterSection: React.FC<FilterSectionProps> = ({
                       <Button
                         tooltip={t('components.filter-section.aria-label-add-or-filter', 'Add OR filter')}
                         variant="secondary"
-                        style={{ marginLeft: '15px' }}
+                        className={styles.addOrFilterButton}
                         onClick={() => onAddOrFilters(groupIndex, 'property', '')}
                         icon="plus"
                       />
@@ -263,7 +263,7 @@ export const FilterSection: React.FC<FilterSectionProps> = ({
                   </div>
                 ))}
                 {filters.some((g) => g.expressions.length > 0) && (
-                  <Button variant="secondary" onClick={onAddAndFilters} style={{ marginTop: '8px' }}>
+                  <Button variant="secondary" onClick={onAddAndFilters} className={styles.addGroupButton}>
                     <Trans i18nKey="components.filter-section.label-add-group">Add group</Trans>
                   </Button>
                 )}
@@ -275,3 +275,18 @@ export const FilterSection: React.FC<FilterSectionProps> = ({
     </EditorRow>
   );
 };
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  filters: css({
+    marginBottom: '8px',
+  }),
+  andLabel: css({
+    padding: theme.spacing(1.125, 1.75),
+  }),
+  addOrFilterButton: css({
+    marginLeft: theme.spacing(1.875),
+  }),
+  addGroupButton: css({
+    marginTop: theme.spacing(1),
+  }),
+});

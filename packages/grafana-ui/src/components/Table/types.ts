@@ -31,10 +31,10 @@ export {
 } from '@grafana/schema';
 
 export interface TableRow {
-  [x: string]: any;
+  [x: string]: unknown;
 }
 
-export type InspectCell = { value: any; mode: TableCellInspectorMode };
+export type InspectCell = { value: unknown; mode: TableCellInspectorMode };
 
 export const FILTER_FOR_OPERATOR = '=';
 export const FILTER_OUT_OPERATOR = '!=';
@@ -50,7 +50,7 @@ export interface TableSortByFieldState {
   desc?: boolean;
 }
 
-export interface TableCellProps extends CellProps<any> {
+export interface TableCellProps extends CellProps<TableRow> {
   tableStyles: TableStyles;
   cellProps: React.DetailedHTMLProps<React.HTMLAttributes<HTMLDivElement>, HTMLDivElement>;
   field: Field;
@@ -59,6 +59,14 @@ export interface TableCellProps extends CellProps<any> {
   frame: DataFrame;
   actions?: ActionModel[]; // unused in NG
   setInspectCell?: TableInspectCellCallback;
+  // Optional props injected at runtime by TableCell.tsx via cell.render('Cell', {...}). Declaring them here
+  // gives cell renderers concrete types rather than relying on the react-table-config.d.ts index signature.
+  timeRange?: TimeRange;
+  userProps?: object;
+  rowStyled?: boolean;
+  rowExpanded?: boolean;
+  textWrapped?: boolean;
+  height?: number;
 }
 
 export type CellComponent = FC<TableCellProps>;

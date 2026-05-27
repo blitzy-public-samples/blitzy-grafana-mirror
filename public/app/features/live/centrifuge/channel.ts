@@ -23,6 +23,7 @@ import {
 /**
  * Internal class that maps Centrifuge support to GrafanaLive
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- T is invariant via Subject<LiveChannelEvent<T>>; the consumer CentrifugeService stores channels in Map<string, CentrifugeLiveChannel> without per-channel type parameters and re-parametrizes at access via getChannel<TMessage>(); changing the default to unknown would break this internal pattern without changing the public surface
 export class CentrifugeLiveChannel<T = any> {
   readonly currentStatus: LiveChannelStatusEvent;
 

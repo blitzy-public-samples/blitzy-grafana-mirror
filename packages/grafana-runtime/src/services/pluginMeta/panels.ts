@@ -149,7 +149,7 @@ export function setPanelPluginMetas(override: PanelPluginMetas): void {
 
 export async function refetchPanelPluginMetas(): Promise<void> {
   if (!getFeatureFlagClient().getBooleanValue('useMTPlugins', false)) {
-    const settings = await getBackendSrv().get('/api/frontend/settings');
+    const settings = await getBackendSrv().get<{ panels: PanelPluginMetas }>('/api/frontend/settings');
     panels = settings.panels;
     panelsByAliasIDs = resolveAliasIDs(panels);
     return;

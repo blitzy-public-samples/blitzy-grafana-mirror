@@ -37,7 +37,7 @@ export function OrganizationSelect({ orgs, onSelectChange }: OrganizationBasePro
       aria-label={t('navigation.org-switcher.aria-label', 'Change organization')}
       width={'auto'}
       value={value}
-      prefix={<Icon className="prefix-icon" name="building" />}
+      prefix={<Icon className={styles.prefixIcon} name="building" />}
       className={styles.select}
       options={options}
       onChange={onChange}
@@ -45,17 +45,22 @@ export function OrganizationSelect({ orgs, onSelectChange }: OrganizationBasePro
   );
 }
 
-const getStyles = (theme: GrafanaTheme2) => ({
-  select: css({
-    border: 'none',
-    background: 'none',
-    color: theme.colors.text.secondary,
-    '&:hover': {
-      color: theme.colors.text.primary,
+const getStyles = (theme: GrafanaTheme2) => {
+  const prefixIcon = css({});
 
-      '& .prefix-icon': css({
+  return {
+    select: css({
+      border: 'none',
+      background: 'none',
+      color: theme.colors.text.secondary,
+      '&:hover': {
         color: theme.colors.text.primary,
-      }),
-    },
-  }),
-});
+
+        [`& .${prefixIcon}`]: {
+          color: theme.colors.text.primary,
+        },
+      },
+    }),
+    prefixIcon,
+  };
+};

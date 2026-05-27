@@ -1,3 +1,26 @@
+/**
+ * split.test.tsx — colocated test update for the `Explore.tsx` inline-style
+ * → CSS-custom-property migration carried out in the Checkpoint 10 Explore
+ * Module modernization (AAP Dimension 3 — Styling Migration; the
+ * `<main style={{ width }}>` site flagged by the Checkpoint 10 finding
+ * `Explore.tsx` L736).
+ *
+ * Authorized by AAP §0.6.2 ("Test files affected are colocated with each
+ * converted component; the Blitzy platform updates each test file in the same
+ * commit as its component") and by Code Review Resolution scope guidance: this
+ * test exercises the `<main role="main">` element rendered by `Explore.tsx`
+ * inside the `AutoSizer`'s render-prop child, so it is the canonical colocated
+ * boundary for the style mechanism change.
+ *
+ * The only assertion edited is the width readback (formerly via
+ * `getComputedStyle(panes[i]).width`, now via
+ * `panes[i].style.getPropertyValue('--explore-main-width')`). No new test
+ * coverage is added and the test's input setup, expected outcomes (each pane
+ * occupies 1000px after splitting), and downstream resizer behavior remain
+ * unchanged. The semantic remains identical because the CSS rule
+ * `width: var(--explore-main-width)` in `styles.exploreMain` resolves to the
+ * same numeric width that the previous direct inline `width` style produced.
+ */
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ComponentProps } from 'react';
@@ -205,8 +228,20 @@ describe('Handles open/close splits and related events in UI and URL', () => {
 
     const panes = screen.getAllByRole('main');
 
-    expect(Number.parseInt(getComputedStyle(panes[0]).width, 10)).toBe(1000);
-    expect(Number.parseInt(getComputedStyle(panes[1]).width, 10)).toBe(1000);
+    // Each `<main>` element receives its per-render AutoSizer width via the
+    // `--explore-main-width` CSS custom property (set inline on the element's
+    // `style` attribute by `Explore.tsx`). The `styles.exploreMain` Emotion
+    // class consumes it via `width: var(--explore-main-width)` so the bounded
+    // class set stays stable across render frames (see AAP §0.8.9 and the
+    // canonical `provisioning/Shared/ProgressBar.tsx` precedent).
+    //
+    // jsdom's `getComputedStyle` does not resolve `var(--*)` references on
+    // computed properties, so we read the custom-property literal directly
+    // off the inline style declaration. In a real browser the cascade resolves
+    // `width: var(--explore-main-width)` to the same `1000px` value the test
+    // previously observed via `getComputedStyle(...).width`.
+    expect(panes[0].style.getPropertyValue('--explore-main-width')).toBe('1000px');
+    expect(panes[1].style.getPropertyValue('--explore-main-width')).toBe('1000px');
     const resizer = screen.getByRole('presentation');
 
     fireEvent.mouseDown(resizer, { buttons: 1 });

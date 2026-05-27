@@ -45,16 +45,13 @@ describe('InfluxQueryPart', () => {
       const selectParts = [
         queryPart.create({
           type: 'field',
-          category: queryPart.getCategories().Fields,
         }),
         queryPart.create({
           type: 'count',
-          category: queryPart.getCategories().Aggregations,
         }),
       ];
       const partModel = queryPart.create({
         type: 'distinct',
-        category: queryPart.getCategories().Aggregations,
       });
 
       queryPart.replaceAggregationAdd(selectParts, partModel);
@@ -67,16 +64,13 @@ describe('InfluxQueryPart', () => {
       const selectParts = [
         queryPart.create({
           type: 'field',
-          category: queryPart.getCategories().Fields,
         }),
         queryPart.create({
           type: 'distinct',
-          category: queryPart.getCategories().Aggregations,
         }),
       ];
       const partModel = queryPart.create({
         type: 'count',
-        category: queryPart.getCategories().Aggregations,
       });
 
       queryPart.replaceAggregationAdd(selectParts, partModel);
@@ -89,20 +83,16 @@ describe('InfluxQueryPart', () => {
       const selectParts = [
         queryPart.create({
           type: 'field',
-          category: queryPart.getCategories().Fields,
         }),
         queryPart.create({
           type: 'distinct',
-          category: queryPart.getCategories().Aggregations,
         }),
         queryPart.create({
           type: 'count',
-          category: queryPart.getCategories().Aggregations,
         }),
       ];
       const partModel = queryPart.create({
         type: 'mean',
-        category: queryPart.getCategories().Selectors,
       });
 
       queryPart.replaceAggregationAdd(selectParts, partModel);
@@ -115,20 +105,16 @@ describe('InfluxQueryPart', () => {
       const selectParts = [
         queryPart.create({
           type: 'field',
-          category: queryPart.getCategories().Fields,
         }),
         queryPart.create({
           type: 'distinct',
-          category: queryPart.getCategories().Aggregations,
         }),
         queryPart.create({
           type: 'count',
-          category: queryPart.getCategories().Aggregations,
         }),
       ];
       const partModel = queryPart.create({
         type: 'count',
-        category: queryPart.getCategories().Aggregations,
       });
 
       queryPart.replaceAggregationAdd(selectParts, partModel);
@@ -142,20 +128,16 @@ describe('InfluxQueryPart', () => {
       const selectParts = [
         queryPart.create({
           type: 'field',
-          category: queryPart.getCategories().Fields,
         }),
         queryPart.create({
           type: 'distinct',
-          category: queryPart.getCategories().Aggregations,
         }),
         queryPart.create({
           type: 'count',
-          category: queryPart.getCategories().Aggregations,
         }),
       ];
       const partModel = queryPart.create({
         type: 'distinct',
-        category: queryPart.getCategories().Aggregations,
       });
 
       queryPart.replaceAggregationAdd(selectParts, partModel);
@@ -169,16 +151,13 @@ describe('InfluxQueryPart', () => {
       const selectParts = [
         queryPart.create({
           type: 'field',
-          category: queryPart.getCategories().Fields,
         }),
         queryPart.create({
           type: 'distinct',
-          category: queryPart.getCategories().Aggregations,
         }),
       ];
       const partModel = queryPart.create({
         type: 'sum',
-        category: queryPart.getCategories().Aggregations,
       });
       queryPart.replaceAggregationAdd(selectParts, partModel);
 

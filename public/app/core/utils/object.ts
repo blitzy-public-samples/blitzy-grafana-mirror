@@ -13,10 +13,11 @@ export function sortedDeepCloneWithoutNulls<T>(value: T, convertInfinity?: boole
     return value.map((item) => sortedDeepCloneWithoutNulls(item, convertInfinity, stripBOMs)) as unknown as T;
   }
   if (isPlainObject(value)) {
-    return Object.keys(value as { [key: string]: any })
+    const objValue = value as Record<string, unknown>;
+    return Object.keys(objValue)
       .sort()
-      .reduce((acc: any, key) => {
-        let v = (value as any)[key];
+      .reduce<Record<string, unknown>>((acc, key) => {
+        let v = objValue[key];
         // Remove null values
         if (v != null) {
           // Strip BOMs from strings
@@ -31,7 +32,7 @@ export function sortedDeepCloneWithoutNulls<T>(value: T, convertInfinity?: boole
         }
 
         return acc;
-      }, {});
+      }, {}) as unknown as T;
   }
   return value;
 }

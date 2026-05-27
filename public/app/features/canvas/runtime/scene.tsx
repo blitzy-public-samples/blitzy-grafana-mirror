@@ -34,7 +34,7 @@ import { type Options } from 'app/plugins/panel/canvas/panelcfg.gen';
 import { type AnchorPoint, type CanvasTooltipPayload } from 'app/plugins/panel/canvas/types';
 
 import { appEvents } from '../../../core/app_events';
-import { type CanvasPanel } from '../../../plugins/panel/canvas/CanvasPanel';
+import { type CanvasPanelHandle } from '../../../plugins/panel/canvas/CanvasPanel';
 import { isInfinityActionWithAuth } from '../../actions/utils';
 import { getDashboardSrv } from '../../dashboard/services/DashboardSrv';
 import { type CanvasFrameOptions } from '../frame';
@@ -84,7 +84,7 @@ export class Scene {
   tooltipDisableForOneClick?: boolean;
   skipNextSelectionBroadcast = false;
   ignoreDataUpdate = false;
-  panel: CanvasPanel;
+  panel: CanvasPanelHandle;
   contextMenuVisible?: boolean;
   openContextMenu?: (position: AnchorPoint) => void;
   contextMenuOnVisibilityChange = (visible: boolean) => {
@@ -111,7 +111,7 @@ export class Scene {
   constructor(
     options: Options,
     public onSave: (cfg: CanvasFrameOptions) => void,
-    panel: CanvasPanel
+    panel: CanvasPanelHandle
   ) {
     // TODO: Will need to update this approach for dashboard scenes
     // migration (new dashboard edit experience)

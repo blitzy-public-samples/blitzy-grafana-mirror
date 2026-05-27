@@ -54,41 +54,43 @@ const EmailList = ({
     reshareAccess({ recipientUid, uid: publicDashboard.uid });
   };
 
+  // Design system gap (AAP §0.4.4): recipients are rendered as a body-only compact list
+  // inside a 140px scroll container, not as a tabular dataset. <InteractiveTable> always
+  // renders a <thead> row even with header-less columns, which adds blank vertical space
+  // and changes the compact list UI. <Stack> composition reproduces the original
+  // body-only flex layout (per-row `display: flex; align-items: center; gap: 0.5;
+  // padding: 0.75 1; color: theme.colors.text.secondary;`).
   return (
-    <table data-testid={selectors.EmailSharingList} className={styles.table}>
-      <tbody>
-        {recipients!.map((recipient, idx) => (
-          <tr key={recipient.uid} className={styles.listItem}>
-            <td className={styles.user}>
-              <Stack direction="row" gap={1} alignItems="center">
-                <div className={styles.icon}>
-                  <Icon name="user" />
-                </div>
-                <Text>{recipient.recipient}</Text>
-              </Stack>
-            </td>
-            <td>{isLoading && <Spinner />}</td>
-            <td>
-              <Dropdown
-                overlay={
-                  <RecipientMenu
-                    onDelete={() => onDeleteEmail(recipient.uid, recipient.recipient)}
-                    onReshare={() => onReshare(recipient.uid)}
-                  />
-                }
-              >
-                <IconButton
-                  name="ellipsis-v"
-                  aria-label={t('dashboard-scene.email-list.aria-label-emailmenu', 'Toggle email menu')}
-                  variant="secondary"
-                  size="lg"
-                />
-              </Dropdown>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <Stack direction="column" gap={0} data-testid={selectors.EmailSharingList}>
+      {recipients!.map((recipient) => (
+        <div key={recipient.uid} className={styles.listItem}>
+          <div className={styles.user}>
+            <Stack direction="row" gap={1} alignItems="center">
+              <div className={styles.icon}>
+                <Icon name="user" />
+              </div>
+              <Text>{recipient.recipient}</Text>
+            </Stack>
+          </div>
+          {isLoading && <Spinner />}
+          <Dropdown
+            overlay={
+              <RecipientMenu
+                onDelete={() => onDeleteEmail(recipient.uid, recipient.recipient)}
+                onReshare={() => onReshare(recipient.uid)}
+              />
+            }
+          >
+            <IconButton
+              name="ellipsis-v"
+              aria-label={t('dashboard-scene.email-list.aria-label-emailmenu', 'Toggle email menu')}
+              variant="secondary"
+              size="lg"
+            />
+          </Dropdown>
+        </div>
+      ))}
+    </Stack>
   );
 };
 
@@ -129,9 +131,6 @@ const getStyles = (theme: GrafanaTheme2) => ({
   listContainer: css({
     maxHeight: '140px',
     overflowY: 'auto',
-  }),
-  table: css({
-    width: '100%',
   }),
   listItem: css({
     display: 'flex',

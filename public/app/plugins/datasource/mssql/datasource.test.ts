@@ -14,6 +14,7 @@ import {
 import { type SQLQuery } from '@grafana/sql';
 import { backendSrv } from 'app/core/services/backend_srv';
 import { TemplateSrv } from 'app/features/templating/template_srv';
+import { createQueryVariable } from 'app/features/variables/state/__tests__/fixtures';
 
 import { initialCustomVariableModelState } from '../../../features/variables/custom/reducer';
 
@@ -357,10 +358,18 @@ describe('MSSQLDatasource', () => {
 
     it('should pass timerange to datasourceRequest', () => {
       expect(fetchMock).toBeCalledTimes(1);
-      expect(fetchMock.mock.calls[0][0].data.from).toBe(time.from.valueOf().toString());
-      expect(fetchMock.mock.calls[0][0].data.to).toBe(time.to.valueOf().toString());
-      expect(fetchMock.mock.calls[0][0].data.queries.length).toBe(1);
-      expect(fetchMock.mock.calls[0][0].data.queries[0].rawSql).toBe(query);
+      // BackendSrvRequest.data is typed `unknown`; the mssql datasource always
+      // sends a `{ from, to, queries }` envelope through `datasourceRequest`,
+      // so narrow at the assertion boundary.
+      const requestData = fetchMock.mock.calls[0][0].data as {
+        from: string;
+        to: string;
+        queries: Array<{ rawSql: string }>;
+      };
+      expect(requestData.from).toBe(time.from.valueOf().toString());
+      expect(requestData.to).toBe(time.to.valueOf().toString());
+      expect(requestData.queries.length).toBe(1);
+      expect(requestData.queries[0].rawSql).toBe(query);
     });
   });
 
@@ -425,8 +434,8 @@ describe('MSSQLDatasource', () => {
         refId: 'A',
       };
       templateSrv.init([
-        { type: 'query', name: 'summarize', current: { value: '1m' } },
-        { type: 'query', name: 'host', current: { value: 'a' } },
+        createQueryVariable({ name: 'summarize', current: { value: '1m', text: '1m', selected: false } }),
+        createQueryVariable({ name: 'host', current: { value: 'a', text: 'a', selected: false } }),
       ]);
       const ds = new MssqlDatasource(instanceSettings);
 
@@ -452,8 +461,8 @@ describe('MSSQLDatasource', () => {
         refId: 'A',
       };
       templateSrv.init([
-        { type: 'query', name: 'summarize', current: { value: '1m' } },
-        { type: 'query', name: 'host', current: { value: 'a' } },
+        createQueryVariable({ name: 'summarize', current: { value: '1m', text: '1m', selected: false } }),
+        createQueryVariable({ name: 'host', current: { value: 'a', text: 'a', selected: false } }),
       ]);
       const ds = new MssqlDatasource(instanceSettings);
       Reflect.set(ds, 'templateSrv', templateSrv);

@@ -5,6 +5,7 @@ import { type DataFrame } from './dataFrame';
  *
  * @beta
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic defaults `TSettings = any, TValue = any` preserved for back-compat with panel/field config builders that omit explicit type parameters across hundreds of call sites
 export interface OptionEditorConfig<TOptions, TSettings = any, TValue = any> {
   /**
    * Path of the option property to control.

@@ -17,7 +17,7 @@ export const fetchRoleOptions = async (orgId?: number): Promise<Role[]> => {
   if (orgId) {
     rolesUrl += `&targetOrgId=${orgId}`;
   }
-  const roles = await getBackendSrv().get(rolesUrl);
+  const roles = await getBackendSrv().get<Role[]>(rolesUrl);
   if (!roles || !roles.length) {
     return [];
   }

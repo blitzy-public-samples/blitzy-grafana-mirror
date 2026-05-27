@@ -1,8 +1,8 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useAsync, useDebounce } from 'react-use';
 
 import { Trans, t } from '@grafana/i18n';
-import { Button, Icon, Input, Modal, useStyles2 } from '@grafana/ui';
+import { type Column, Button, Icon, InteractiveTable, Input, Modal, useStyles2 } from '@grafana/ui';
 
 import { getConnectedDashboards } from '../../state/api';
 import { getModalStyles } from '../../styles';
@@ -16,6 +16,11 @@ interface Props {
   onConfirm: () => void;
   onDismiss: () => void;
   onDiscard: () => void;
+}
+
+interface AffectedDashboardRow {
+  id: string;
+  name: string;
 }
 
 export const SaveLibraryPanelModal = ({
@@ -57,6 +62,27 @@ export const SaveLibraryPanelModal = ({
     onDiscard();
   }, [onDiscard]);
 
+  // Use the source array index as the stable row identity. Dashboard titles are not
+  // guaranteed to be unique across folders, and `InteractiveTable`'s underlying
+  // `react-table` requires a unique `id` per row — using the title would collapse
+  // duplicate-name rows into a single row, regressing the original raw-<table>
+  // behavior which keyed rows by `dashrow-${i}`. The connected-dashboards API
+  // does not currently surface dashboard UIDs for this list, so the array index is
+  // the most stable available identifier.
+  const tableData = useMemo<AffectedDashboardRow[]>(
+    () => filteredDashboards.map((name, index) => ({ id: String(index), name })),
+    [filteredDashboards]
+  );
+  const columns = useMemo<Array<Column<AffectedDashboardRow>>>(
+    () => [
+      {
+        id: 'name',
+        header: t('library-panels.save-library-panel-modal.dashboard-name', 'Dashboard name'),
+      },
+    ],
+    []
+  );
+
   const title = isUnsavedPrompt ? 'Unsaved library panel changes' : 'Save library panel';
 
   return (
@@ -90,22 +116,7 @@ export const SaveLibraryPanelModal = ({
             </Trans>
           </p>
         ) : (
-          <table className={styles.myTable}>
-            <thead>
-              <tr>
-                <th>
-                  <Trans i18nKey="library-panels.save-library-panel-modal.dashboard-name">Dashboard name</Trans>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredDashboards.map((dashName, i) => (
-                <tr key={`dashrow-${i}`}>
-                  <td>{dashName}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <InteractiveTable columns={columns} data={tableData} getRowId={(row) => row.id} />
         )}
         <Modal.ButtonRow>
           <Button variant="secondary" onClick={onDismiss} fill="outline">

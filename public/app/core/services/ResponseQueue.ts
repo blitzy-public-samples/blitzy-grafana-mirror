@@ -17,7 +17,7 @@ interface FetchResponsesEntry<T> {
 
 export class ResponseQueue {
   private queue = new Subject<FetchWorkEntry>(); // internal stream for requests that are to be executed
-  private responses = new Subject<FetchResponsesEntry<any>>(); // external stream with responses from fetch
+  private responses = new Subject<FetchResponsesEntry<unknown>>(); // external stream with responses from fetch
 
   constructor(fetchQueue: FetchQueue, fetch: <T>(options: BackendSrvRequest) => Observable<FetchResponse<T>>) {
     // This will create an implicit live subscription for as long as this class lives.
@@ -38,5 +38,7 @@ export class ResponseQueue {
   };
 
   getResponses = <T>(id: string): Observable<FetchResponsesEntry<T>> =>
-    this.responses.asObservable().pipe(filter((entry) => entry.id === id));
+    this.responses.asObservable().pipe(
+      filter((entry): entry is FetchResponsesEntry<T> => entry.id === id)
+    );
 }

@@ -10,6 +10,15 @@ const getStyles = (theme: GrafanaTheme2) => ({
     paddingBottom: theme.spacing(2),
     color: theme.colors.text.secondary,
   }),
+  pageHeading: css({
+    fontSize: theme.typography.h3.fontSize,
+    fontWeight: theme.typography.h3.fontWeight,
+    lineHeight: theme.typography.h3.lineHeight,
+    marginBottom: theme.spacing(2),
+  }),
+  formGroup: css({
+    marginBottom: theme.spacing(2),
+  }),
 });
 
 interface Props {
@@ -46,14 +55,14 @@ export function XrayLinkConfig({ newFormStyling, datasourceUid, onChange }: Prop
         <DataSourcePicker
           pluginId={xRayDsId}
           onChange={(ds: DataSourceInstanceSettings) => onChange(ds.uid)}
-          current={datasourceUid}
+          current={datasourceUid ?? null}
           noDefault={true}
         />
       </Field>
     </ConfigSection>
   ) : (
     <>
-      <h3 className="page-heading">Application Signals trace link</h3>
+      <h3 className={styles.pageHeading}>Application Signals trace link</h3>
 
       <div className={styles.infoText}>
         Grafana will automatically create a link to a trace in Application Signals data source if logs contain
@@ -69,7 +78,7 @@ export function XrayLinkConfig({ newFormStyling, datasourceUid, onChange }: Prop
         />
       )}
 
-      <div className="gf-form-group">
+      <div className={styles.formGroup}>
         <InlineField
           htmlFor="data-source-picker"
           label="Data source"
@@ -79,7 +88,7 @@ export function XrayLinkConfig({ newFormStyling, datasourceUid, onChange }: Prop
           <DataSourcePicker
             pluginId={xRayDsId}
             onChange={(ds: DataSourceInstanceSettings) => onChange(ds.uid)}
-            current={datasourceUid}
+            current={datasourceUid ?? null}
             noDefault={true}
           />
         </InlineField>

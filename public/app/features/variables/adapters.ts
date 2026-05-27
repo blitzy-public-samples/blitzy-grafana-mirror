@@ -27,7 +27,8 @@ export interface VariableAdapter<Model extends TypedVariableModel> {
   picker: ComponentType<VariablePickerProps<Model>>;
   editor: ComponentType<VariableEditorProps<Model>>;
   reducer: Reducer<VariablesState>;
-  beforeAdding?: (model: any) => any;
+  beforeAdding?: (model: Model) => Model;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Registry holds adapters for all variable types; narrowing to VariableAdapter<TypedVariableModel> is impossible due to TypeScript's invariance of generic parameters in contravariant function positions (setValue, dependsOn, getSaveModel all consume Model). Each registered adapter is itself strongly typed (e.g. VariableAdapter<TextBoxVariableModel>); the registry's element type is intentionally permissive.
 export const variableAdapters = new Registry<VariableAdapter<any>>();

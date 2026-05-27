@@ -6,7 +6,11 @@ import { Drawer, Tab, TabsBar } from '@grafana/ui';
 import { jsonDiff } from 'app/features/dashboard-scene/settings/version-history/utils';
 
 import { SaveDashboardDiff } from './SaveDashboardDiff';
-import { proxyHandlesError, SaveDashboardErrorProxy } from './SaveDashboardErrorProxy';
+import {
+  type DashboardSaveErrorData,
+  proxyHandlesError,
+  SaveDashboardErrorProxy,
+} from './SaveDashboardErrorProxy';
 import { SaveDashboardAsForm } from './forms/SaveDashboardAsForm';
 import { SaveDashboardForm } from './forms/SaveDashboardForm';
 import { SaveProvisionedDashboardForm } from './forms/SaveProvisionedDashboardForm';
@@ -90,7 +94,15 @@ export const SaveDashboardDrawer = ({ dashboard, onDismiss, onSaveSuccess, isCop
     );
   };
 
-  if (state.error && !errorIsHandled && isFetchError(state.error) && proxyHandlesError(state.error.data.status)) {
+  if (
+    state.error &&
+    !errorIsHandled &&
+    // Narrow the captured error to the dashboard-save body shape so
+    // `state.error.data.status` is typed and `SaveDashboardErrorProxy` can
+    // consume the same generic.
+    isFetchError<DashboardSaveErrorData>(state.error) &&
+    proxyHandlesError(state.error.data.status)
+  ) {
     return (
       <SaveDashboardErrorProxy
         error={state.error}

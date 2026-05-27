@@ -3,7 +3,16 @@ import { type UseFormReturn } from 'react-hook-form';
 
 import { t } from '@grafana/i18n';
 import { isFetchError } from '@grafana/runtime';
-import { type RepositorySpec } from 'app/api/clients/provisioning/v0alpha1';
+import {
+  type ErrorDetails,
+  type RepositorySpec,
+  type Status,
+} from 'app/api/clients/provisioning/v0alpha1';
+
+// Possible response payload shapes for a failed provisioning request. The
+// helpers in `getFormErrors` accept either a Kubernetes-style Status or an
+// array of ErrorDetails; FetchError<...> exposes whichever was returned.
+type ProvisioningFormErrorData = ErrorDetails[] | Status;
 
 import { dataToSpec } from '../../utils/data';
 import { extractFormErrors, getFormErrors } from '../../utils/getFormErrors';
@@ -73,12 +82,14 @@ export function useWizardSubmission({
 
         const rsp = await submitData(spec, token);
         if (rsp.error) {
-          if (isFetchError(rsp.error)) {
+          if (isFetchError<ProvisioningFormErrorData>(rsp.error)) {
+            const errorData = rsp.error.data;
+            const errorMessage = !Array.isArray(errorData) ? errorData.message : undefined;
             setStepStatusInfo({
               status: 'error',
               error: {
                 title: repositoryRequestFailed,
-                message: rsp.error.data.message,
+                message: errorMessage,
               },
             });
           } else {
@@ -108,9 +119,10 @@ export function useWizardSubmission({
           });
         }
       } catch (error) {
-        if (isFetchError(error)) {
-          const errors = getFormErrors(error.data);
-          const extractedErrors = extractFormErrors(error.data);
+        if (isFetchError<ProvisioningFormErrorData>(error)) {
+          const errorData = error.data;
+          const errors = getFormErrors(errorData);
+          const extractedErrors = extractFormErrors(errorData);
           const extractedMessage = extractedErrors
             .map((error) => error.detail)
             .filter((detail): detail is string => Boolean(detail));
@@ -142,11 +154,12 @@ export function useWizardSubmission({
               },
             });
           } else {
+            const fallbackMessage = !Array.isArray(errorData) ? errorData.message : undefined;
             setStepStatusInfo({
               status: 'error',
               error: {
                 title: repositoryConnectionFailed,
-                message: extractedMessage || error.data.message,
+                message: extractedMessage || fallbackMessage,
               },
             });
           }

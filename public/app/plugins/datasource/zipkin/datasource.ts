@@ -62,8 +62,8 @@ export class ZipkinDatasource extends DataSourceWithBackend<ZipkinQuery, ZipkinJ
     return of(emptyDataQueryResponse);
   }
 
-  async metadataRequest(url: string, params?: Record<string, unknown>) {
-    return await this.getResource(url, params);
+  async metadataRequest<T = unknown>(url: string, params?: Record<string, unknown>): Promise<T> {
+    return await this.getResource<T>(url, params);
   }
 
   async testDatasource(): Promise<{ status: string; message: string }> {

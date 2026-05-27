@@ -6,12 +6,13 @@ import { type SceneObject } from '@grafana/scenes';
 import { StateManagerBase } from 'app/core/services/StateManagerBase';
 import { type Randomize } from 'app/features/dashboard-scene/inspect/HelpWizard/randomizer';
 import { createDashboardSceneFromDashboardModel } from 'app/features/dashboard-scene/serialization/transformSaveModelToScene';
+import { type DashboardDataDTO } from 'app/types/dashboard';
 
 import { getTimeSrv } from '../../services/TimeSrv';
 import { DashboardModel } from '../../state/DashboardModel';
 import { type PanelModel } from '../../state/PanelModel';
 
-import { getDebugDashboard, getGithubMarkdown } from './utils';
+import { type DebugDashboard, getDebugDashboard, getGithubMarkdown } from './utils';
 
 interface SupportSnapshotState {
   currentTab: SnapshotTab;
@@ -29,8 +30,7 @@ interface SupportSnapshotState {
   panel: PanelModel;
   panelTitle: string;
 
-  // eslint-disable-next-line
-  snapshot?: any;
+  snapshot?: DebugDashboard;
   snapshotUpdate: number;
   scene?: SceneObject;
 }
@@ -84,8 +84,16 @@ export class SupportSnapshotService extends StateManagerBase<SupportSnapshotStat
     let scene: SceneObject | undefined = undefined;
 
     try {
-      const oldModel = new DashboardModel(snapshot, { isEmbedded: true });
-      const dash = createDashboardSceneFromDashboardModel(oldModel, snapshot);
+      // DebugDashboard narrowly describes the JSON shape produced by getDebugDashboard();
+      // DashboardModel expects the wider Dashboard structural type and
+      // createDashboardSceneFromDashboardModel expects DashboardDataDTO (which extends
+      // Dashboard with required `uid` and `title`, and widens `panels` to `any[]`).
+      // Building a DashboardDataDTO from the snapshot via spread + explicit uid/title
+      // satisfies both call-site signatures without type assertions or loosening the
+      // public SupportSnapshotState.snapshot type.
+      const dashboardData: DashboardDataDTO = { ...snapshot, uid: '', title: snapshot.title ?? '' };
+      const oldModel = new DashboardModel(dashboardData, { isEmbedded: true });
+      const dash = createDashboardSceneFromDashboardModel(oldModel, dashboardData);
       scene = dash.state.body; // skip the wrappers
     } catch (ex) {
       console.log('Error creating scene:', ex);

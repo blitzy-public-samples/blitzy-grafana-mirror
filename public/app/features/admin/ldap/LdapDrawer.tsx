@@ -99,7 +99,7 @@ export const LdapDrawerComponent = ({
         For a complete list of supported ciphers and TLS versions, refer to:
       </Trans>{' '}
       {/* eslint-disable-next-line @grafana/i18n/no-untranslated-strings */}
-      <TextLink style={{ fontSize: 'inherit' }} href="https://go.dev/src/crypto/tls/cipher_suites.go" external>
+      <TextLink className={styles.inheritFontSize} href="https://go.dev/src/crypto/tls/cipher_suites.go" external>
         https://go.dev/src/crypto/tls/cipher_suites.go
       </TextLink>
     </>
@@ -456,6 +456,9 @@ function getStyles(theme: GrafanaTheme2) {
       'div:last-of-type > svg': {
         display: 'none',
       },
+    }),
+    inheritFontSize: css({
+      fontSize: 'inherit',
     }),
   };
 }

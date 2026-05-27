@@ -1,12 +1,13 @@
+import { act, render } from '@testing-library/react';
 import type OpenLayersMap from 'ol/Map';
 import type View from 'ol/View';
 import { transformExtent } from 'ol/proj';
-import { type ComponentProps } from 'react';
+import { createRef, type ComponentProps, type RefObject } from 'react';
 
 import { dateTime, EventBusSrv, LoadingState } from '@grafana/data';
 import { locationService } from '@grafana/runtime';
 
-import { GeomapPanel } from './GeomapPanel';
+import { GeomapPanel, type GeomapPanel as GeomapPanelHandle } from './GeomapPanel';
 import { TooltipMode } from './panelcfg.gen';
 
 // Mock React components
@@ -172,8 +173,66 @@ const createPropsWithoutVariable = (baseProps: ComponentProps<typeof GeomapPanel
   },
 });
 
+// Type alias for the ref pointing to the GeomapPanel imperative-handle interface.
+// After the class→functional conversion, GeomapPanel is exposed via forwardRef +
+// useImperativeHandle with the same shape that was previously available on the
+// class instance. The value-and-type share-a-name pattern works because TypeScript
+// keeps separate value and type namespaces.
+type PanelHandleRef = RefObject<GeomapPanelHandle | null>;
+
+// Test helper that mounts a GeomapPanel via React Testing Library and returns
+// both the imperative handle (via ref.current) and the unmount function so tests
+// can drive unmount-based cleanup. Replaces the prior `new GeomapPanel(props)`
+// constructor pattern, which no longer works once the component is converted to
+// a functional forwardRef component.
+//
+// React.createElement freezes element props in development (which Jest runs in).
+// AAP Pattern F mandates that tests continue to use `Object.assign(panel.props, ...)`
+// and `Object.defineProperty(panel.props, ...)` patterns; once GeomapPanel.tsx is
+// converted to a functional component, its imperative handle exposes `props` as a
+// mutable field via useImperativeHandle and the freeze does not apply. While the
+// component is still in its class form, we replace the frozen `props` reference on
+// the handle with a mutable shallow clone so the test pattern survives the
+// transition. This is a no-op once the functional conversion lands.
+function setupPanel(panelProps: ComponentProps<typeof GeomapPanel>): {
+  ref: PanelHandleRef;
+  unmount: () => void;
+} {
+  const ref = createRef<GeomapPanelHandle>();
+  const result = render(<GeomapPanel ref={ref} {...panelProps} />);
+  if (ref.current) {
+    Object.defineProperty(ref.current, 'props', {
+      value: { ...ref.current.props },
+      writable: true,
+      configurable: true,
+      enumerable: true,
+    });
+  }
+  return { ref, unmount: result.unmount };
+}
+
+// Helper to make `panel.props` mutable for tests that update props in-place
+// (via Object.assign or Object.defineProperty). React freezes element.props in
+// development mode (which Jest runs in), and React's reconciliation re-applies
+// the frozen original to `this.props` after every re-render — overwriting any
+// earlier mutable-clone replacement. This helper installs a fresh shallow clone
+// at call time so subsequent mutations succeed. Once GeomapPanel.tsx is converted
+// to a functional forwardRef component (per AAP §0.6.1 / §0.8.2), the imperative
+// handle's `props` field is already a mutable state mirror and this helper acts
+// as a defensive clone with no observable side effect.
+function makePropsMutable(handle: GeomapPanelHandle) {
+  Object.defineProperty(handle, 'props', {
+    value: { ...handle.props },
+    writable: true,
+    configurable: true,
+    enumerable: true,
+  });
+}
+
 describe('GeomapPanel - View Listener', () => {
-  let panel: GeomapPanel;
+  let panel: GeomapPanelHandle;
+  let panelRef: PanelHandleRef;
+  let panelUnmount: () => void;
   let mockView: Partial<jest.Mocked<View>>;
   let mockMap: Partial<jest.Mocked<OpenLayersMap>>;
   let props: ComponentProps<typeof GeomapPanel>;
@@ -292,27 +351,37 @@ describe('GeomapPanel - View Listener', () => {
       eventBus: new EventBusSrv(),
     };
 
-    panel = new GeomapPanel(props);
+    const setupResult = setupPanel(props);
+    panelRef = setupResult.ref;
+    panelUnmount = setupResult.unmount;
+    panel = panelRef.current!;
   });
 
   afterEach(() => {
     jest.useRealTimers();
     jest.restoreAllMocks();
+    panelUnmount();
   });
 
   describe('View listener registration', () => {
     it('should register view listener when dashboardVariable is enabled', async () => {
-      panel = new GeomapPanel(createPropsWithVariable(props));
+      const { ref } = setupPanel(createPropsWithVariable(props));
+      panel = ref.current!;
       const div = document.createElement('div');
-      await panel.initMapAsync(div);
+      await act(async () => {
+        await panel.initMapAsync(div);
+      });
 
       expect(viewOnMock).toHaveBeenCalledWith('change', expect.any(Function));
     });
 
     it('should not register view listener when dashboardVariable is disabled', async () => {
-      panel = new GeomapPanel(createPropsWithoutVariable(props));
+      const { ref } = setupPanel(createPropsWithoutVariable(props));
+      panel = ref.current!;
       const div = document.createElement('div');
-      await panel.initMapAsync(div);
+      await act(async () => {
+        await panel.initMapAsync(div);
+      });
 
       expect(viewOnMock).not.toHaveBeenCalled();
     });
@@ -320,32 +389,49 @@ describe('GeomapPanel - View Listener', () => {
 
   describe('View listener cleanup', () => {
     it('should unregister view listener on component unmount', async () => {
-      panel = new GeomapPanel(createPropsWithVariable(props));
+      const { ref, unmount } = setupPanel(createPropsWithVariable(props));
+      panel = ref.current!;
       const div = document.createElement('div');
-      await panel.initMapAsync(div);
+      await act(async () => {
+        await panel.initMapAsync(div);
+      });
 
       // Verify listener was registered
       expect(viewOnMock).toHaveBeenCalled();
       const registeredKey = viewOnMock.mock.results[0].value;
 
-      // Unmount component
-      panel.componentWillUnmount();
+      // Unmount component (Pattern B): trigger React unmount which fires the
+      // functional component's cleanup effect; on the current class component
+      // this maps to componentWillUnmount being invoked by React.
+      unmount();
 
       // Verify listener was unregistered
       expect(viewUnMock).toHaveBeenCalledWith('change', registeredKey.listener);
     });
 
     it('should cleanup existing listener before registering new one during re-initialization', async () => {
-      panel = new GeomapPanel(createPropsWithVariable(props));
+      const { ref } = setupPanel(createPropsWithVariable(props));
+      panel = ref.current!;
       const div = document.createElement('div');
 
+      // Flush React's auto-initialization microtasks (initMapRef → initMapAsync)
+      // triggered during render so its view.on call is excluded from our count,
+      // then reset the mocks so the explicit invocations below are counted from zero.
+      await act(async () => {});
+      viewOnMock.mockClear();
+      viewUnMock.mockClear();
+
       // First initialization
-      await panel.initMapAsync(div);
+      await act(async () => {
+        await panel.initMapAsync(div);
+      });
       expect(viewOnMock).toHaveBeenCalledTimes(1);
       const firstKey = viewOnMock.mock.results[0].value;
 
       // Second initialization (simulating re-init)
-      await panel.initMapAsync(div);
+      await act(async () => {
+        await panel.initMapAsync(div);
+      });
 
       // Should have unregistered the first listener
       expect(viewUnMock).toHaveBeenCalledWith('change', firstKey.listener);
@@ -356,9 +442,12 @@ describe('GeomapPanel - View Listener', () => {
 
   describe('updateGeoVariables', () => {
     it('should update dashboard variable with transformed extent', async () => {
-      panel = new GeomapPanel(createPropsWithVariable(props));
+      const { ref } = setupPanel(createPropsWithVariable(props));
+      panel = ref.current!;
       const div = document.createElement('div');
-      await panel.initMapAsync(div);
+      await act(async () => {
+        await panel.initMapAsync(div);
+      });
 
       // Mock transformExtent to return a specific value
       jest.mocked(transformExtent).mockReturnValue(MOCK_EXTENT_4326);
@@ -375,9 +464,12 @@ describe('GeomapPanel - View Listener', () => {
     });
 
     it('should debounce multiple rapid view changes', async () => {
-      panel = new GeomapPanel(createPropsWithVariable(props));
+      const { ref } = setupPanel(createPropsWithVariable(props));
+      panel = ref.current!;
       const div = document.createElement('div');
-      await panel.initMapAsync(div);
+      await act(async () => {
+        await panel.initMapAsync(div);
+      });
 
       // Trigger multiple rapid changes
       const changeCallback = viewOnMock.mock.calls[0][1];
@@ -411,9 +503,12 @@ describe('GeomapPanel - View Listener', () => {
         },
       };
 
-      panel = new GeomapPanel(propsWithoutVariableName);
+      const { ref } = setupPanel(propsWithoutVariableName);
+      panel = ref.current!;
       const div = document.createElement('div');
-      await panel.initMapAsync(div);
+      await act(async () => {
+        await panel.initMapAsync(div);
+      });
 
       // Clear any calls from initialization
       jest.mocked(locationService.partial).mockClear();
@@ -430,17 +525,20 @@ describe('GeomapPanel - View Listener', () => {
     });
 
     it('should clear pending timeout on unmount', async () => {
-      panel = new GeomapPanel(createPropsWithVariable(props));
+      const { ref, unmount } = setupPanel(createPropsWithVariable(props));
+      panel = ref.current!;
       const div = document.createElement('div');
-      await panel.initMapAsync(div);
+      await act(async () => {
+        await panel.initMapAsync(div);
+      });
 
       // Trigger a view change
       const changeCallback = viewOnMock.mock.calls[0][1];
       changeCallback();
 
-      // Unmount before the debounce timeout completes
+      // Unmount before the debounce timeout completes (Pattern B)
       jest.advanceTimersByTime(200);
-      panel.componentWillUnmount();
+      unmount();
 
       // Fast-forward past the debounce timeout
       jest.advanceTimersByTime(DEBOUNCE_TIMEOUT);
@@ -452,9 +550,12 @@ describe('GeomapPanel - View Listener', () => {
 
   describe('Integration with view changes', () => {
     it('should handle view extent calculation and transformation correctly', async () => {
-      panel = new GeomapPanel(createPropsWithVariable(props));
+      const { ref } = setupPanel(createPropsWithVariable(props));
+      panel = ref.current!;
       const div = document.createElement('div');
-      await panel.initMapAsync(div);
+      await act(async () => {
+        await panel.initMapAsync(div);
+      });
 
       mockView.calculateExtent!.mockReturnValue(MOCK_EXTENT);
       jest.mocked(transformExtent).mockReturnValue(MOCK_EXTENT_4326);
@@ -479,7 +580,9 @@ describe('GeomapPanel - View Listener', () => {
 
     it('should update map size when dimensions change', async () => {
       const div = document.createElement('div');
-      await panel.initMapAsync(div);
+      await act(async () => {
+        await panel.initMapAsync(div);
+      });
 
       const newProps = {
         ...props,
@@ -493,7 +596,9 @@ describe('GeomapPanel - View Listener', () => {
 
     it('should handle data changes', async () => {
       const div = document.createElement('div');
-      await panel.initMapAsync(div);
+      await act(async () => {
+        await panel.initMapAsync(div);
+      });
 
       const newData = {
         ...props.data,
@@ -511,10 +616,16 @@ describe('GeomapPanel - View Listener', () => {
 
     it('should handle componentDidUpdate for dimension changes', async () => {
       const div = document.createElement('div');
-      await panel.initMapAsync(div);
+      await act(async () => {
+        await panel.initMapAsync(div);
+      });
 
       const prevProps = { ...props, width: 600, height: 400 };
 
+      // React re-applied the frozen original `this.props` during the re-render
+      // triggered by initMapAsync's setState, so refresh the mutable shallow
+      // clone before mutating in-place.
+      makePropsMutable(panel);
       // Update the panel's props
       Object.assign(panel.props, { width: 1000, height: 800 });
 
@@ -525,22 +636,37 @@ describe('GeomapPanel - View Listener', () => {
 
   describe('Map initialization edge cases', () => {
     it('should handle null div in initMapAsync', async () => {
-      await panel.initMapAsync(null);
+      await act(async () => {
+        await panel.initMapAsync(null);
+      });
       expect(mockMap.dispose).not.toHaveBeenCalled();
     });
 
     it('should dispose old map on re-initialization', async () => {
+      // Flush React's auto-initialization microtasks so panel.map is fully
+      // populated, then reset both panel.map and the dispose mock so the test's
+      // first explicit init below behaves as the "first" initialization.
+      await act(async () => {});
+      panel.map = undefined;
+      mockMap.dispose?.mockClear();
+
       const div = document.createElement('div');
-      await panel.initMapAsync(div);
+      await act(async () => {
+        await panel.initMapAsync(div);
+      });
       expect(mockMap.dispose).not.toHaveBeenCalled();
 
-      await panel.initMapAsync(div);
+      await act(async () => {
+        await panel.initMapAsync(div);
+      });
       expect(mockMap.dispose).toHaveBeenCalled();
     });
 
     it('should handle map initialization without dashboard variable', async () => {
       const div = document.createElement('div');
-      await panel.initMapAsync(div);
+      await act(async () => {
+        await panel.initMapAsync(div);
+      });
 
       expect(viewOnMock).not.toHaveBeenCalled();
       expect(mockMap.addLayer).toHaveBeenCalled();
@@ -552,7 +678,9 @@ describe('GeomapPanel - View Listener', () => {
     it('should initialize view with default options', async () => {
       const ViewConstructor = require('ol/View');
       const div = document.createElement('div');
-      await panel.initMapAsync(div);
+      await act(async () => {
+        await panel.initMapAsync(div);
+      });
 
       const view = panel.initMapView(props.options.view);
       expect(view).toBeDefined();
@@ -562,7 +690,9 @@ describe('GeomapPanel - View Listener', () => {
     it('should initialize view with noRepeat enabled', async () => {
       const ViewConstructor = require('ol/View');
       const div = document.createElement('div');
-      await panel.initMapAsync(div);
+      await act(async () => {
+        await panel.initMapAsync(div);
+      });
 
       const viewConfig = {
         ...props.options.view,
@@ -575,7 +705,9 @@ describe('GeomapPanel - View Listener', () => {
 
     it('should handle shared view configuration', async () => {
       const div = document.createElement('div');
-      await panel.initMapAsync(div);
+      await act(async () => {
+        await panel.initMapAsync(div);
+      });
 
       const viewConfig = {
         ...props.options.view,
@@ -616,7 +748,9 @@ describe('GeomapPanel - View Listener', () => {
   describe('Options changes', () => {
     it('should handle noRepeat option change', async () => {
       const div = document.createElement('div');
-      await panel.initMapAsync(div);
+      await act(async () => {
+        await panel.initMapAsync(div);
+      });
 
       const oldOptions = props.options;
       const newOptions = {
@@ -635,7 +769,9 @@ describe('GeomapPanel - View Listener', () => {
 
     it('should handle view changes without noRepeat', async () => {
       const div = document.createElement('div');
-      await panel.initMapAsync(div);
+      await act(async () => {
+        await panel.initMapAsync(div);
+      });
 
       const ViewConstructor = require('ol/View');
       ViewConstructor.mockClear();
@@ -656,7 +792,9 @@ describe('GeomapPanel - View Listener', () => {
 
     it('should handle controls changes', async () => {
       const div = document.createElement('div');
-      await panel.initMapAsync(div);
+      await act(async () => {
+        await panel.initMapAsync(div);
+      });
 
       const oldOptions = props.options;
       const newOptions = {
@@ -673,7 +811,9 @@ describe('GeomapPanel - View Listener', () => {
 
     it('should register view listener when dashboardVariable is enabled via options change', async () => {
       const div = document.createElement('div');
-      await panel.initMapAsync(div);
+      await act(async () => {
+        await panel.initMapAsync(div);
+      });
 
       // Initially no listener registered
       expect(viewOnMock).not.toHaveBeenCalled();
@@ -689,7 +829,9 @@ describe('GeomapPanel - View Listener', () => {
 
     it('should immediately update the variable when dashboardVariable is first enabled', async () => {
       const div = document.createElement('div');
-      await panel.initMapAsync(div);
+      await act(async () => {
+        await panel.initMapAsync(div);
+      });
 
       jest.mocked(transformExtent).mockReturnValue(MOCK_EXTENT_4326);
 
@@ -704,9 +846,20 @@ describe('GeomapPanel - View Listener', () => {
     });
 
     it('should unregister old listener and register new one when view options change with dashboardVariable enabled', async () => {
-      panel = new GeomapPanel(createPropsWithVariable(props));
+      const { ref } = setupPanel(createPropsWithVariable(props));
+      panel = ref.current!;
+
+      // Flush React's auto-initialization microtasks (initMapRef → initMapAsync)
+      // triggered during render so its view.on call is excluded from our count,
+      // then reset the mocks so the explicit initMapAsync below is counted from zero.
+      await act(async () => {});
+      viewOnMock.mockClear();
+      viewUnMock.mockClear();
+
       const div = document.createElement('div');
-      await panel.initMapAsync(div);
+      await act(async () => {
+        await panel.initMapAsync(div);
+      });
 
       // Listener registered during initMapAsync
       expect(viewOnMock).toHaveBeenCalledTimes(1);
@@ -730,9 +883,20 @@ describe('GeomapPanel - View Listener', () => {
     });
 
     it('should unregister listener when dashboardVariable is disabled via options change', async () => {
-      panel = new GeomapPanel(createPropsWithVariable(props));
+      const { ref } = setupPanel(createPropsWithVariable(props));
+      panel = ref.current!;
+
+      // Flush React's auto-initialization microtasks (initMapRef → initMapAsync)
+      // triggered during render so its view.on call is excluded from our count,
+      // then reset the mocks so the explicit initMapAsync below is counted from zero.
+      await act(async () => {});
+      viewOnMock.mockClear();
+      viewUnMock.mockClear();
+
       const div = document.createElement('div');
-      await panel.initMapAsync(div);
+      await act(async () => {
+        await panel.initMapAsync(div);
+      });
 
       expect(viewOnMock).toHaveBeenCalledTimes(1);
       const registeredKey = viewOnMock.mock.results[0].value;
@@ -752,13 +916,19 @@ describe('GeomapPanel - View Listener', () => {
   describe('Data handling', () => {
     it('should handle data changes when panel data matches', async () => {
       const div = document.createElement('div');
-      await panel.initMapAsync(div);
+      await act(async () => {
+        await panel.initMapAsync(div);
+      });
 
       const newData = {
         ...props.data,
         series: [{ fields: [], length: 0 }],
       };
 
+      // React re-applied the frozen original `this.props` during the re-render
+      // triggered by initMapAsync's setState, so refresh the mutable shallow
+      // clone before mutating in-place.
+      makePropsMutable(panel);
       // Set the panel's props.data to match the data we're passing
       Object.assign(panel.props, { data: newData });
 
@@ -780,7 +950,9 @@ describe('GeomapPanel - View Listener', () => {
       hasLayerData.mockReturnValue(true);
 
       const div = document.createElement('div');
-      await panel.initMapAsync(div);
+      await act(async () => {
+        await panel.initMapAsync(div);
+      });
 
       // Add a layer with a legend
       panel.layers = [
@@ -806,7 +978,9 @@ describe('GeomapPanel - View Listener', () => {
   describe('Controls initialization', () => {
     it('should initialize controls with zoom enabled', async () => {
       const div = document.createElement('div');
-      await panel.initMapAsync(div);
+      await act(async () => {
+        await panel.initMapAsync(div);
+      });
 
       panel.initControls({
         showZoom: true,
@@ -819,7 +993,9 @@ describe('GeomapPanel - View Listener', () => {
 
     it('should initialize controls with scale', async () => {
       const div = document.createElement('div');
-      await panel.initMapAsync(div);
+      await act(async () => {
+        await panel.initMapAsync(div);
+      });
 
       panel.initControls({
         showZoom: false,
@@ -833,7 +1009,9 @@ describe('GeomapPanel - View Listener', () => {
 
     it('should toggle mouse wheel zoom', async () => {
       const div = document.createElement('div');
-      await panel.initMapAsync(div);
+      await act(async () => {
+        await panel.initMapAsync(div);
+      });
 
       panel.initControls({
         showZoom: false,
@@ -846,7 +1024,9 @@ describe('GeomapPanel - View Listener', () => {
 
     it('should initialize measure overlay when enabled', async () => {
       const div = document.createElement('div');
-      await panel.initMapAsync(div);
+      await act(async () => {
+        await panel.initMapAsync(div);
+      });
 
       const setStateSpy = jest.spyOn(panel, 'setState');
       panel.initControls({
@@ -860,7 +1040,9 @@ describe('GeomapPanel - View Listener', () => {
 
     it('should initialize debug overlay when enabled', async () => {
       const div = document.createElement('div');
-      await panel.initMapAsync(div);
+      await act(async () => {
+        await panel.initMapAsync(div);
+      });
 
       const setStateSpy = jest.spyOn(panel, 'setState');
       panel.initControls({
@@ -873,6 +1055,13 @@ describe('GeomapPanel - View Listener', () => {
     });
 
     it('should handle controls when map is not initialized', () => {
+      // React's auto-initialization (initMapRef → initMapAsync) populated
+      // panel.map during render. Reset it and clear the getControls mock so
+      // the early-return branch of initControls (when this.map is undefined)
+      // is the path under test.
+      panel.map = undefined;
+      mockMap.getControls?.mockClear();
+
       panel.initControls({
         showZoom: true,
         showAttribution: true,
@@ -886,9 +1075,15 @@ describe('GeomapPanel - View Listener', () => {
   describe('doOptionsUpdate', () => {
     it('should update options and notify editor', async () => {
       const div = document.createElement('div');
-      await panel.initMapAsync(div);
+      await act(async () => {
+        await panel.initMapAsync(div);
+      });
 
       const onOptionsChangeSpy = jest.fn();
+      // React re-applied the frozen original `this.props` during the re-render
+      // triggered by initMapAsync's setState, so refresh the mutable shallow
+      // clone before redefining a property on it.
+      makePropsMutable(panel);
       // Use Object.defineProperty to override readonly property
       Object.defineProperty(panel.props, 'onOptionsChange', {
         value: onOptionsChangeSpy,

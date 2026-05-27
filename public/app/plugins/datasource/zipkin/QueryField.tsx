@@ -148,7 +148,7 @@ export function useServices(
 ): AsyncState<CascaderOption[]> {
   const [servicesOptions, fetch] = useAsyncFn(async (): Promise<CascaderOption[]> => {
     try {
-      const services: string[] | null = await datasource.metadataRequest('services');
+      const services: string[] | null = await datasource.metadataRequest<string[] | null>('services');
       if (services) {
         return services.sort().map((service) => ({
           label: service,
@@ -175,9 +175,11 @@ export function useServices(
 
 type OptionsState = {
   [serviceName: string]: {
-    [spanName: string]: {
-      [traceId: string]: string;
-    };
+    [spanName: string]:
+      | {
+          [traceId: string]: string;
+        }
+      | undefined;
   };
 };
 
@@ -192,13 +194,13 @@ export function useLoadOptions(datasource: ZipkinDatasource, setErrorText: (text
         // The response of this should have been full ZipkinSpan objects based on API docs but is just list
         // of span names.
         // TODO: check if this is some issue of version used or something else
-        const response: string[] = await datasource.metadataRequest('spans', { serviceName: service });
+        const response: string[] = await datasource.metadataRequest<string[]>('spans', { serviceName: service });
         if (isMounted()) {
           setAllOptions((state) => {
             const spanOptions = fromPairs(response.map((span: string) => [span, undefined]));
             return {
               ...state,
-              [service]: spanOptions as any,
+              [service]: spanOptions,
             };
           });
         }
@@ -221,7 +223,7 @@ export function useLoadOptions(datasource: ZipkinDatasource, setErrorText: (text
       };
       try {
         // This should return just root traces as there isn't any nesting
-        const traces: ZipkinSpan[][] = await datasource.metadataRequest('traces', search);
+        const traces: ZipkinSpan[][] = await datasource.metadataRequest<ZipkinSpan[][]>('traces', search);
         if (isMounted()) {
           const newTraces = traces.length
             ? fromPairs(
@@ -290,10 +292,10 @@ function useMapToCascaderOptions(services: AsyncState<CascaderOption[]>, allOpti
                 isLeaf: false,
                 children:
                   allOptions[services.value][spanName] &&
-                  Object.keys(allOptions[services.value][spanName]).map((traceName) => {
+                  Object.keys(allOptions[services.value][spanName]!).map((traceName) => {
                     return {
                       label: traceName,
-                      value: allOptions[services.value][spanName][traceName],
+                      value: allOptions[services.value][spanName]![traceName],
                     };
                   }),
               };

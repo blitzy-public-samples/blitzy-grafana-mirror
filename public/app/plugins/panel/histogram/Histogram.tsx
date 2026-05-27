@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { useRef } from 'react';
 import uPlot, { type AlignedData } from 'uplot';
 
 import {
@@ -296,74 +297,70 @@ interface State {
   xMinOnlyFrame: DataFrame;
 }
 
-export class Histogram extends React.Component<HistogramProps, State> {
-  constructor(props: HistogramProps) {
-    super(props);
-    this.state = this.prepState(props);
-  }
+export const Histogram = (props: HistogramProps) => {
+  const stateRef = useRef<State | null>(null);
+  const prevPropsRef = useRef<HistogramProps | null>(null);
 
-  prepState(props: HistogramProps, withConfig = true): State {
-    const { alignedFrame } = props;
-
-    const config = withConfig ? prepConfig(alignedFrame, this.props.theme) : this.state.config!;
-    const xMinOnly = xMinOnlyFrame(alignedFrame);
+  // First-render initialization (mirrors class constructor: this.state = this.prepState(props))
+  if (stateRef.current == null) {
+    const config = prepConfig(props.alignedFrame, props.theme);
+    const xMinOnly = xMinOnlyFrame(props.alignedFrame);
     const alignedData = preparePlotData(config, xMinOnly);
+    stateRef.current = {
+      alignedFrame: props.alignedFrame,
+      alignedData,
+      config,
+      xMinOnlyFrame: xMinOnly,
+    };
+  } else if (prevPropsRef.current != null && props.alignedFrame !== prevPropsRef.current.alignedFrame) {
+    // Mirrors componentDidUpdate: only recompute when alignedFrame reference changes.
+    // Preserves the exact multi-condition shouldReconfig check from the source class.
+    const prevProps = prevPropsRef.current;
+    const shouldReconfig =
+      stateRef.current.config == null ||
+      props.bucketCount !== prevProps.bucketCount ||
+      props.bucketSize !== prevProps.bucketSize ||
+      props.options !== prevProps.options ||
+      stateRef.current.config === undefined ||
+      props.structureRev !== prevProps.structureRev ||
+      !props.structureRev;
 
-    return {
-      alignedFrame,
+    const config = shouldReconfig ? prepConfig(props.alignedFrame, props.theme) : stateRef.current.config!;
+    const xMinOnly = xMinOnlyFrame(props.alignedFrame);
+    const alignedData = preparePlotData(config, xMinOnly);
+    stateRef.current = {
+      alignedFrame: props.alignedFrame,
       alignedData,
       config,
       xMinOnlyFrame: xMinOnly,
     };
   }
 
-  renderLegend(config: UPlotConfigBuilder) {
-    const { legend } = this.props;
+  // Update prevPropsRef AFTER the if/else that reads it, so subsequent renders compare against the prior props.
+  prevPropsRef.current = props;
 
-    if (!config || legend.showLegend === false) {
+  const { alignedData, config, xMinOnlyFrame: xMinOnlyState } = stateRef.current;
+
+  // Mirrors the class's renderLegend method (return type inferred, matching source)
+  const renderLegend = (cfg: UPlotConfigBuilder) => {
+    if (!cfg || props.legend.showLegend === false) {
       return null;
     }
+    const frames = props.options.combine ? [props.alignedFrame] : props.rawSeries!;
+    return <PlotLegend data={frames} config={cfg} maxHeight="35%" maxWidth="60%" {...props.legend} />;
+  };
 
-    const frames = this.props.options.combine ? [this.props.alignedFrame] : this.props.rawSeries!;
-
-    return <PlotLegend data={frames} config={config} maxHeight="35%" maxWidth="60%" {...legend} />;
+  if (!config) {
+    return null;
   }
 
-  componentDidUpdate(prevProps: HistogramProps) {
-    const { structureRev, alignedFrame, bucketSize, bucketCount } = this.props;
-
-    if (alignedFrame !== prevProps.alignedFrame) {
-      const shouldReconfig =
-        this.state.config == null ||
-        bucketCount !== prevProps.bucketCount ||
-        bucketSize !== prevProps.bucketSize ||
-        this.props.options !== prevProps.options ||
-        this.state.config === undefined ||
-        structureRev !== prevProps.structureRev ||
-        !structureRev;
-
-      const newState = this.prepState(this.props, shouldReconfig);
-
-      this.setState(newState);
-    }
-  }
-
-  render() {
-    const { width, height, children, alignedFrame } = this.props;
-    const { config } = this.state;
-
-    if (!config) {
-      return null;
-    }
-
-    return (
-      <VizLayout width={width} height={height} legend={this.renderLegend(config)}>
-        {(vizWidth: number, vizHeight: number) => (
-          <UPlotChart config={this.state.config!} data={this.state.alignedData} width={vizWidth} height={vizHeight}>
-            {children ? children(config, alignedFrame, this.state.xMinOnlyFrame) : null}
-          </UPlotChart>
-        )}
-      </VizLayout>
-    );
-  }
-}
+  return (
+    <VizLayout width={props.width} height={props.height} legend={renderLegend(config)}>
+      {(vizWidth: number, vizHeight: number) => (
+        <UPlotChart config={config} data={alignedData} width={vizWidth} height={vizHeight}>
+          {props.children ? props.children(config, props.alignedFrame, xMinOnlyState) : null}
+        </UPlotChart>
+      )}
+    </VizLayout>
+  );
+};

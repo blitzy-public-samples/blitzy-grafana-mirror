@@ -1,4 +1,5 @@
-import { css } from '@emotion/css';
+import { css, cx } from '@emotion/css';
+import { useMemo } from 'react';
 
 import { type GrafanaTheme2 } from '@grafana/data';
 import { t } from '@grafana/i18n';
@@ -22,13 +23,17 @@ const DroneSideDisplay = ({ data }: CanvasElementProps<DroneSideConfig, DroneSid
 
   const droneSidePitchTransformStyle = `rotate(${data?.pitchAngle ? data.pitchAngle : 0}deg)`;
 
+  const droneSidePitchTransformClass = useMemo(
+    () => css({ transform: droneSidePitchTransformStyle }),
+    [droneSidePitchTransformStyle]
+  );
+
   return (
     <svg
-      className={styles.droneSide}
+      className={cx(styles.droneSide, droneSidePitchTransformClass)}
       xmlns="http://www.w3.org/2000/svg"
       xmlnsXlink="http://www.w3.org/1999/xlink"
       viewBox="0 0 1300 290"
-      style={{ transform: droneSidePitchTransformStyle, stroke: defaultBgColor }}
     >
       <g className="arms" stroke={defaultBgColor} strokeWidth="28px">
         <line x1="510" x2="320" y1="100" y2="150" />
@@ -122,6 +127,7 @@ export const droneSideItem: CanvasElementItem = {
 
 const getStyles = (theme: GrafanaTheme2) => ({
   droneSide: css({
+    stroke: defaultBgColor,
     // TODO: figure out what styles to apply when prefers-reduced-motion is set
     // eslint-disable-next-line @grafana/no-unreduced-motion
     transition: 'transform 0.4s',

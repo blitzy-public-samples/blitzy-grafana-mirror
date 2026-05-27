@@ -8,6 +8,7 @@ import {
   CoreApp,
   type DataQueryRequest,
   type DataQueryResponse,
+  type DataSourceInstanceSettings,
   dateMath,
   dateTime,
   FieldType,
@@ -27,7 +28,7 @@ import {
 
 import { fromString } from './configuration/parseLokiLabelMappings';
 import { GraphiteDatasource } from './datasource';
-import { type GraphiteQuery, GraphiteQueryType, GraphiteType } from './types';
+import { type GraphiteOptions, type GraphiteQuery, GraphiteQueryType, GraphiteType } from './types';
 import { DEFAULT_GRAPHITE_VERSION } from './versions';
 
 const fetchMock = jest.fn();
@@ -63,6 +64,10 @@ const createFetchResponse = <T>(data: T): FetchResponse<T> => ({
   ok: true,
 });
 
+// The shared `DataSourceInstanceSettings<GraphiteOptions>` fixture used to construct the
+// `GraphiteDatasource` under test. The runtime-required `id` and a few other settings fields
+// are omitted by historical convention, so the value is cast through `unknown` to satisfy the
+// strict-typed constructor parameter while preserving the existing fixture shape.
 const instanceSettings = {
   uid: 'graphiteUid',
   type: 'graphite',
@@ -97,7 +102,7 @@ const instanceSettings = {
     rollupIndicatorEnabled: true,
     graphiteType: GraphiteType.Default,
   },
-};
+} as unknown as DataSourceInstanceSettings<GraphiteOptions>;
 
 describe('graphiteDatasource', () => {
   let ctx = {} as Context;
@@ -290,7 +295,10 @@ describe('graphiteDatasource', () => {
     });
 
     it('should query correctly', () => {
-      const params = requestOptions.data.split('&');
+      // BackendSrvRequest.data is typed `unknown`; the graphite datasource sends
+      // a URL-encoded form body (a string) through the render endpoint, so we
+      // narrow at the assertion boundary.
+      const params = (requestOptions.data as string).split('&');
       expect(params).toContain(`target=${encodeURIComponent(`aliasSub(prod1.count, "(^.*$)", "\\1 A")`)}`);
       expect(params).toContain(`target=${encodeURIComponent(`aliasSub(prod2.count, "(^.*$)", "\\1 B")`)}`);
       expect(params).toContain('from=1648789200');
@@ -298,7 +306,8 @@ describe('graphiteDatasource', () => {
     });
 
     it('should exclude undefined params', () => {
-      const params = requestOptions.data.split('&');
+      // See note above on BackendSrvRequest.data narrowing.
+      const params = (requestOptions.data as string).split('&');
       expect(params).not.toContain('cacheTimeout=undefined');
     });
 

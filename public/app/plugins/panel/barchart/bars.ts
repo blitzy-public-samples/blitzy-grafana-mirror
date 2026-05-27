@@ -454,6 +454,8 @@ export function getConfig(opts: BarsOptions, theme: GrafanaTheme2) {
             y: y - yAdjust,
             w: textMetrics.width * scaleFactor,
             h: (textMetrics.actualBoundingBoxAscent + textMetrics.actualBoundingBoxDescent) * scaleFactor,
+            sidx: seriesIdx,
+            didx: dataIdx,
           };
         }
       }
@@ -498,7 +500,7 @@ export function getConfig(opts: BarsOptions, theme: GrafanaTheme2) {
         });
       }
 
-      return hovered[seriesIdx]?.didx;
+      return hovered[seriesIdx]?.didx ?? null;
     },
     points: {
       fill: 'rgba(255,255,255,0.4)',

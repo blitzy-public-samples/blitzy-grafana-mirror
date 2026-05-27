@@ -1,9 +1,11 @@
+import { css } from '@emotion/css';
 import type { JSX } from 'react';
 
-import { type DataSourceJsonData, type DataSourcePluginOptionsEditorProps } from '@grafana/data';
+import { type GrafanaTheme2, type DataSourceJsonData, type DataSourcePluginOptionsEditorProps } from '@grafana/data';
 import { t, Trans } from '@grafana/i18n';
 
 import { InlineSwitch } from '../../components/Switch/Switch';
+import { useStyles2 } from '../../themes/ThemeContext';
 import { InlineField } from '../Forms/InlineField';
 import { Box } from '../Layout/Box/Box';
 import { Stack } from '../Layout/Stack/Stack';
@@ -16,9 +18,10 @@ export interface AlertingConfig extends DataSourceJsonData {
 }
 
 export function AlertingSettings<T extends AlertingConfig>({ options, onOptionsChange }: Props<T>): JSX.Element {
+  const styles = useStyles2(getStyles);
   return (
     <>
-      <h3 className="page-heading">
+      <h3 className={styles.pageHeading}>
         <Trans i18nKey="grafana-ui.data-source-settings.alerting-settings-heading">Alerting</Trans>
       </h3>
       <Box marginBottom={5}>
@@ -54,3 +57,11 @@ export function AlertingSettings<T extends AlertingConfig>({ options, onOptionsC
     </>
   );
 }
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  pageHeading: css({
+    fontSize: theme.typography.h4.fontSize,
+    marginTop: 0,
+    marginBottom: theme.spacing(2),
+  }),
+});

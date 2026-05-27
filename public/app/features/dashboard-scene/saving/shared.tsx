@@ -23,16 +23,24 @@ export interface DashboardChangeInfo {
   hasMigratedToV2?: boolean;
 }
 
+/**
+ * Body shape returned by the dashboard save endpoint when it surfaces a
+ * recoverable conflict. Each helper below narrows by `status` value.
+ */
+interface DashboardSaveErrorData {
+  status?: string;
+}
+
 export function isVersionMismatchError(error?: Error) {
-  return isFetchError(error) && error.data && error.data.status === 'version-mismatch';
+  return isFetchError<DashboardSaveErrorData>(error) && error.data && error.data.status === 'version-mismatch';
 }
 
 export function isNameExistsError(error?: Error) {
-  return isFetchError(error) && error.data && error.data.status === 'name-exists';
+  return isFetchError<DashboardSaveErrorData>(error) && error.data && error.data.status === 'name-exists';
 }
 
 export function isPluginDashboardError(error?: Error) {
-  return isFetchError(error) && error.data && error.data.status === 'plugin-dashboard';
+  return isFetchError<DashboardSaveErrorData>(error) && error.data && error.data.status === 'plugin-dashboard';
 }
 
 export interface NameAlreadyExistsErrorProps {

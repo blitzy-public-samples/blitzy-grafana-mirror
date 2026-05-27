@@ -40,7 +40,7 @@ describe('DashboardsTable', () => {
 
   it('should render with no dashboards provided', () => {
     expect(() => setup()).not.toThrow();
-    expect(screen.queryAllByRole('row').length).toEqual(0);
+    expect(screen.queryAllByRole('row').length).toEqual(1);
   });
 
   it('should render a row for each dashboard provided', () => {
@@ -49,7 +49,7 @@ describe('DashboardsTable', () => {
       dashboards: mockDashboards,
     });
 
-    expect(screen.getAllByRole('row').length).toEqual(2);
+    expect(screen.getAllByRole('row').length).toEqual(3);
     mockDashboards.forEach((dashboard) => {
       expect(screen.getByRole('cell', { name: dashboard.title })).toBeInTheDocument();
     });

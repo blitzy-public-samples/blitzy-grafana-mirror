@@ -124,6 +124,18 @@ export default function KeyValuesTable(props: KeyValuesTableProps) {
   const styles = useStyles2(getStyles);
   return (
     <div className={cx(styles.KeyValueTable)} data-testid="KeyValueTable">
+      {/*
+        Design system gap: `<InteractiveTable>` from `@grafana/ui` is materially different from the
+        existing static document-style key-value display required here. Specifically, it always
+        renders a `<thead>` with `<th>` cells (adding an empty header row), does not support
+        alternating row backgrounds, does not support the existing hover-to-show copy-button UX
+        (`&:not(:hover) .copyIcon { visibility: hidden }`), does not preserve the fixed key-column
+        width / row height / per-cell padding, and is intended for sortable/paginated data tables
+        rather than static document-style key-value rendering inside nested accordion shells.
+        Per AAP §0.4.4 Gaps Inventory and the per-folder decision policy, the raw `<table>` is
+        kept with this inline justification. Tracked for design-system review when a static
+        key-value primitive becomes available in `@grafana/ui`.
+      */}
       <table className={styles.table}>
         <tbody className={styles.body}>
           {data.map((row, i) => {

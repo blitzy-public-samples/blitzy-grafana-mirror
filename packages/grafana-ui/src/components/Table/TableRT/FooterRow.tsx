@@ -1,10 +1,12 @@
+import { css } from '@emotion/css';
 import { type ColumnInstance, type HeaderGroup } from 'react-table';
 
-import { fieldReducers, ReducerID } from '@grafana/data';
+import { fieldReducers, ReducerID, type GrafanaTheme2 } from '@grafana/data';
 import { selectors } from '@grafana/e2e-selectors';
 
+import { useStyles2 } from '../../../themes/ThemeContext';
 import { EmptyCell, FooterCell } from '../Cells/FooterCell';
-import { type FooterItem } from '../types';
+import { type FooterItem, type GrafanaTableColumn } from '../types';
 
 import { type TableStyles } from './styles';
 
@@ -19,15 +21,10 @@ export interface FooterRowProps {
 export function FooterRow(props: FooterRowProps) {
   const { totalColumnsWidth, footerGroups, isPaginationVisible, tableStyles } = props;
   const e2eSelectorsTable = selectors.components.Panels.Visualization.Table;
+  const styles = useStyles2(getStyles, isPaginationVisible, totalColumnsWidth);
 
   return (
-    <div
-      style={{
-        position: isPaginationVisible ? 'relative' : 'absolute',
-        width: totalColumnsWidth ? `${totalColumnsWidth}px` : '100%',
-        bottom: '0px',
-      }}
-    >
+    <div className={styles.footerWrapper}>
       {footerGroups.map((footerGroup: HeaderGroup) => {
         const { key, ...footerGroupProps } = footerGroup.getFooterGroupProps();
         return (
@@ -49,7 +46,7 @@ function renderFooterCell(column: ColumnInstance, tableStyles: TableStyles) {
 
   footerProps.style = footerProps.style ?? {};
   footerProps.style.position = 'absolute';
-  footerProps.style.justifyContent = (column as any).justifyContent;
+  footerProps.style.justifyContent = (column as unknown as GrafanaTableColumn).justifyContent;
 
   return (
     <div key={key} className={tableStyles.headerCell} {...footerProps}>
@@ -75,3 +72,11 @@ export function getFooterValue(index: number, footerValues?: FooterItem[], isCou
 
   return FooterCell({ value: footerValues[index] });
 }
+
+const getStyles = (theme: GrafanaTheme2, isPaginationVisible: boolean, totalColumnsWidth: number) => ({
+  footerWrapper: css({
+    position: isPaginationVisible ? 'relative' : 'absolute',
+    width: totalColumnsWidth ? `${totalColumnsWidth}px` : '100%',
+    bottom: 0,
+  }),
+});

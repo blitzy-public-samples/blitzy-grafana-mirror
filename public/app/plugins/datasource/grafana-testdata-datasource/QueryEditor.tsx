@@ -31,8 +31,29 @@ const endpoints = [
 
 const selectors = editorSelectors.components.DataSource.TestData.QueryTab;
 
+/**
+ * Heterogeneous value passed to scenario editor `onChange` callbacks. Each child
+ * editor pushes a different shape (full query update, synthetic field event, or
+ * DOM event). The union enumerates every shape used today; declaring `onChange`
+ * with method-style syntax enables bivariant parameter checking so QueryEditor
+ * can pass narrower handler types without TypeScript variance errors.
+ *
+ * The `{ refId: string; [key: string]: unknown }` member accommodates the
+ * partial-update spread pattern used by editors (e.g. ErrorEditor,
+ * ErrorWithSourceEditor) where a `SelectableValue.value` of type
+ * `string | undefined` is spread into a TestDataDataQuery field whose
+ * declared type is a narrower string-literal union. The caller cannot
+ * statically narrow the option value without an out-of-scope type assertion,
+ * so the union admits this looser shape.
+ */
+export type EditorChangeValue =
+  | TestDataDataQuery
+  | { refId: string; [key: string]: unknown }
+  | { target: { name: string; value: string | number; type?: string } }
+  | FormEvent<HTMLInputElement | HTMLTextAreaElement>;
+
 export interface EditorProps {
-  onChange: (value: any) => void;
+  onChange(value: EditorChangeValue): void;
   query: TestDataDataQuery;
   ds: TestDataDataSource;
 }
@@ -148,16 +169,17 @@ export const QueryEditor = ({ query, datasource, onChange, onRunQuery }: Props) 
     onUpdate({ ...query, [name]: newValue });
   };
 
-  const onFieldChange = (field: string) => (e: { target: { name: string; value: string; type: string } }) => {
-    const { name, value, type } = e.target;
-    let newValue: string | number = value;
+  const onFieldChange =
+    (field: 'stream' | 'pulseWave') => (e: { target: { name: string; value: string; type: string } }) => {
+      const { name, value, type } = e.target;
+      let newValue: string | number = value;
 
-    if (type === 'number') {
-      newValue = Number(value);
-    }
+      if (type === 'number') {
+        newValue = Number(value);
+      }
 
-    onUpdate({ ...query, [field]: { ...(query as any)[field], [name]: newValue } });
-  };
+      onUpdate({ ...query, [field]: { ...query[field], [name]: newValue } });
+    };
 
   const onEndPointChange = ({ value }: SelectableValue) => {
     onUpdate({ ...query, stringInput: value });

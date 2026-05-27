@@ -1,4 +1,17 @@
-import { type FieldConfigSource as FieldConfigSourceV1, SpecialValueMatch as SpecialValueMatchV1 } from '@grafana/data';
+import {
+  type Action as ActionV1,
+  type ActionVariable as ActionVariableV1,
+  ActionType as ActionTypeV1,
+  ActionVariableType as ActionVariableTypeV1,
+  type FetchOptions as FetchOptionsV1,
+  type FieldConfigSource as FieldConfigSourceV1,
+  HttpRequestMethod as HttpRequestMethodV1,
+  type InfinityOptions as InfinityOptionsV1,
+  NullValueMode as NullValueModeV1,
+  SpecialValueMatch as SpecialValueMatchV1,
+  type ThresholdsConfig as ThresholdsConfigV1,
+  type ValueMapping as ValueMappingV1,
+} from '@grafana/data';
 import {
   VariableHide as VariableHideV1,
   VariableRefresh as VariableRefreshV1,
@@ -8,13 +21,18 @@ import {
   ThresholdsMode as ThresholdsModeV1,
 } from '@grafana/schema';
 import {
+  type Action,
+  type ActionVariable,
   type DashboardCursorSync,
+  type FetchOptions,
+  type FieldConfigSource,
+  type HttpRequestMethod,
+  type InfinityOptions,
+  type SpecialValueMatch,
+  type ThresholdsMode,
   type VariableHide,
   type VariableRefresh,
   type VariableSort,
-  type FieldConfigSource,
-  type SpecialValueMatch,
-  type ThresholdsMode,
 } from '@grafana/schema/apis/dashboard.grafana.app/v2';
 
 export function transformVariableRefreshToEnumV1(refresh?: VariableRefresh): VariableRefreshV1 {
@@ -102,6 +120,90 @@ function transformSpecialValueMatchToV1(match: SpecialValueMatch): SpecialValueM
   }
 }
 
+// V2 `HttpRequestMethod` is a string literal union (`"GET" | "PUT" | "POST" | "DELETE" | "PATCH"`)
+// while V1 `HttpRequestMethod` is the `HttpRequestMethodV1` enum whose string values match. Convert
+// explicitly so the result satisfies V1 typing without requiring a type assertion.
+function transformHttpRequestMethodToV1(method: HttpRequestMethod): HttpRequestMethodV1 {
+  switch (method) {
+    case 'POST':
+      return HttpRequestMethodV1.POST;
+    case 'PUT':
+      return HttpRequestMethodV1.PUT;
+    case 'GET':
+      return HttpRequestMethodV1.GET;
+    case 'DELETE':
+      return HttpRequestMethodV1.DELETE;
+    case 'PATCH':
+      return HttpRequestMethodV1.PATCH;
+    default:
+      return HttpRequestMethodV1.GET;
+  }
+}
+
+// V2 stores fetch/infinity query params and headers as `string[][]` (2D string arrays — the schema
+// generator cannot emit a 2-tuple) while V1 declares them as `Array<[string, string]>` tuples. The
+// runtime payload is the same key/value pair list; convert each sub-array to an explicitly-typed
+// 2-tuple so the result satisfies V1's `FetchOptions`/`InfinityOptions` typing.
+function transformKeyValuePairsToV1(pairs: string[][] | undefined): Array<[string, string]> | undefined {
+  if (!pairs) {
+    return undefined;
+  }
+  return pairs.map((pair): [string, string] => [pair[0], pair[1]]);
+}
+
+function transformFetchOptionsToV1(options: FetchOptions): FetchOptionsV1 {
+  return {
+    method: transformHttpRequestMethodToV1(options.method),
+    url: options.url,
+    body: options.body,
+    queryParams: transformKeyValuePairsToV1(options.queryParams),
+    headers: transformKeyValuePairsToV1(options.headers),
+  };
+}
+
+function transformInfinityOptionsToV1(options: InfinityOptions): InfinityOptionsV1 {
+  return {
+    method: transformHttpRequestMethodToV1(options.method),
+    url: options.url,
+    body: options.body,
+    queryParams: transformKeyValuePairsToV1(options.queryParams),
+    headers: transformKeyValuePairsToV1(options.headers),
+    datasourceUid: options.datasourceUid,
+  };
+}
+
+// V2 `ActionVariable.type` is the literal `"string"` while V1 declares it via the
+// `ActionVariableTypeV1` enum whose only member is `String = 'string'`. Map explicitly.
+function transformActionVariableToV1(variable: ActionVariable): ActionVariableV1 {
+  return {
+    key: variable.key,
+    name: variable.name,
+    type: ActionVariableTypeV1.String,
+  };
+}
+
+// V2 `Action.type` is the union `"fetch" | "infinity"` and V1 uses the `ActionTypeV1` enum whose
+// values are the same strings (`Fetch = 'fetch'`, `Infinity = 'infinity'`). Build a V1 Action whose
+// computed `[ActionTypeV1.Fetch]` / `[ActionTypeV1.Infinity]` payload keys (`'fetch'` / `'infinity'`)
+// continue to map to the original V2 `fetch` / `infinity` properties, preserving runtime semantics.
+function transformActionToV1(action: Action): ActionV1 {
+  const result: ActionV1 = {
+    type: action.type === 'fetch' ? ActionTypeV1.Fetch : ActionTypeV1.Infinity,
+    title: action.title,
+    confirmation: action.confirmation,
+    oneClick: action.oneClick,
+    variables: action.variables?.map(transformActionVariableToV1),
+    style: action.style,
+  };
+  if (action.fetch) {
+    result[ActionTypeV1.Fetch] = transformFetchOptionsToV1(action.fetch);
+  }
+  if (action.infinity) {
+    result[ActionTypeV1.Infinity] = transformInfinityOptionsToV1(action.infinity);
+  }
+  return result;
+}
+
 export function transformMappingsToV1(fieldConfig: FieldConfigSource): FieldConfigSourceV1 {
   const getThresholdsMode = (mode: ThresholdsMode): ThresholdsModeV1 => {
     switch (mode) {
@@ -114,12 +216,46 @@ export function transformMappingsToV1(fieldConfig: FieldConfigSource): FieldConf
     }
   };
 
-  const transformedDefaults: any = {
-    ...fieldConfig.defaults,
+  // V2 `NullValueMode` is a string literal union (`'null' | 'connected' | 'null as zero'`) while V1
+  // `NullValueMode` is the `NullValueModeV1` enum whose string values match. Convert explicitly so the
+  // result satisfies V1 typing without requiring a type assertion.
+  const transformNullValueModeToV1 = (mode: FieldConfigSource['defaults']['nullValueMode']): NullValueModeV1 | undefined => {
+    switch (mode) {
+      case 'null':
+        return NullValueModeV1.Null;
+      case 'connected':
+        return NullValueModeV1.Ignore;
+      case 'null as zero':
+        return NullValueModeV1.AsZero;
+      default:
+        return undefined;
+    }
   };
 
-  if (fieldConfig.defaults.mappings) {
-    transformedDefaults.mappings = fieldConfig.defaults.mappings.map((mapping) => {
+  // Separate the V2 fields that are structurally incompatible with V1 (`mappings`, `thresholds`,
+  // `nullValueMode`, `actions`) from the V1-compatible remainder so the spread/return below can be
+  // fully type-checked against V1 without any `any` annotation or type assertion.
+  // - V2 `ValueMapping.type` is a string literal union; V1 uses the `MappingTypeV1` numeric enum.
+  // - V2 `Threshold.value` is `number | null`; V1 requires `number`.
+  // - V2 `NullValueMode` is a string union; V1 is an enum (same underlying string values).
+  // - V2 `Action.type` / `ActionVariable.type` / `HttpRequestMethod` are string-literal unions; V1
+  //   uses enums (`ActionTypeV1`, `ActionVariableTypeV1`, `HttpRequestMethodV1`) and V2's
+  //   `queryParams` / `headers` are `string[][]` while V1 expects `Array<[string, string]>`.
+  // Note: V2 `links` (`{title, url, targetBlank?}`) is a structural subset of V1's `DataLink<T>` (all
+  // additional V1 fields are optional), so it passes through unchanged via `v1CompatibleDefaults`.
+  const {
+    mappings: v2Mappings,
+    thresholds: v2Thresholds,
+    nullValueMode: v2NullValueMode,
+    actions: v2Actions,
+    ...v1CompatibleDefaults
+  } = fieldConfig.defaults;
+
+  // Convert V2 mappings -> V1 mappings by mapping each entry's string-tag `type` to the V1 numeric enum
+  // value while preserving runtime payload semantics. The result is V1-typed `ValueMapping[]`.
+  let mappings: ValueMappingV1[] | undefined;
+  if (v2Mappings) {
+    mappings = v2Mappings.map<ValueMappingV1>((mapping) => {
       switch (mapping.type) {
         case 'value':
           return {
@@ -151,15 +287,33 @@ export function transformMappingsToV1(fieldConfig: FieldConfigSource): FieldConf
     });
   }
 
-  if (fieldConfig.defaults.thresholds) {
-    transformedDefaults.thresholds = {
-      ...fieldConfig.defaults.thresholds,
-      mode: getThresholdsMode(fieldConfig.defaults.thresholds.mode),
+  // Convert V2 thresholds -> V1 thresholds. The mode string literal becomes the V1 numeric enum, and any
+  // `null` step value is coerced to `Number.NEGATIVE_INFINITY` because V1's `Threshold.value` is `number`
+  // and V1 convention treats the first step's value as `-Infinity` (see
+  // `packages/grafana-data/src/types/thresholds.ts` and `packages/grafana-data/src/field/scale.ts`).
+  let thresholds: ThresholdsConfigV1 | undefined;
+  if (v2Thresholds) {
+    thresholds = {
+      mode: getThresholdsMode(v2Thresholds.mode),
+      steps: v2Thresholds.steps.map((step) => ({
+        ...step,
+        value: step.value ?? Number.NEGATIVE_INFINITY,
+      })),
     };
   }
 
+  // Convert V2 actions -> V1 actions. The runtime payload is preserved verbatim; only the
+  // string-literal/tuple typing is bridged into V1's enum/tuple shape via `transformActionToV1`.
+  const actions: ActionV1[] | undefined = v2Actions ? v2Actions.map(transformActionToV1) : undefined;
+
   return {
     ...fieldConfig,
-    defaults: transformedDefaults,
+    defaults: {
+      ...v1CompatibleDefaults,
+      mappings,
+      thresholds,
+      nullValueMode: transformNullValueModeToV1(v2NullValueMode),
+      actions,
+    },
   };
 }

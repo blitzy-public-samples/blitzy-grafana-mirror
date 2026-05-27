@@ -133,7 +133,9 @@ function FilterSidebarForm({ filterState }: FilterSidebarFormProps) {
         applyFormValues();
       }}
     >
-      <button type="submit" style={{ display: 'none' }} aria-hidden="true" />
+      <Button type="submit" className={styles.hiddenSubmit} aria-hidden="true">
+        {null}
+      </Button>
       <Stack direction="column" gap={2}>
         <SidebarSection>
           <SidebarField label={<Trans i18nKey="alerting.search.property.rule-name">Rule name</Trans>}>
@@ -621,6 +623,9 @@ function ToggleButtonGroup<T>({ options, value, onChange, 'aria-labelledby': lab
         {options.map((opt) => {
           const isActive = opt.value === value;
           return (
+            // Design system gap: no @grafana/ui replacement for custom vertical radio group with icons and theme-aware styling.
+            // @grafana/ui RadioButtonGroup is horizontal-only; RadioButtonList does not support icon+label visual.
+            // role="radio" semantics required for accessibility cannot be reproduced via <Button>. Keeping raw per refactor protocol.
             <button
               key={String(opt.value)}
               type="button"
@@ -658,6 +663,9 @@ function getStyles(theme: GrafanaTheme2) {
       display: 'flex',
       flexDirection: 'column',
       gap: theme.spacing(1),
+    }),
+    hiddenSubmit: css({
+      display: 'none',
     }),
     divider: css({
       borderTop: `1px solid ${theme.colors.border.weak}`,

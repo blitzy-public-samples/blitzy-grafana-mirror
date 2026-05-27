@@ -24,6 +24,7 @@ export const FilterPill = ({ label, selected, onClick, icon = 'check' }: FilterP
   const styles = useStyles2(getStyles);
   const clearButton = useStyles2(clearButtonStyles);
   return (
+    // Design system gap: this file IS the @grafana/ui FilterPill primitive. The raw <button> element is the canonical clickable-pill implementation. Kept as raw per refactor protocol (AAP §0.4.4).
     <button type="button" className={cx(clearButton, styles.wrapper, selected && styles.selected)} onClick={onClick}>
       <span>{label}</span>
       {selected && <Icon name={icon} className={styles.icon} data-testid="filter-pill-icon" />}

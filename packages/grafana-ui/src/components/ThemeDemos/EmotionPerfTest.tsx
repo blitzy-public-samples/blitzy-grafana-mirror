@@ -47,6 +47,7 @@ function renderManyComponents(Component: FC<TestComponentProps>) {
     elements.push(<Component index={i} key={i.toString()} />);
   }
 
+  // Design system gap: this is the inline-style scenario in the Emotion vs inline performance comparison test
   return <div style={{ display: 'flex', flexWrap: 'wrap' }}>{elements}</div>;
 }
 

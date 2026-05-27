@@ -1,9 +1,11 @@
+import { css } from '@emotion/css';
 import { skipToken } from '@reduxjs/toolkit/query/react';
 import { useParams } from 'react-router-dom-v5-compat';
 
+import type { GrafanaTheme2 } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
 import { isFetchError } from '@grafana/runtime';
-import { Alert, Card, EmptyState, Stack, Text, TextLink } from '@grafana/ui';
+import { Alert, Card, EmptyState, Stack, Text, TextLink, useStyles2 } from '@grafana/ui';
 import { useGetConnectionRepositoriesQuery, useListRepositoryQuery } from 'app/api/clients/provisioning/v0alpha1';
 import { Page } from 'app/core/components/Page/Page';
 
@@ -16,6 +18,7 @@ import { ConnectionForm } from './ConnectionForm';
 export default function ConnectionFormPage() {
   const { name = '' } = useParams();
   const isCreate = !name;
+  const styles = useStyles2(getStyles);
 
   const { connection, isLoading, isError, error, isDisconnected, disconnectMessage } = useConnectionStatus(
     isCreate ? undefined : name
@@ -77,7 +80,7 @@ export default function ConnectionFormPage() {
               </Alert>
             )}
             {!isCreate && connectedRepos.length > 0 && (
-              <div style={{ maxWidth: 700 }}>
+              <div className={styles.cardWrapper}>
                 <Card noMargin>
                   <Card.Heading>
                     <Trans i18nKey="provisioning.connection-form.grafana-repositories">
@@ -98,7 +101,7 @@ export default function ConnectionFormPage() {
             )}
 
             {!isCreate && availableRepos.length > 0 && (
-              <div style={{ maxWidth: 700 }}>
+              <div className={styles.cardWrapper}>
                 <Card noMargin>
                   <Card.Heading>
                     <Trans i18nKey="provisioning.connection-form.available-repositories">
@@ -129,3 +132,9 @@ export default function ConnectionFormPage() {
     </Page>
   );
 }
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  cardWrapper: css({
+    maxWidth: 700,
+  }),
+});

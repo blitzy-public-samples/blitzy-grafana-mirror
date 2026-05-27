@@ -314,6 +314,7 @@ export const MultiCombobox = <T extends string | number>(props: MultiComboboxPro
                 preventKeyAction: isOpen,
                 placeholder: visibleItems.length === 0 ? placeholder : '',
                 ref: inputRef,
+                // Design system gap: inline style required by useMultiInputAutoSize for dynamic input width measurement; cannot migrate without breaking runtime text measurement
                 style: { width: inputWidth },
               }),
               'aria-labelledby': ariaLabelledBy, // Label should be handled with the Field component
@@ -347,6 +348,7 @@ export const MultiCombobox = <T extends string | number>(props: MultiComboboxPro
       <Portal root={portalContainer}>
         <div
           className={cx(styles.menu, !isOpen && styles.menuClosed)}
+          // Design system gap: inline style required by floating-ui; cannot migrate without breaking floating-ui positioning
           style={{
             ...floatStyles,
             width: floatStyles.width + 24, // account for checkbox

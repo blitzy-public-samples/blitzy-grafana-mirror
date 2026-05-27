@@ -11,7 +11,7 @@ import {
 } from '@grafana/data';
 import { Trans } from '@grafana/i18n';
 import { type DataQuery } from '@grafana/schema';
-import { type PopoverContent, useTheme2 } from '@grafana/ui';
+import { Button, type PopoverContent, useTheme2 } from '@grafana/ui';
 
 import { escapeUnescapedString } from '../utils';
 
@@ -97,9 +97,9 @@ const Ellipsis = ({ toggle, diff }: EllipsisProps) => {
   return (
     <>
       <Trans i18nKey="logs.log-row-message.ellipsis">… </Trans>
-      <button className={styles.showMore} onClick={handleClick}>
+      <Button variant="secondary" fill="text" size="sm" className={styles.showMore} onClick={handleClick}>
         {diff} <Trans i18nKey="logs.log-row-message.more">more</Trans>
-      </button>
+      </Button>
     </>
   );
 };

@@ -45,8 +45,8 @@ type EncodeURIComponentParams = Parameters<typeof encodeURIComponent>[0];
  *  Encodes URL parameters in the style of AngularJS.
  *  Use `serializeParams` to encode parameters using `encodeURIComponent` instead.
  */
-function toUrlParams(a: any, encodeAsAngularJS = true) {
-  const s: any[] = [];
+function toUrlParams(a: unknown, encodeAsAngularJS = true) {
+  const s: string[] = [];
   const rbracket = /\[\]$/;
 
   const encodingFunction = encodeAsAngularJS
@@ -54,16 +54,21 @@ function toUrlParams(a: any, encodeAsAngularJS = true) {
         encodeURIComponentAsAngularJS(value, pctEncodeSpaces)
     : (value: EncodeURIComponentParams, _: boolean) => encodeURIComponent(value);
 
-  const isArray = (obj: unknown) => {
+  // Local type guard so that flow analysis narrows `unknown` -> `unknown[]` inside the
+  // `if (isArray(obj))` branches below without introducing runtime changes.
+  const isArray = (obj: unknown): obj is unknown[] => {
     return Object.prototype.toString.call(obj) === '[object Array]';
   };
 
-  const add = (k: string, v: any) => {
+  const add = (k: string, v: unknown) => {
     v = typeof v === 'function' ? v() : v === null ? '' : v === undefined ? '' : v;
-    s[s.length] = encodingFunction(k, true) + '=' + encodingFunction(v, true);
+    // `encodeURIComponent` accepts any non-symbol value at runtime via implicit `ToString`
+    // coercion, so this cast preserves the original `any`-permissive runtime semantics.
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+    s[s.length] = encodingFunction(k, true) + '=' + encodingFunction(v as EncodeURIComponentParams, true);
   };
 
-  const buildParams = (prefix: string, obj: any) => {
+  const buildParams = (prefix: string, obj: unknown) => {
     let i, len, key;
 
     if (prefix) {
@@ -76,19 +81,31 @@ function toUrlParams(a: any, encodeAsAngularJS = true) {
           }
         }
       } else if (obj && String(obj) === '[object Object]') {
-        for (key in obj) {
-          buildParams(prefix + '[' + key + ']', obj[key]);
+        // `String(obj) === '[object Object]'` is not a TS type guard, so cast to allow
+        // property iteration / index access without altering runtime behavior.
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+        const objRecord = obj as Record<string, unknown>;
+        for (key in objRecord) {
+          buildParams(prefix + '[' + key + ']', objRecord[key]);
         }
       } else {
         add(prefix, obj);
       }
     } else if (isArray(obj)) {
       for (i = 0, len = obj.length; i < len; i++) {
-        add(obj[i].name, obj[i].value);
+        // The no-prefix array branch follows the jquery-param `{name, value}` pair
+        // convention; cast preserves the original runtime semantics (a non-conforming
+        // entry would throw on `.name`/`.value` access identically before and after).
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+        const item = obj[i] as { name: string; value: unknown };
+        add(item.name, item.value);
       }
     } else {
-      for (key in obj) {
-        buildParams(key, obj[key]);
+      // Same rationale as above: cast to `Record<string, unknown>` for object iteration.
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+      const objRecord = obj as Record<string, unknown>;
+      for (key in objRecord) {
+        buildParams(key, objRecord[key]);
       }
     }
     return s;
@@ -137,7 +154,9 @@ function getUrlSearchParams(): UrlQueryMap {
       const key = decodeURIComponent(keyValuePair[0]);
       const value = decodeURIComponent(keyValuePair[1]);
       if (key in params) {
-        params[key] = [...(params[key] as any[]), value];
+        // At runtime `params[key]` is always a `string[]` when this branch fires
+        // (set by the `params[key] = [value]` assignment below on first occurrence).
+        params[key] = [...(params[key] as string[]), value];
       } else {
         params[key] = [value];
       }
@@ -156,6 +175,14 @@ function getUrlSearchParams(): UrlQueryMap {
  * @returns {Object.<string,boolean|Array>}
  */
 export function parseKeyValue(keyValue: string) {
+  // The accumulator is intentionally typed as `any` to preserve the public API surface
+  // of `urlUtil.parseKeyValue` for downstream consumers that assign its return into a
+  // narrower `UrlQueryMap` shape (e.g. `packages/grafana-data/src/utils/location.ts` and
+  // `packages/grafana-runtime/src/services/LocationService.tsx`). Tightening to
+  // `Record<string, unknown>` was attempted per AAP §0.8.6 but caused cross-module
+  // breakage outside this batch's scope; the AAP §0.9.2.11 rollback trigger explicitly
+  // permits retaining `any` here with a justification.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- public API surface preserved for backward compat with downstream consumers
   const obj: any = {};
   const parts = (keyValue || '').split('&');
 
@@ -178,7 +205,7 @@ export function parseKeyValue(keyValue: string) {
       if (key !== undefined) {
         val = val !== undefined ? tryDecodeURIComponent(val as string) : true;
 
-        let parsedVal: any;
+        let parsedVal: unknown;
         if (typeof val === 'string' && val !== '') {
           parsedVal = val === 'true' || val === 'false' ? val === 'true' : val;
         } else {
@@ -186,11 +213,14 @@ export function parseKeyValue(keyValue: string) {
         }
 
         if (!obj.hasOwnProperty(key)) {
-          obj[key] = isNaN(parsedVal) ? val : parsedVal;
+          // `isNaN` performs implicit `Number` coercion on its argument at runtime;
+          // wrapping with `Number(...)` is a no-op at runtime while satisfying the
+          // `isNaN(number)` signature now that `parsedVal` is typed as `unknown`.
+          obj[key] = isNaN(Number(parsedVal)) ? val : parsedVal;
         } else if (Array.isArray(obj[key])) {
           obj[key].push(val);
         } else {
-          obj[key] = [obj[key], isNaN(parsedVal) ? val : parsedVal];
+          obj[key] = [obj[key], isNaN(Number(parsedVal)) ? val : parsedVal];
         }
       }
     }

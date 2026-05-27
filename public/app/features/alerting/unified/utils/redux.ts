@@ -149,16 +149,27 @@ export function withAppEvents<T>(
 }
 
 export const UNKNOW_ERROR = 'Unknown Error';
+
+// Possible response payload shapes accompanying a FetchError on the alerting
+// surface. Either a single `{ message, error }` object, an array of `{ message }`
+// items, or an opaque payload we fall back on `statusText` for.
+interface AlertingErrorPayload {
+  message?: string;
+  error?: string;
+}
+type AlertingFetchErrorData = AlertingErrorPayload | AlertingErrorPayload[];
+
 export function messageFromError(e: Error | FetchError | SerializedError): string {
-  if (isFetchError(e)) {
-    if (e.data?.message) {
-      let msg = e.data?.message;
-      if (typeof e.data?.error === 'string') {
-        msg += `; ${e.data.error}`;
+  if (isFetchError<AlertingFetchErrorData>(e)) {
+    const data = e.data;
+    if (!Array.isArray(data) && data?.message) {
+      let msg = data.message;
+      if (typeof data.error === 'string') {
+        msg += `; ${data.error}`;
       }
       return msg;
-    } else if (Array.isArray(e.data) && e.data.length && e.data[0]?.message) {
-      return e.data
+    } else if (Array.isArray(data) && data.length && data[0]?.message) {
+      return data
         .map((d) => d?.message)
         .filter((m) => !!m)
         .join(' ');

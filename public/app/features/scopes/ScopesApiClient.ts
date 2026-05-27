@@ -51,7 +51,13 @@ export class ScopesApiClient {
     const subscription = dispatch(scopeAPIv0alpha1.endpoints.getScope.initiate({ name }, { subscribe: false }));
     try {
       const result = await subscription;
-      return this.extractDataOrHandleError(result, `scope: ${name}`);
+      // The generated Kubernetes API type for `Scope` declares `metadata` and `spec` as optional
+      // (per the conservative OpenAPI schema), whereas the shared @grafana/data `Scope` type
+      // declares them as required. At runtime the Scopes API always returns these fields populated,
+      // and these two types are intentionally kept structurally compatible — only their nominal
+      // identity differs because they are declared in two separate modules.
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+      return this.extractDataOrHandleError(result, `scope: ${name}`) as Scope | undefined;
     } catch (err) {
       const errorMessage = getMessageFromError(err);
       console.error('Failed to fetch scope:', name, errorMessage);
@@ -104,8 +110,11 @@ export class ScopesApiClient {
       const result = await subscription;
 
       if ('data' in result && result.data) {
-        // The generated API returns items compatible with @grafana/data ScopeNode
-        return result.data.items ?? [];
+        // The generated API returns items compatible with @grafana/data ScopeNode at runtime.
+        // Type assertion bridges the nominal-only mismatch between the generated Kubernetes
+        // schema type (optional fields) and the shared @grafana/data ScopeNode (required fields).
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+        return (result.data.items ?? []) as ScopeNode[];
       }
 
       if ('error' in result) {
@@ -155,8 +164,11 @@ export class ScopesApiClient {
       const result = await subscription;
 
       if ('data' in result && result.data) {
-        // The generated API returns items compatible with @grafana/data ScopeNode
-        return result.data.items ?? [];
+        // The generated API returns items compatible with @grafana/data ScopeNode at runtime.
+        // Type assertion bridges the nominal-only mismatch between the generated Kubernetes
+        // schema type (optional fields) and the shared @grafana/data ScopeNode (required fields).
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+        return (result.data.items ?? []) as ScopeNode[];
       }
 
       if ('error' in result) {
@@ -208,7 +220,10 @@ export class ScopesApiClient {
 
       if ('data' in result && result.data) {
         // The generated API returns items compatible with @grafana/data ScopeDashboardBinding
-        return result.data.items ?? [];
+        // at runtime. Type assertion bridges the nominal-only mismatch between the generated
+        // Kubernetes schema type (optional fields) and the shared @grafana/data type (required).
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+        return (result.data.items ?? []) as ScopeDashboardBinding[];
       }
 
       if ('error' in result) {
@@ -246,8 +261,12 @@ export class ScopesApiClient {
       const result = await subscription;
 
       if ('data' in result && result.data) {
-        // The generated API returns items compatible with ScopeNavigation
-        return result.data.items ?? [];
+        // The generated API returns items compatible with the local ScopeNavigation type
+        // declared in './dashboards/types' at runtime. Type assertion bridges the nominal-only
+        // mismatch between the generated Kubernetes schema type (optional fields) and the
+        // local ScopeNavigation type (required fields).
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+        return (result.data.items ?? []) as ScopeNavigation[];
       }
 
       if ('error' in result) {
@@ -277,7 +296,12 @@ export class ScopesApiClient {
     );
     try {
       const result = await subscription;
-      return this.extractDataOrHandleError(result, `scope node: ${scopeNodeId}`);
+      // The generated Kubernetes API type for `ScopeNode` declares `metadata` and `spec` as
+      // optional (per the conservative OpenAPI schema), whereas the shared @grafana/data
+      // `ScopeNode` type declares them as required. At runtime the API always returns these
+      // fields populated; the types are intentionally kept structurally compatible.
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+      return this.extractDataOrHandleError(result, `scope node: ${scopeNodeId}`) as ScopeNode | undefined;
     } catch (err) {
       const errorMessage = getMessageFromError(err);
       console.error('Failed to fetch scope node:', scopeNodeId, errorMessage);

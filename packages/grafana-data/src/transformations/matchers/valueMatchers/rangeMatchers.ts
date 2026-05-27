@@ -4,7 +4,7 @@ import { ValueMatcherID } from '../ids';
 
 import { type RangeValueMatcherOptions } from './types';
 
-const isBetweenValueMatcher: ValueMatcherInfo<RangeValueMatcherOptions> = {
+const isBetweenValueMatcher: ValueMatcherInfo<RangeValueMatcherOptions<number | string>> = {
   id: ValueMatcherID.between,
   name: 'Is between',
   description: 'Match when field value is between given option values.',

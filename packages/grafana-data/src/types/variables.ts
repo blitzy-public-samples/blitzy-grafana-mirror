@@ -59,6 +59,7 @@ export abstract class StandardVariableSupport<
  */
 export abstract class CustomVariableSupport<
   DSType extends DataSourceApi<TQuery, TOptions>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- preserved as default for back-compat with subclasses that omit the explicit VariableQuery type parameter
   VariableQuery extends DataQuery = any,
   TQuery extends DataQuery = DataSourceQueryType<DSType>,
   TOptions extends DataSourceJsonData = DataSourceOptionsType<DSType>,

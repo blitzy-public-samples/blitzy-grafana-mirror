@@ -1,7 +1,7 @@
 import { type Field, type FieldType } from '@grafana/data';
 import { type TextDimensionConfig, TextDimensionMode } from '@grafana/schema';
 
-export interface DimensionSupplier<T = any> {
+export interface DimensionSupplier<T = unknown> {
   /**
    * This means an explicit value was not configured
    */

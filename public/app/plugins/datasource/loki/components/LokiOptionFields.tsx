@@ -86,7 +86,7 @@ export function LokiOptionFields(props: LokiOptionFieldsProps) {
       <Stack wrap="nowrap" gap={0} data-testid="lineLimitField" aria-label="Line limit field">
         <InlineField label="Line limit" tooltip={'Upper limit for number of log lines returned by query.'}>
           <Input
-            className="width-4"
+            width={8}
             placeholder="auto"
             type="number"
             min={0}

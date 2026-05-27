@@ -152,6 +152,30 @@ export function SaveDashboardAsForm({ dashboard, changeInfo }: Props) {
   }
 
   return (
+    /*
+     * Design system gap: this file cannot migrate to @grafana/ui <Form>. Three concrete,
+     * file-specific reasons:
+     *   1. The save handler `onSave(overwrite: boolean): Promise<void>` is called both from
+     *      this form (via `handleSubmit(() => onSave(false))`) AND from the sibling
+     *      <SaveButton>/<NameAlreadyExistsError> components (via `<SaveButton ... onSave={onSave}
+     *      overwrite={true} />`) outside the form. <Form>'s `onSubmit: SubmitHandler<T>` API
+     *      (signature `(data: T, event?) => unknown`) cannot accept this `(overwrite) => ...`
+     *      shape, nor can it expose the same handler reference to siblings outside the
+     *      render-prop.
+     *   2. Title uniqueness is validated asynchronously and debounced via
+     *      `validationTimeoutRef.current = setTimeout(() => trigger('title'), 400)`. This
+     *      requires direct access to the `useForm()` instance's `trigger` AND a stable ref
+     *      cleared by an unmount-time `useEffect` cleanup — both of which need to be scoped
+     *      to this component, not nested inside <Form>'s render-prop body.
+     *   3. `setValue` from the same `useForm()` instance is passed down to <TitleFieldLabel
+     *      onChange={setValue}> and <DescriptionLabel onChange={setValue}> sibling label
+     *      components, plus the <FolderPicker onChange={async (uid, title) => setValue(...)}>
+     *      callback that ALSO mutates `dashboard.state.meta` via `dashboard.setState({...})`.
+     *      Migrating would require lifting all label components inside the render-prop and
+     *      restructuring scene-state-coupled callbacks, exceeding the minimal-change mandate.
+     * The internal layout already uses @grafana/ui form primitives (Field, Input, TextArea,
+     * Switch, Stack, Box, Alert, Button).
+     */
     <form onSubmit={handleSubmit(() => onSave(false))}>
       <Stack direction="column" gap={2}>
         <Field

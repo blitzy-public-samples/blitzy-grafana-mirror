@@ -13,13 +13,13 @@
 // limitations under the License.
 
 import { css } from '@emotion/css';
-import { PureComponent, type RefObject } from 'react';
+import { useCallback, useEffect, useState, type RefObject } from 'react';
 
 import { type CoreApp, type GrafanaTheme2, type LinkModel, type TimeRange, type TraceLog } from '@grafana/data';
 import { type SpanBarOptions, type TraceToProfilesOptions } from '@grafana/o11y-ds-frontend';
 import { config, reportInteraction } from '@grafana/runtime';
 import { type TimeZone } from '@grafana/schema';
-import { stylesFactory, withTheme2 } from '@grafana/ui';
+import { stylesFactory, useTheme2 } from '@grafana/ui';
 
 import { autoColor } from '../Theme';
 import { merge as mergeShortcuts } from '../keyboard-shortcuts';
@@ -97,7 +97,6 @@ export type TProps = {
   detailToggle: (spanID: string) => void;
   addHoverIndentGuideId: (spanID: string) => void;
   removeHoverIndentGuideId: (spanID: string) => void;
-  theme: GrafanaTheme2;
   createSpanLink?: SpanLinkFunc;
   scrollElement?: Element;
   focusedSpanId?: string;
@@ -115,11 +114,6 @@ export type TProps = {
   app: CoreApp;
 };
 
-type State = {
-  // Will be set to real height of the component so it can be passed down to size some other elements.
-  height: number;
-};
-
 const NUM_TICKS = 5;
 
 /**
@@ -128,108 +122,120 @@ const NUM_TICKS = 5;
  * re-render the ListView every time the cursor is moved on the trace minimap
  * or `TimelineHeaderRow`.
  */
-export class UnthemedTraceTimelineViewer extends PureComponent<TProps, State> {
-  constructor(props: TProps) {
-    super(props);
-    this.state = { height: 0 };
-  }
+export function UnthemedTraceTimelineViewer(props: TProps) {
+  const {
+    setSpanNameColumnWidth,
+    updateNextViewRangeTime,
+    updateViewRangeTime,
+    viewRange,
+    traceTimeline,
+    topOfViewRef,
+    focusedSpanIdForSearch,
+    collapseAll: collapseAllProp,
+    collapseOne: collapseOneProp,
+    expandAll: expandAllProp,
+    expandOne: expandOneProp,
+    datasourceType,
+    datasourceUid,
+    trace,
+    ...rest
+  } = props;
+  // `theme` previously came from `props.theme` (injected by `withTheme2`); it now comes from the
+  // `useTheme2()` hook. This unwinds the `withTheme2` HOC per AAP §0.6.2 and Checkpoint 10 review
+  // finding (`TraceTimelineViewer/index.tsx withTheme2 retained`). The downstream `styles =
+  // getStyles(theme)` call below is unchanged so JSON-markup color tokens remain pixel-equivalent.
+  const theme = useTheme2();
 
-  componentDidMount() {
-    mergeShortcuts({
-      collapseAll: this.collapseAll,
-      expandAll: this.expandAll,
-      collapseOne: this.collapseOne,
-      expandOne: this.expandOne,
-    });
-  }
+  const [height, setHeight] = useState(0);
 
-  collapseAll = () => {
-    this.props.collapseAll(this.props.trace.spans);
+  const collapseAll = useCallback(() => {
+    collapseAllProp(trace.spans);
     reportInteraction('grafana_traces_traceID_expand_collapse_clicked', {
-      datasourceType: this.props.datasourceType,
+      datasourceType,
       grafana_version: config.buildInfo.version,
       type: 'collapseAll',
     });
-  };
+  }, [collapseAllProp, trace.spans, datasourceType]);
 
-  collapseOne = () => {
-    this.props.collapseOne(this.props.trace.spans);
+  const collapseOne = useCallback(() => {
+    collapseOneProp(trace.spans);
     reportInteraction('grafana_traces_traceID_expand_collapse_clicked', {
-      datasourceType: this.props.datasourceType,
+      datasourceType,
       grafana_version: config.buildInfo.version,
       type: 'collapseOne',
     });
-  };
+  }, [collapseOneProp, trace.spans, datasourceType]);
 
-  expandAll = () => {
-    this.props.expandAll();
+  const expandAll = useCallback(() => {
+    expandAllProp();
     reportInteraction('grafana_traces_traceID_expand_collapse_clicked', {
-      datasourceType: this.props.datasourceType,
+      datasourceType,
       grafana_version: config.buildInfo.version,
       type: 'expandAll',
     });
-  };
+  }, [expandAllProp, datasourceType]);
 
-  expandOne = () => {
-    this.props.expandOne(this.props.trace.spans);
+  const expandOne = useCallback(() => {
+    expandOneProp(trace.spans);
     reportInteraction('grafana_traces_traceID_expand_collapse_clicked', {
-      datasourceType: this.props.datasourceType,
+      datasourceType,
       grafana_version: config.buildInfo.version,
       type: 'expandOne',
     });
-  };
+  }, [expandOneProp, trace.spans, datasourceType]);
 
-  render() {
-    const {
-      setSpanNameColumnWidth,
-      updateNextViewRangeTime,
-      updateViewRangeTime,
-      viewRange,
-      traceTimeline,
-      theme,
-      topOfViewRef,
-      focusedSpanIdForSearch,
-      ...rest
-    } = this.props;
-    const { trace } = rest;
-    const styles = getStyles(theme);
+  useEffect(() => {
+    mergeShortcuts({
+      collapseAll,
+      expandAll,
+      collapseOne,
+      expandOne,
+    });
+  }, [collapseAll, expandAll, collapseOne, expandOne]);
 
-    return (
-      <div
-        className={styles.TraceTimelineViewer}
-        ref={(ref) => {
-          if (ref) {
-            this.setState({ height: ref.getBoundingClientRect().height });
-          }
-        }}
-      >
-        <TimelineHeaderRow
-          duration={trace.duration}
-          nameColumnWidth={traceTimeline.spanNameColumnWidth}
-          numTicks={NUM_TICKS}
-          onCollapseAll={this.collapseAll}
-          onCollapseOne={this.collapseOne}
-          onColummWidthChange={setSpanNameColumnWidth}
-          onExpandAll={this.expandAll}
-          onExpandOne={this.expandOne}
-          viewRangeTime={viewRange.time}
-          updateNextViewRangeTime={updateNextViewRangeTime}
-          updateViewRangeTime={updateViewRangeTime}
-          columnResizeHandleHeight={this.state.height}
-        />
-        <VirtualizedTraceView
-          {...rest}
-          {...traceTimeline}
-          setSpanNameColumnWidth={setSpanNameColumnWidth}
-          currentViewRangeTime={viewRange.time.current}
-          topOfViewRef={topOfViewRef}
-          focusedSpanIdForSearch={focusedSpanIdForSearch}
-          datasourceType={this.props.datasourceType}
-          datasourceUid={this.props.datasourceUid}
-        />
-      </div>
-    );
-  }
+  const styles = getStyles(theme);
+
+  return (
+    <div
+      className={styles.TraceTimelineViewer}
+      ref={(ref) => {
+        if (ref) {
+          setHeight(ref.getBoundingClientRect().height);
+        }
+      }}
+    >
+      <TimelineHeaderRow
+        duration={trace.duration}
+        nameColumnWidth={traceTimeline.spanNameColumnWidth}
+        numTicks={NUM_TICKS}
+        onCollapseAll={collapseAll}
+        onCollapseOne={collapseOne}
+        onColummWidthChange={setSpanNameColumnWidth}
+        onExpandAll={expandAll}
+        onExpandOne={expandOne}
+        viewRangeTime={viewRange.time}
+        updateNextViewRangeTime={updateNextViewRangeTime}
+        updateViewRangeTime={updateViewRangeTime}
+        columnResizeHandleHeight={height}
+      />
+      <VirtualizedTraceView
+        {...rest}
+        {...traceTimeline}
+        trace={trace}
+        setSpanNameColumnWidth={setSpanNameColumnWidth}
+        currentViewRangeTime={viewRange.time.current}
+        topOfViewRef={topOfViewRef}
+        focusedSpanIdForSearch={focusedSpanIdForSearch}
+        datasourceType={datasourceType}
+        datasourceUid={datasourceUid}
+      />
+    </div>
+  );
 }
 
-export default withTheme2(UnthemedTraceTimelineViewer);
+// Previously exported as `withTheme2(UnthemedTraceTimelineViewer)` to inject `theme` as a prop. The
+// HOC has been removed and the component now reads the active theme internally via `useTheme2()`.
+// Consumers (e.g., `TraceView.tsx`) never passed `theme={...}` explicitly — they relied on the HOC —
+// so removing the wrapper is a no-op for callers and aligns with the AAP functional-component
+// conversion mandate (AAP §0.6.2 Rule T2 / Checkpoint 10 finding `withTheme2 retained`).
+export default UnthemedTraceTimelineViewer;

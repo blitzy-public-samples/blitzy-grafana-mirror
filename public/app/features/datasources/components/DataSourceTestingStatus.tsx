@@ -62,6 +62,14 @@ const getStyles = (theme: GrafanaTheme2, hasTitle: boolean) => {
       marginTop: theme.spacing(0.5),
       gap: theme.spacing(1),
     }),
+    externalLink: css({
+      color: theme.colors.text.link,
+      textDecoration: 'none',
+      '&:hover': {
+        color: theme.colors.text.link,
+        textDecoration: 'underline',
+      },
+    }),
   };
 };
 
@@ -87,7 +95,7 @@ const AlertSuccessMessage = ({
           <Link
             aria-label={t('datasources.alert-success-message.aria-label-create-a-dashboard', 'Create a dashboard')}
             href={`/dashboard/new-with-ds/${dataSourceId}`}
-            className="external-link"
+            className={styles.externalLink}
             onClick={onDashboardLinkClicked}
           >
             building a dashboard from scratch
@@ -96,7 +104,7 @@ const AlertSuccessMessage = ({
           <Link
             aria-label={t('datasources.alert-success-message.aria-label-suggested-dashboards', 'Suggested dashboards')}
             href="#"
-            className="external-link"
+            className={styles.externalLink}
             onClick={(e) => {
               e.preventDefault();
               onSuggestedDashboardsClick?.();
@@ -107,8 +115,8 @@ const AlertSuccessMessage = ({
           or by querying data in the{' '}
           <Link
             aria-label={t('datasources.alert-success-message.aria-label-explore-data', 'Explore data')}
-            className={cx('external-link', {
-              [`${styles.disabled}`]: !canExploreDataSources,
+            className={cx(styles.externalLink, {
+              [styles.disabled]: !canExploreDataSources,
               'test-disabled': !canExploreDataSources,
             })}
             href={exploreUrl}
@@ -123,7 +131,7 @@ const AlertSuccessMessage = ({
           <Link
             aria-label={t('datasources.alert-success-message.aria-label-create-a-dashboard', 'Create a dashboard')}
             href={`/dashboard/new-with-ds/${dataSourceId}`}
-            className="external-link"
+            className={styles.externalLink}
             onClick={onDashboardLinkClicked}
           >
             building a dashboard from scratch
@@ -131,8 +139,8 @@ const AlertSuccessMessage = ({
           or by querying data in the{' '}
           <Link
             aria-label={t('datasources.alert-success-message.aria-label-explore-data', 'Explore data')}
-            className={cx('external-link', {
-              [`${styles.disabled}`]: !canExploreDataSources,
+            className={cx(styles.externalLink, {
+              [styles.disabled]: !canExploreDataSources,
               'test-disabled': !canExploreDataSources,
             })}
             href={exploreUrl}
@@ -162,6 +170,14 @@ const ErrorDetailsLink = ({ link }: ErrorDetailsLinkProps) => {
       maxHeight: '50vh',
       overflowY: 'auto',
     }),
+    externalLink: css({
+      color: theme.colors.text.link,
+      textDecoration: 'none',
+      '&:hover': {
+        color: theme.colors.text.link,
+        textDecoration: 'underline',
+      },
+    }),
   };
   if (!link) {
     return <></>;
@@ -179,7 +195,7 @@ const ErrorDetailsLink = ({ link }: ErrorDetailsLinkProps) => {
             'datasources.error-details-link.aria-label-more-details-about-the-error',
             'More details about the error'
           )}
-          className={'external-link'}
+          className={styles.externalLink}
           href={link}
           target="_blank"
           rel="noreferrer"
@@ -310,7 +326,8 @@ export function DataSourceTestingStatus({ testingStatus, exploreUrl, dataSource 
               ) : null}
               {severity === 'error' && errorDetailsLink ? <ErrorDetailsLink link={String(errorDetailsLink)} /> : null}
               {detailsVerboseMessage ? (
-                <details style={{ whiteSpace: 'pre-wrap' }}>{String(detailsVerboseMessage)}</details>
+                // Design system gap: <details> is a native HTML disclosure widget with no @grafana/ui equivalent (Collapse has different progressive-enhancement semantics). Keeping raw per AAP §0.4.4.
+                <details className={styles.verboseDetails}>{String(detailsVerboseMessage)}</details>
               ) : null}
             </>
           )}
@@ -374,5 +391,8 @@ const getTestingStatusStyles = (theme: GrafanaTheme2) => ({
     '&:first-child': {
       marginLeft: 0,
     },
+  }),
+  verboseDetails: css({
+    whiteSpace: 'pre-wrap',
   }),
 });

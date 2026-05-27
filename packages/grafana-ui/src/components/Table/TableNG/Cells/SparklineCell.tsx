@@ -90,6 +90,9 @@ export const SparklineCell = (props: SparklineCellProps) => {
       measureText(`${alignmentFactor.prefix ?? ''}${alignmentFactor.text}${alignmentFactor.suffix ?? ''}`, 16).width +
       theme.spacing.gridSize;
 
+    // Design system gap: width is computed per-row from measureText(...) so values align across
+    // virtualized rows in react-data-grid. The dynamic measurement cannot be hoisted to a static
+    // Emotion class; layout/typography styles for the wrapping element live in getStyles below.
     valueElement = <FormattedValueDisplay style={{ width: valueWidth }} value={displayValue} />;
   }
 

@@ -18,7 +18,24 @@ import { isDataSourceManagedRuleByType } from '../../utils/rules';
 
 import { PreviewRuleResult } from './PreviewRuleResult';
 
-const fields: Array<keyof RuleFormValues> = ['type', 'dataSourceName', 'condition', 'queries', 'expression'];
+// Declared `as const` so that react-hook-form's `getValues(names)` overload
+// preserves the exact tuple ordering rather than widening to `(keyof RuleFormValues)[]`.
+// `satisfies ReadonlyArray<keyof RuleFormValues>` enforces that every entry is a
+// legitimate key of `RuleFormValues` while keeping the narrow literal-tuple type.
+const fields = ['type', 'dataSourceName', 'condition', 'queries', 'expression'] as const satisfies ReadonlyArray<
+  keyof RuleFormValues
+>;
+
+// Tuple type mirroring `fields` in order. Each element type is the corresponding
+// `RuleFormValues[K]` so that `createPreviewRequest`'s destructuring is fully typed
+// without resorting to `any[]`.
+type PreviewRequestFieldValues = [
+  RuleFormValues['type'],
+  RuleFormValues['dataSourceName'],
+  RuleFormValues['condition'],
+  RuleFormValues['queries'],
+  RuleFormValues['expression'],
+];
 
 export function PreviewRule(): React.ReactElement | null {
   const styles = useStyles2(getStyles);
@@ -79,7 +96,7 @@ export function usePreview(): [PreviewRuleResponse | undefined, () => void] {
   return [preview, onPreview];
 }
 
-function createPreviewRequest(values: any[]): PreviewRuleRequest {
+function createPreviewRequest(values: PreviewRequestFieldValues): PreviewRuleRequest {
   const [type, dataSourceName, condition, queries, expression] = values;
   const dsSettings = getDataSourceSrv().getInstanceSettings(dataSourceName);
   if (!dsSettings) {
@@ -90,14 +107,20 @@ function createPreviewRequest(values: any[]): PreviewRuleRequest {
     case RuleFormType.cloudAlerting:
       return {
         dataSourceUid: dsSettings.uid,
-        dataSourceName,
+        // `dataSourceName` is `string | null` in `RuleFormValues` but is guaranteed
+        // non-null here: if it were null, `getInstanceSettings` would have returned
+        // undefined and the throw above would have fired.
+        dataSourceName: dataSourceName!,
         expr: expression,
       };
 
     case RuleFormType.grafana:
       return {
         grafana_condition: {
-          condition,
+          // `condition` is `string | null` in `RuleFormValues` but the preview
+          // button is disabled in `PreviewRule` above unless `Boolean(condition)`
+          // is true, so a Grafana preview cannot be dispatched with a null condition.
+          condition: condition!,
           data: queries,
           now: dateTimeFormatISO(Date.now()),
         },

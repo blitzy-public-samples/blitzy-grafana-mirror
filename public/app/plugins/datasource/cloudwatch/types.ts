@@ -1,5 +1,5 @@
 import { type AwsAuthDataSourceJsonData, type AwsAuthDataSourceSecureJsonData } from '@grafana/aws-sdk';
-import { type DataFrame, type DataSourceRef } from '@grafana/data';
+import { type DataFrame, type DataSourceRef, type QueryResultMeta } from '@grafana/data';
 import { type DataQuery } from '@grafana/schema';
 
 import type * as raw from './dataquery.gen';
@@ -87,22 +87,22 @@ export interface GetLogEventsRequest extends DataQuery {
   region: string;
 }
 
-export interface TSDBResponse<T = any> {
+export interface TSDBResponse<T = unknown> {
   results: Record<string, TSDBQueryResult<T>>;
   message?: string;
 }
 
-export interface TSDBQueryResult<T = any> {
+export interface TSDBQueryResult<T = unknown> {
   refId: string;
   series: TSDBTimeSeries[];
   tables: Array<TSDBTable<T>>;
   frames: DataFrame[];
 
   error?: string;
-  meta?: any;
+  meta?: QueryResultMeta;
 }
 
-export interface TSDBTable<T = any> {
+export interface TSDBTable<T = unknown> {
   columns: Array<{ text: string }>;
   rows: T[];
 }
@@ -192,7 +192,7 @@ export interface MetricRequest {
 }
 
 export interface MetricQuery {
-  [key: string]: any;
+  [key: string]: unknown;
   datasource?: DataSourceRef;
   refId?: string;
   maxDataPoints?: number;
@@ -248,7 +248,7 @@ export interface LegacyAnnotationQuery extends raw.MetricStat, DataQuery {
   alarmNamePrefix: string;
   alias: string;
   builtIn: number;
-  datasource: any;
+  datasource: DataSourceRef | null | undefined;
   dimensions: raw.Dimensions;
   enable: boolean;
   expression: string;
@@ -267,7 +267,7 @@ export interface LegacyAnnotationQuery extends raw.MetricStat, DataQuery {
   target: {
     limit: number;
     matchAny: boolean;
-    tags: any[];
+    tags: string[];
     type: string;
   };
   type: string;

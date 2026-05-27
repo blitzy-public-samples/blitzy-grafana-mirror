@@ -10,6 +10,7 @@ import { type QueryEditorProps } from './datasource';
  * This JSON object is stored in the dashboard json model.
  */
 export interface AnnotationQuery<TQuery extends DataQuery = DataQuery> extends SchemaAnnotationQuery<TQuery> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- legacy snapshot data shape varies across dashboard versions; consumers (e.g. public/app/features/query/state/DashboardQueryRunner/SnapshotWorker.ts) pass this directly to processors that expect concrete shapes
   snapshotData?: any;
 
   // Convert a dataframe to an AnnotationEvent
@@ -19,12 +20,13 @@ export interface AnnotationQuery<TQuery extends DataQuery = DataQuery> extends S
   type?: string;
 
   // Sadly plugins can set any property directly on the main object
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AnnotationQuery is a plugin-extensible type; consumers (e.g. @grafana/prometheus AnnotationQueryEditor) index arbitrary keys (titleFormat, tagKeys, textFormat, useValueForTime, refId, expr, step) directly on the query object
   [key: string]: any;
 }
 
 export interface AnnotationEvent {
   id?: string;
-  annotation?: any;
+  annotation?: unknown;
   dashboardId?: number;
   /** May be null if it isn't set via the HTTP API */
   dashboardUID?: string | null;
@@ -45,6 +47,7 @@ export interface AnnotationEvent {
   newState?: string;
 
   // Currently used to merge annotations from alerts and dashboard
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- source carries a partial AnnotationQuery during persistence/migration; consumers (e.g. public/app/features/query/state/DashboardQueryRunner/utils.ts) assign it to AnnotationQuery<DataQuery> and access source.type without narrowing
   source?: any; // source.type === 'dashboard' -- should be AnnotationQuery
 }
 
@@ -73,6 +76,7 @@ export interface AnnotationEventFieldMapping {
 }
 
 export type AnnotationEventMappings = Partial<Record<keyof AnnotationEvent, AnnotationEventFieldMapping>>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- DSType is intentionally unconstrained: plugin AnnotationQueryEditor components are typed against their own DataSourceApi subtype (e.g. PrometheusDatasource, SqlDatasource) and would fail the ComponentType<AnnotationQueryEditorProps<TQuery>> assignability check (contravariant parameter position) if DSType were narrowed to DataSourceApi<TQuery>
 type AnnotationQueryEditorProps<TQuery extends DataQuery> = QueryEditorProps<any, TQuery> & {
   // Needs to be optional otherwise component not using these cannot be used, even though they are passed on and can be
   // just ignored if not used.
@@ -90,6 +94,7 @@ export interface AnnotationSupport<TQuery extends DataQuery = DataQuery, TAnno =
    * This hook lets you manipulate any existing stored values before running them though the processor.
    * This is particularly helpful when dealing with migrating old formats.  ie query as a string vs object.
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- json is heterogeneous legacy-format annotation data; in-tree implementations (public/app/plugins/datasource/{grafana,graphite,influxdb,opentsdb}/...) access json.target / json.type / json.limit / json.tags directly without narrowing, and narrowing to unknown breaks these consumers
   prepareAnnotation?(json: any): TAnno;
 
   /**

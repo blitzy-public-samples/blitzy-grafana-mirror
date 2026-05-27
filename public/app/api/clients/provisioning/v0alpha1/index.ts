@@ -26,16 +26,22 @@ import { refetchChildren } from '../../../../features/browse-dashboards/state/ac
 import { handleError } from '../../../utils';
 import { createOnCacheEntryAdded } from '../utils/createOnCacheEntryAdded';
 
+// Union of the two response shapes the provisioning API can produce when a
+// request fails. Either a Kubernetes-style Status object, or a payload carrying
+// a list of ErrorDetails.
+type ProvisioningFormErrorData = Status | { errors?: ErrorDetails[] };
+
 const handleProvisioningFormError = (e: unknown, dispatch: ThunkDispatch, title: string) => {
-  if (typeof e === 'object' && e && 'error' in e && isFetchError(e.error)) {
-    if (e.error.data.kind === 'Status' && e.error.data.status === 'Failure') {
-      const statusError: Status = e.error.data;
+  if (typeof e === 'object' && e && 'error' in e && isFetchError<ProvisioningFormErrorData>(e.error)) {
+    const data = e.error.data;
+    if ('kind' in data && data.kind === 'Status' && data.status === 'Failure') {
+      const statusError: Status = data;
       dispatch(notifyApp(createErrorNotification(title, new Error(statusError.message || 'Unknown error'))));
       return;
     }
 
-    if (Array.isArray(e.error.data.errors) && e.error.data.errors.length) {
-      const nonFieldErrors = e.error.data.errors.filter((err: ErrorDetails) => !err.field);
+    if ('errors' in data && Array.isArray(data.errors) && data.errors.length) {
+      const nonFieldErrors = data.errors.filter((err: ErrorDetails) => !err.field);
       if (nonFieldErrors.length > 0) {
         dispatch(notifyApp(createErrorNotification(title)));
       }

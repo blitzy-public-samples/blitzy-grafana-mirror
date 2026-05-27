@@ -1,5 +1,7 @@
+import { css } from '@emotion/css';
 import { useMemo } from 'react';
 
+import { type GrafanaTheme2 } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
 import {
   Avatar,
@@ -15,6 +17,7 @@ import {
   Text,
   TextLink,
   Tooltip,
+  useStyles2,
 } from '@grafana/ui';
 import { TagBadge } from 'app/core/components/TagFilter/TagBadge';
 import { type UserDTO } from 'app/types/user';
@@ -42,6 +45,7 @@ export const UsersTable = ({
 }: UsersTableProps) => {
   const showLicensedRole = useMemo(() => users.some((user) => user.licensedRole), [users]);
   const showBelongsTo = useMemo(() => users.some((user) => user.orgs), [users]);
+  const styles = useStyles2(getStyles);
 
   const columns: Array<Column<UserDTO>> = useMemo(
     () => [
@@ -118,7 +122,7 @@ export const UsersTable = ({
                         'A licensed role will be assigned when this user signs in'
                       )}
                     >
-                      <Icon name="question-circle" style={{ margin: '0 0 4 4' }} />
+                      <Icon name="question-circle" className={styles.helpIcon} />
                     </Tooltip>
                   </Text>
                 ) : (
@@ -197,7 +201,7 @@ export const UsersTable = ({
         },
       },
     ],
-    [showLicensedRole, showBelongsTo]
+    [showLicensedRole, showBelongsTo, styles]
   );
   return (
     <Stack direction={'column'} gap={2}>
@@ -210,3 +214,9 @@ export const UsersTable = ({
     </Stack>
   );
 };
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  helpIcon: css({
+    margin: theme.spacing(0, 0, 0.5, 0.5),
+  }),
+});

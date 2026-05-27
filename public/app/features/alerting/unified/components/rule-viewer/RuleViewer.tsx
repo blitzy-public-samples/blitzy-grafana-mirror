@@ -161,7 +161,7 @@ const RuleViewer = () => {
               bottomSpacing={0}
               topSpacing={2}
             >
-              <pre style={{ marginBottom: 0 }}>
+              <pre className={styles.errorPre}>
                 <code>{rule.promRule?.lastError ?? 'No error message'}</code>
               </pre>
             </Alert>
@@ -583,6 +583,9 @@ const getStyles = (theme: GrafanaTheme2) => ({
       borderTop: `1px solid ${theme.colors.border.weak}`,
       paddingTop: theme.spacing(3),
     },
+  }),
+  errorPre: css({
+    marginBottom: 0,
   }),
 });
 

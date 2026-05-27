@@ -46,18 +46,18 @@ const ServiceAccountListItemComponent = memo(
 
     return (
       <tr key={serviceAccount.id} className={cx({ [styles.disabled]: serviceAccount.isDisabled })}>
-        <td className="width-4 text-center link-td">
+        <td className={cx(styles.width4, styles.textCenter, styles.linkTd)}>
           <a href={editUrl} aria-label={getServiceAccountsAriaLabel(serviceAccount.name)}>
             <img
-              className="filter-table__avatar"
+              className={styles.filterTableAvatar}
               src={serviceAccount.avatarUrl}
               alt={`Avatar for user ${serviceAccount.name}`}
             />
           </a>
         </td>
-        <td className="link-td max-width-10">
+        <td className={cx(styles.linkTd, styles.maxWidth10)}>
           <a
-            className="ellipsis"
+            className={styles.ellipsis}
             href={editUrl}
             title={serviceAccount.name}
             aria-label={getServiceAccountsAriaLabel(serviceAccount.name)}
@@ -65,7 +65,7 @@ const ServiceAccountListItemComponent = memo(
             {serviceAccount.name}
           </a>
         </td>
-        <td className="link-td max-width-10">
+        <td className={cx(styles.linkTd, styles.maxWidth10)}>
           <a
             className={styles.accountId}
             href={editUrl}
@@ -101,9 +101,9 @@ const ServiceAccountListItemComponent = memo(
             />
           </td>
         )}
-        <td className="link-td max-width-10">
+        <td className={cx(styles.linkTd, styles.maxWidth10)}>
           <a
-            className="ellipsis"
+            className={styles.ellipsis}
             href={editUrl}
             title={t('serviceaccounts.service-account-list-item.title-tokens', 'Tokens')}
             aria-label={getServiceAccountsAriaLabel(serviceAccount.name)}
@@ -178,19 +178,19 @@ const ServiceAccountsListItemSkeleton: SkeletonComponent = ({ rootProps }) => {
 
   return (
     <tr {...rootProps}>
-      <td className="width-4 text-center">
+      <td className={cx(styles.width4, styles.textCenter)}>
         <Skeleton containerClassName={styles.blockSkeleton} circle width={25} height={25} />
       </td>
-      <td className="max-width-10">
+      <td className={styles.maxWidth10}>
         <Skeleton width={100} />
       </td>
-      <td className="max-width-10">
+      <td className={styles.maxWidth10}>
         <Skeleton width={100} />
       </td>
       <td>
         <Skeleton containerClassName={styles.blockSkeleton} width="100%" height={32} />
       </td>
-      <td className="max-width-10">
+      <td className={styles.maxWidth10}>
         <Skeleton width={40} />
       </td>
       <td>
@@ -214,6 +214,16 @@ const getSkeletonStyles = (theme: GrafanaTheme2) => ({
   deleteButton: css({
     marginRight: theme.spacing(0.5),
   }),
+  width4: css({
+    width: theme.spacing(8),
+  }),
+  textCenter: css({
+    textAlign: 'center',
+  }),
+  maxWidth10: css({
+    maxWidth: theme.spacing(20),
+    flexGrow: 1,
+  }),
 });
 
 const getStyles = (theme: GrafanaTheme2) => {
@@ -223,12 +233,14 @@ const getStyles = (theme: GrafanaTheme2) => {
         marginLeft: theme.spacing(0.5),
       },
     }),
-    accountId: cx(
-      'ellipsis',
-      css({
-        color: theme.colors.text.secondary,
-      })
-    ),
+    accountId: css({
+      display: 'block',
+      width: '100%',
+      whiteSpace: 'nowrap',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      color: theme.colors.text.secondary,
+    }),
     deleteButton: css({
       color: theme.colors.text.secondary,
     }),
@@ -247,6 +259,39 @@ const getStyles = (theme: GrafanaTheme2) => {
     }),
     actionButton: css({
       minWidth: 85,
+    }),
+    width4: css({
+      width: theme.spacing(8),
+    }),
+    textCenter: css({
+      textAlign: 'center',
+    }),
+    linkTd: css({
+      padding: 0,
+      lineHeight: '30px',
+      height: '30px',
+      whiteSpace: 'nowrap',
+      a: {
+        display: 'block',
+        padding: theme.spacing(0, 1),
+        height: '30px',
+      },
+    }),
+    maxWidth10: css({
+      maxWidth: theme.spacing(20),
+      flexGrow: 1,
+    }),
+    ellipsis: css({
+      display: 'block',
+      width: '100%',
+      whiteSpace: 'nowrap',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+    }),
+    filterTableAvatar: css({
+      width: theme.spacing(3),
+      height: theme.spacing(3),
+      borderRadius: theme.shape.radius.circle,
     }),
   };
 };

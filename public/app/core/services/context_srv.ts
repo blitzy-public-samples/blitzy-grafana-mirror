@@ -2,6 +2,8 @@ import { extend } from 'lodash';
 
 import {
   type AnalyticsSettings,
+  type CurrentUserDTO,
+  type GrafanaConfig,
   type OrgRole,
   rangeUtil,
   type WithAccessControlMetadata,
@@ -93,7 +95,13 @@ export class ContextSrv {
 
   constructor() {
     if (!config.bootData) {
-      config.bootData = { user: {}, settings: {}, navTree: [] } as any;
+      // Mirrors the empty-fallback shape produced by @grafana/runtime/src/config.ts when window.grafanaBootData is missing.
+      config.bootData = {
+        user: {} as CurrentUserDTO,
+        settings: {} as GrafanaConfig,
+        navTree: [],
+        assets: { dark: '', light: '' },
+      };
     }
 
     this.user = new User();

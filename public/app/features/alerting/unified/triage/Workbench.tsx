@@ -184,7 +184,7 @@ export function Workbench({
       {/* always-visible labels column */}
       <LabelsColumn />
       {/* main workbench: splitter + overlaid content */}
-      <div style={{ position: 'relative', display: 'flex', flex: 1, minWidth: 0, height: '100%' }}>
+      <Box position="relative" display="flex" flex={1} minWidth={0} height="100%">
         {/* dummy splitter to handle flex width of group items */}
         <div {...splitter.containerProps}>
           <div {...splitter.primaryProps}>
@@ -241,9 +241,7 @@ export function Workbench({
                       <Trans i18nKey="alerting.triage.expand-all">Expand all</Trans>
                     )}
                   </Button>
-                  <span
-                    style={{ position: 'absolute', right: `calc(100% - ${leftColumnWidth}px)`, textAlign: 'right' }}
-                  >
+                  <span className={styles.groupsCountIndicator(leftColumnWidth)}>
                     <Text variant="bodySmall" color="secondary">
                       <Trans i18nKey="alerting.triage.showing-groups-count" values={{ count: data.length }}>
                         {'Showing {{count}} groups'}
@@ -286,7 +284,7 @@ export function Workbench({
             </>
           )}
         </div>
-      </div>
+      </Box>
     </Stack>
   );
 }
@@ -306,6 +304,12 @@ export const getStyles = (theme: GrafanaTheme2) => {
         display: 'grid',
         gridTemplateColumns: `${width}px auto`,
         gap: theme.spacing(2),
+      }),
+    groupsCountIndicator: (leftColumnWidth: number) =>
+      css({
+        position: 'absolute',
+        right: `calc(100% - ${leftColumnWidth}px)`,
+        textAlign: 'right',
       }),
     virtualizedContainer: css({
       display: 'flex',

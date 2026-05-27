@@ -1,11 +1,21 @@
 import { css } from '@emotion/css';
-import { type ReactElement, useEffect, useState } from 'react';
+import { type ReactElement, useEffect, useMemo, useState } from 'react';
 import { useAsync } from 'react-use';
 
 import { type BaseVariableModel, type GrafanaTheme2 } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
 import { reportInteraction } from '@grafana/runtime';
-import { CollapsableSection, Icon, Spinner, Stack, Text, Tooltip, useStyles2 } from '@grafana/ui';
+import {
+  CollapsableSection,
+  type Column,
+  Icon,
+  InteractiveTable,
+  Spinner,
+  Stack,
+  Text,
+  Tooltip,
+  useStyles2,
+} from '@grafana/ui';
 
 import { type DashboardModel } from '../../dashboard/state/DashboardModel';
 
@@ -105,38 +115,24 @@ function NoUnknowns(): ReactElement {
 }
 
 function UnknownTable({ usages }: { usages: UsagesToNetwork[] }): ReactElement {
-  const style = useStyles2(getStyles);
-  return (
-    <table className="filter-table filter-table--hover">
-      <thead>
-        <tr>
-          <th>
-            <Trans i18nKey="variables.unknown-table.variable">Variable</Trans>
-          </th>
-          <th colSpan={5} />
-        </tr>
-      </thead>
-      <tbody>
-        {usages.map((usage) => {
-          const { variable } = usage;
-          const { id, name } = variable;
-          return (
-            <tr key={id}>
-              <td className={style.firstColumn}>
-                <span>{name}</span>
-              </td>
-              <td className={style.defaultColumn} />
-              <td className={style.defaultColumn} />
-              <td className={style.defaultColumn} />
-              <td className={style.lastColumn}>
-                <VariablesUnknownButton id={variable.id} usages={usages} />
-              </td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
+  const columns = useMemo<Array<Column<UsagesToNetwork>>>(
+    () => [
+      {
+        id: 'variable',
+        header: t('variables.unknown-table.variable', 'Variable'),
+        cell: ({ row: { original } }) => <span>{original.variable.name}</span>,
+      },
+      {
+        id: 'actions',
+        header: '',
+        cell: ({ row: { original } }) => <VariablesUnknownButton id={original.variable.id} usages={usages} />,
+        disableGrow: true,
+      },
+    ],
+    [usages]
   );
+
+  return <InteractiveTable<UsagesToNetwork> columns={columns} data={usages} getRowId={(usage) => usage.variable.id} />;
 }
 
 const getStyles = (theme: GrafanaTheme2) => ({
@@ -146,20 +142,5 @@ const getStyles = (theme: GrafanaTheme2) => ({
   }),
   infoIcon: css({
     marginLeft: theme.spacing(1),
-  }),
-  defaultColumn: css({
-    width: '1%',
-  }),
-  firstColumn: css({
-    width: '1%',
-    verticalAlign: 'top',
-    color: theme.colors.text.maxContrast,
-  }),
-  lastColumn: css({
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-    width: '100%',
-    textAlign: 'right',
   }),
 });

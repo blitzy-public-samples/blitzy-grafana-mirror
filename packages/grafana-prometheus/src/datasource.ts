@@ -66,6 +66,7 @@ import {
   type PromQuery,
   type PromQueryRequest,
   type RawRecordingRules,
+  type RecordingRuleIdentifier,
   type RuleQueryMapping,
 } from './types';
 import { utf8Support, wrapUtf8Filters } from './utf8_support';
@@ -76,7 +77,7 @@ export class PrometheusDatasource
   implements DataSourceWithQueryImportSupport<PromQuery>, DataSourceWithQueryExportSupport<PromQuery>
 {
   access: 'direct' | 'proxy';
-  basicAuth: any;
+  basicAuth: string | undefined;
   cache: QueryCache<PromQuery>;
   cacheLevel: PrometheusCacheLevel;
   customQueryParameters: URLSearchParams;
@@ -337,6 +338,7 @@ export class PrometheusDatasource
   }
 
   // Use this for tab completion features, wont publish response to other components
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Public method's generic default; tightening to "unknown" would break internal callers (loadRules, exemplarsQuery, language_provider.request) that destructure res.data without type narrowing. Public API preservation per AAP §0.8.7.
   async metadataRequest<T = any>(url: string, params = {}, options?: Partial<BackendSrvRequest>) {
     // If URL includes endpoint that supports POST and GET method, try to use configured method. This might fail as POST is supported only in v2.10+.
     if (GET_AND_POST_METADATA_ENDPOINTS.some((endpoint) => url.includes(endpoint))) {
@@ -695,7 +697,11 @@ export class PrometheusDatasource
       }
       case 'EXPAND_RULES': {
         if (action.options) {
-          expression = expandRecordingRules(expression, action.options as any);
+          // QueryFixAction.options is publicly typed as KeyValue<string>, but EXPAND_RULES specifically
+          // passes a RuleQueryMapping-derived object (see query_hints.ts EXPAND_RULES action creation).
+          // Bridge via an unknown-typed intermediate to avoid an `as unknown as Type` double assertion.
+          const options: unknown = action.options;
+          expression = expandRecordingRules(expression, options as { [name: string]: RecordingRuleIdentifier });
         }
         break;
       }

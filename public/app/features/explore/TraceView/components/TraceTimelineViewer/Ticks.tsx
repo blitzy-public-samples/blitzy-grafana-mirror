@@ -14,6 +14,7 @@
 
 import { css } from '@emotion/css';
 import cx from 'classnames';
+import { type CSSProperties } from 'react';
 import * as React from 'react';
 
 import { type GrafanaTheme2 } from '@grafana/data';
@@ -37,6 +38,8 @@ const getStyles = (theme: GrafanaTheme2) => ({
     '&:last-child': {
       width: 0,
     },
+    // Dynamic per-tick horizontal position consumed via CSS custom property.
+    left: 'var(--ticks-tick-left)',
   }),
   TicksTickLabel: css({
     label: 'TicksTickLabel',
@@ -58,6 +61,12 @@ type TicksProps = {
   startTime?: number | TNil;
 };
 
+// CSS custom property intersection type replaces the previous inline `style={{}}` literal
+// while preserving the dynamic per-tick horizontal position per AAP Dimension 3.
+type TicksTickCSSVars = CSSProperties & {
+  '--ticks-tick-left'?: string;
+};
+
 export default function Ticks({ endTime = null, numTicks, showLabels = null, startTime = null }: TicksProps) {
   let labels: undefined | string[];
   if (showLabels) {
@@ -72,15 +81,10 @@ export default function Ticks({ endTime = null, numTicks, showLabels = null, sta
   const ticks: React.ReactNode[] = [];
   for (let i = 0; i < numTicks; i++) {
     const portion = i / (numTicks - 1);
+    // Dynamic per-tick horizontal position passed via CSS custom property.
+    const tickStyle: TicksTickCSSVars = { '--ticks-tick-left': `${portion * 100}%` };
     ticks.push(
-      <div
-        data-testid="TicksID"
-        key={portion}
-        className={styles.TicksTick}
-        style={{
-          left: `${portion * 100}%`,
-        }}
-      >
+      <div data-testid="TicksID" key={portion} className={styles.TicksTick} style={tickStyle}>
         {labels && (
           <span className={cx(styles.TicksTickLabel, { [styles.TicksTickLabelEndAnchor]: portion >= 1 })}>
             {labels[i]}

@@ -10,7 +10,7 @@ import {
   type VizPanel,
 } from '@grafana/scenes';
 import { type TimeZone } from '@grafana/schema';
-import { Alert, ClipboardButton, Field, FieldSet, Icon, Input, Switch, TextLink } from '@grafana/ui';
+import { Alert, ClipboardButton, Field, FieldSet, Icon, Input, Stack, Switch, TextLink } from '@grafana/ui';
 import { createDashboardShareUrl, createShortLink, getShareUrlParams } from 'app/core/utils/shortLinks';
 import { ThemePicker } from 'app/features/dashboard/components/ShareModal/ThemePicker';
 import { getTrackingSource, shareDashboardType } from 'app/features/dashboard/components/ShareModal/utils';
@@ -202,13 +202,13 @@ function ShareLinkTabRenderer({ model }: SceneComponentProps<ShareLinkTab>) {
       {panel && config.rendererAvailable && (
         <>
           {isDashboardSaved && (
-            <div className="gf-form">
+            <Stack direction="row" gap={0.5}>
               <a href={imageUrl} target="_blank" rel="noreferrer" aria-label={selectors.linkToRenderedImage}>
                 <Icon name="camera" />
                 &nbsp;
                 <Trans i18nKey="share-modal.link.rendered-image">Direct link rendered image</Trans>
               </a>
-            </div>
+            </Stack>
           )}
 
           {!isDashboardSaved && (

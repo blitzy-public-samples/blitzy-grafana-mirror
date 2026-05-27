@@ -32,12 +32,15 @@ import { type PanelDataSummary } from './suggestions/getPanelDataSummary';
 
 /** @beta */
 export type StandardOptionConfig = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- public API surface: `defaultValue` holds heterogeneous override values that vary per FieldConfigProperty (number for Min/Max/Decimals, string for Unit, color object for Color, etc.); consumers in panel plugins set arbitrary literal values without narrowing
   defaultValue?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- public API surface: `settings` is spread in registryFactories.ts via `{ ...fieldConfigProp.settings, ...customSettings }`; changing to `unknown` would break TypeScript spread compilation since `unknown` cannot be spread
   settings?: any;
   hideFromDefaults?: boolean;
 };
 
 /** @beta */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- public API generic default `TFieldConfigOptions = any` preserved for back-compat: SetFieldConfigOptionsArgs is a public type exposed via @grafana/data; downstream panel plugins (timeseries/config.ts, xychart/config.ts, table/cells/SparklineCellOptionsEditor.tsx) pass explicit type parameters, but the default `any` enables ergonomic usage where the field config type is not parameterized
 export interface SetFieldConfigOptionsArgs<TFieldConfigOptions = any> {
   /**
    * Configuration object of the standard field config properites
@@ -104,6 +107,7 @@ export type PanelOptionsSupplier<TOptions> = (
 ) => void;
 
 export class PanelPlugin<
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- public API generic default `TOptions = any` preserved for back-compat with 100+ downstream call sites: PanelPlugin is the THE base class for every Grafana panel plugin; consumers like public/app/plugins/panel/welcome/module.ts, traces/module.tsx, and gettingstarted/module.ts use `new PanelPlugin(SomePanel)` without explicit TOptions; changing default to `unknown` would force narrowing in 100+ panel plugin module.ts files (mass downstream regression per AAP §0.8.7)
   TOptions = any,
   TFieldConfigOptions extends object = {},
 > extends GrafanaPlugin<PanelPluginMeta> {

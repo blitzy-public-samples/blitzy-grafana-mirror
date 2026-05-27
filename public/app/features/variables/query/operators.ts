@@ -143,6 +143,10 @@ export function validateVariableSelection(args: {
     );
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
 export function areMetricFindValues(data: unknown[]): data is MetricFindValue[] {
   if (!data) {
     return false;
@@ -152,14 +156,18 @@ export function areMetricFindValues(data: unknown[]): data is MetricFindValue[] 
     return true;
   }
 
-  const firstValue: any = data[0];
+  const firstValue = data[0];
 
   if (isDataFrame(firstValue)) {
     return false;
   }
 
+  if (!isPlainObject(firstValue)) {
+    return false;
+  }
+
   for (const firstValueKey in firstValue) {
-    if (!firstValue.hasOwnProperty(firstValueKey)) {
+    if (!Object.prototype.hasOwnProperty.call(firstValue, firstValueKey)) {
       continue;
     }
 

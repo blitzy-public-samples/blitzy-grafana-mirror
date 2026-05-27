@@ -158,7 +158,7 @@ export function RowItemRenderer({ model }: SceneComponentProps<RowItem>) {
                 {!isEditing && titleElement}
               </button>
               {isEditing && titleElement}
-              {isDraggable && <Icon name="draggabledots" className="dashboard-row-header-drag-handle" />}
+              {isDraggable && <Icon name="draggabledots" className={styles.dragHandle} />}
             </div>
           )}
           {!isCollapsed && (
@@ -175,7 +175,16 @@ export function RowItemRenderer({ model }: SceneComponentProps<RowItem>) {
 }
 
 function getStyles(theme: GrafanaTheme2) {
+  const dragHandle = css({
+    opacity: 0,
+
+    [theme.transitions.handleMotion('no-preference', 'reduce')]: {
+      transition: 'opacity 0.25s',
+    },
+  });
+
   return {
+    dragHandle,
     rowHeader: css({
       display: 'flex',
       gap: theme.spacing(1),
@@ -184,19 +193,9 @@ function getStyles(theme: GrafanaTheme2) {
       justifyContent: 'space-between',
       marginBottom: theme.spacing(1),
 
-      '& .dashboard-row-header-drag-handle': css({
-        opacity: 0,
-
-        [theme.transitions.handleMotion('no-preference', 'reduce')]: {
-          transition: 'opacity 0.25s',
-        },
-      }),
-
-      '&:hover': css({
-        '& .dashboard-row-header-drag-handle': css({
-          opacity: 1,
-        }),
-      }),
+      [`&:hover .${dragHandle}`]: {
+        opacity: 1,
+      },
     }),
     rowTitleButton: css({
       display: 'flex',

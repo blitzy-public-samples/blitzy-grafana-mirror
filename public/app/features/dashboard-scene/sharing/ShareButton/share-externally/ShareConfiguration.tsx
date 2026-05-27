@@ -5,7 +5,7 @@ import { type GrafanaTheme2 } from '@grafana/data';
 import { selectors as e2eSelectors } from '@grafana/e2e-selectors';
 import { Trans, t } from '@grafana/i18n';
 import { sceneGraph } from '@grafana/scenes';
-import { FieldSet, Icon, Label, Spinner, Stack, Switch, Text, TimeRangeLabel, Tooltip, useStyles2 } from '@grafana/ui';
+import { Box, FieldSet, Icon, Label, Spinner, Stack, Switch, Text, TimeRangeLabel, Tooltip, useStyles2 } from '@grafana/ui';
 import { contextSrv } from 'app/core/services/context_srv';
 import { publicDashboardApi, useUpdatePublicDashboardMutation } from 'app/features/dashboard/api/publicDashboardApi';
 import { type ConfigPublicDashboardForm } from 'app/features/dashboard/components/ShareModal/SharePublicDashboard/ConfigPublicDashboard/ConfigPublicDashboard';
@@ -63,6 +63,22 @@ export default function ShareConfiguration() {
         <Trans i18nKey="public-dashboard.configuration.settings-label">Settings</Trans>
       </Text>
       <Stack justifyContent="space-between">
+        {/*
+         * Design system gap: this file cannot migrate to @grafana/ui <Form>. It uses an
+         * auto-submit-on-change pattern: each Switch's `onChange` directly calls
+         *   await handleSubmit((data) => onUpdate({ ...data, [name]: value }))();
+         * That is, the local `onChange(name, value)` function (a) calls `setValue(name, value)`
+         * then (b) invokes `handleSubmit(...)()` imperatively to immediately persist the
+         * single-toggle change via the publicDashboard mutation — without waiting for a
+         * form-submit DOM event. The <Form> component's `onSubmit` prop only fires the
+         * supplied handler when the underlying <form> element emits a submit event
+         * (`<form onSubmit={handleSubmit(props.onSubmit)}>` in Form.tsx), so it cannot be
+         * invoked imperatively from a field-level onChange. <Form> also does not surface
+         * the inner `handleSubmit` to the render-prop API, so re-creating the
+         * `handleSubmit((data) => onUpdate({ ...data, [name]: value }))()` chain inline
+         * would require either a forwarded ref/imperative handle or restructuring the
+         * update flow to bypass react-hook-form entirely.
+         */}
         <form onSubmit={handleSubmit(onUpdate)}>
           <FieldSet disabled={disableForm}>
             <Stack direction="column" gap={2}>
@@ -111,15 +127,16 @@ export default function ShareConfiguration() {
                   control={control}
                   name="isAnnotationsEnabled"
                 />
-                <Label
-                  style={{ flex: 1 }}
-                  description={t(
-                    'public-dashboard.configuration.display-annotations-description',
-                    'Present annotations on this dashboard'
-                  )}
-                >
-                  <Trans i18nKey="public-dashboard.configuration.display-annotations-label">Display annotations</Trans>
-                </Label>
+                <Box flex={1}>
+                  <Label
+                    description={t(
+                      'public-dashboard.configuration.display-annotations-description',
+                      'Present annotations on this dashboard'
+                    )}
+                  >
+                    <Trans i18nKey="public-dashboard.configuration.display-annotations-label">Display annotations</Trans>
+                  </Label>
+                </Box>
               </Stack>
               <Stack gap={1} alignItems="flex-start">
                 <div className={styles.timeRange}>

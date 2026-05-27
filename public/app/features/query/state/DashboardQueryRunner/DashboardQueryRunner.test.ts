@@ -141,7 +141,12 @@ function getTestContext() {
     },
   } as DataSourceSrv;
   setDataSourceSrv(dataSourceSrvMock);
-  const dispatchMock = jest.spyOn(store, 'dispatch');
+  // jest.spyOn over the overloaded `store.dispatch` signature collapses argument types to
+  // `never`, which prevents the `mockResolvedValue({ data: ... })` calls below from
+  // type-checking. The dispatch overload itself is exported correctly for runtime callers;
+  // this cast is scoped to the test harness only.
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+  const dispatchMock = jest.spyOn(store, 'dispatch') as unknown as jest.Mock;
 
   return { runner, options, annotationQueryMock, executeAnnotationQueryMock, getMock, dispatchMock };
 }

@@ -131,7 +131,7 @@ export const DateTimePicker = ({
   );
 
   return (
-    <div data-testid="date-time-picker" style={{ position: 'relative' }}>
+    <div data-testid="date-time-picker" className={styles.wrapper}>
       <DateTimeInput
         date={date}
         onChange={onChange}
@@ -386,6 +386,9 @@ const DateTimeCalendar = React.forwardRef<HTMLDivElement, DateTimeCalendarProps>
 DateTimeCalendar.displayName = 'DateTimeCalendar';
 
 const getStyles = (theme: GrafanaTheme2) => ({
+  wrapper: css({
+    position: 'relative',
+  }),
   container: css({
     padding: theme.spacing(1),
     border: `1px ${theme.colors.border.weak} solid`,

@@ -12,7 +12,7 @@ export default class InfluxQueryModel {
   target: InfluxQuery;
   selectModels: QueryPart[][] = [];
   groupByParts: QueryPart[] = [];
-  templateSrv: any;
+  templateSrv: TemplateSrv | undefined;
   scopedVars: ScopedVars | undefined;
   refId?: string;
 
@@ -198,7 +198,7 @@ export default class InfluxQueryModel {
     // quote value unless regex
     if (operator !== '=~' && operator !== '!~') {
       if (interpolate) {
-        value = this.templateSrv.replace(value, this.scopedVars);
+        value = this.templateSrv!.replace(value, this.scopedVars);
       }
       value = removeRegexWrapper(value);
       if (operator.startsWith('Is')) {
@@ -209,7 +209,7 @@ export default class InfluxQueryModel {
         value = "'" + value.replace(/\\/g, '\\\\').replace(/\'/g, "\\'") + "'";
       }
     } else if (interpolate) {
-      value = this.templateSrv.replace(value, this.scopedVars, 'regex');
+      value = this.templateSrv!.replace(value, this.scopedVars, 'regex');
     }
 
     let escapedKey = `"${tag.key}"`;
@@ -232,7 +232,7 @@ export default class InfluxQueryModel {
     if (!measurement.match('^/.*/$')) {
       measurement = '"' + measurement + '"';
     } else if (interpolate) {
-      measurement = this.templateSrv.replace(measurement, this.scopedVars, 'regex');
+      measurement = this.templateSrv!.replace(measurement, this.scopedVars, 'regex');
     }
 
     if (policy !== DEFAULT_POLICY) {
@@ -263,9 +263,9 @@ export default class InfluxQueryModel {
 
     if (target.rawQuery) {
       if (interpolate) {
-        return this.templateSrv.replace(target.query, this.scopedVars, this.interpolateQueryStr);
+        return this.templateSrv!.replace(target.query, this.scopedVars, this.interpolateQueryStr);
       } else {
-        return target.query;
+        return target.query!;
       }
     }
 

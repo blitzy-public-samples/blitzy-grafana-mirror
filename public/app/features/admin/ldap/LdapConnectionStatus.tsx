@@ -94,10 +94,10 @@ export const LdapErrorBox = ({ ldapConnectionInfo }: LdapConnectionErrorProps) =
 
   const errorElements = connectionErrors.map((info, index) => (
     <div key={index}>
-      <span style={{ fontWeight: 500 }}>
+      <Text weight="medium">
         {`${info.host}:${info.port}`}
         <br />
-      </span>
+      </Text>
       <span>{info.error}</span>
       {index !== connectionErrors.length - 1 && (
         <>

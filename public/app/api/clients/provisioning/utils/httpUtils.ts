@@ -1,10 +1,12 @@
 // Provisioning-specific error message helpers for HTTP and fetch errors.
 import { t } from '@grafana/i18n';
-import { isFetchError } from '@grafana/runtime';
+import { type FetchErrorDataProps, isFetchError } from '@grafana/runtime';
 import { isHttpError } from 'app/features/provisioning/guards';
 
 export function getErrorMessage(err: unknown) {
-  if (isFetchError(err)) {
+  // Narrow the caught error to the canonical fetch-error body so
+  // `err.data.message` is typed.
+  if (isFetchError<FetchErrorDataProps>(err)) {
     return err.data.message;
   }
 

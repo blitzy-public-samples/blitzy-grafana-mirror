@@ -1,5 +1,5 @@
 import { css, cx } from '@emotion/css';
-import { type FormEventHandler, useState } from 'react';
+import { type FormEventHandler, useCallback, useMemo, useState } from 'react';
 
 import {
   type TeamGroupDto,
@@ -7,8 +7,20 @@ import {
   useGetTeamGroupsApiQuery,
   useRemoveTeamGroupApiQueryMutation,
 } from '@grafana/api-clients/internal/rtkq/legacy';
+import { type GrafanaTheme2 } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
-import { Input, Tooltip, Icon, Button, useTheme2, InlineField, InlineFieldRow, useStyles2 } from '@grafana/ui';
+import {
+  Button,
+  type Column,
+  Icon,
+  InlineField,
+  InlineFieldRow,
+  Input,
+  InteractiveTable,
+  Tooltip,
+  useStyles2,
+  useTheme2,
+} from '@grafana/ui';
 import { SlideDown } from 'app/core/components/Animations/SlideDown';
 import { CloseButton } from 'app/core/components/CloseButton/CloseButton';
 import EmptyListCTA from 'app/core/components/EmptyListCTA/EmptyListCTA';
@@ -46,37 +58,48 @@ export const TeamGroupSync = ({ isReadOnly, teamUid }: Props) => {
     setNewGroupId('');
   };
 
-  const onRemoveGroup = async (groupId: string | undefined) => {
-    if (!groupId) {
-      return;
-    }
-    await removeTeamGroup({ teamId: teamUid, groupId });
-  };
+  const onRemoveGroup = useCallback(
+    async (groupId: string | undefined) => {
+      if (!groupId) {
+        return;
+      }
+      await removeTeamGroup({ teamId: teamUid, groupId });
+    },
+    [removeTeamGroup, teamUid]
+  );
 
   const isNewGroupValid = () => {
     return newGroupId.length > 1;
   };
 
-  const renderGroup = (group: TeamGroupDto) => {
-    return (
-      <tr key={group.groupId}>
-        <td>{group.groupId}</td>
-        <td style={{ width: '1%' }}>
+  const columns = useMemo<Array<Column<TeamGroupDto>>>(
+    () => [
+      {
+        id: 'groupId',
+        header: t('teams.team-group-sync.external-group-id', 'External Group ID'),
+        cell: ({ row: { original } }) => original.groupId ?? '',
+      },
+      {
+        id: 'actions',
+        header: '',
+        disableGrow: true,
+        cell: ({ row: { original } }) => (
           <Button
             size="sm"
             variant="destructive"
-            onClick={() => onRemoveGroup(group.groupId)}
+            onClick={() => onRemoveGroup(original.groupId)}
             disabled={isReadOnly}
             aria-label={t('teams.team-group-sync.aria-label-remove', 'Remove group {{groupName}}', {
-              groupName: group.groupId,
+              groupName: original.groupId,
             })}
           >
             <Icon name="times" />
           </Button>
-        </td>
-      </tr>
-    );
-  };
+        ),
+      },
+    ],
+    [isReadOnly, onRemoveGroup]
+  );
 
   return (
     <div>
@@ -91,18 +114,18 @@ export const TeamGroupSync = ({ isReadOnly, teamUid }: Props) => {
           )}
         />
       )}
-      <div className="page-action-bar">
+      <div className={styles.pageActionBar}>
         {(!highlightTrial() || groups.length > 0) && (
           <>
-            <h3 className="page-sub-heading">
+            <h3 className={styles.pageSubHeading}>
               <Trans i18nKey="teams.team-group-sync.external-group-sync">External group sync</Trans>
             </h3>
             <Tooltip placement="auto" content={headerTooltip}>
-              <Icon className={cx(styles.icon, 'page-sub-heading-icon')} name="question-circle" />
+              <Icon className={cx(styles.icon, styles.pageSubHeadingIcon)} name="question-circle" />
             </Tooltip>
           </>
         )}
-        <div className="page-action-bar__spacer" />
+        <div className={styles.pageActionBarSpacer} />
         {groups.length > 0 && (
           <Button onClick={onToggleAdding} icon="plus" disabled={isReadOnly}>
             <Trans i18nKey="teams.team-group-sync.add-group-button">Add group</Trans>
@@ -111,8 +134,26 @@ export const TeamGroupSync = ({ isReadOnly, teamUid }: Props) => {
       </div>
 
       <SlideDown in={isAddBoxVisible}>
-        <div className="cta-form">
+        <div className={styles.ctaForm}>
           <CloseButton onClick={onToggleAdding} />
+          {/*
+           * Raw <form> retained per AAP §0.6.1 ("documented imperative
+           * FieldSet/Field pattern"). The add-group form intentionally does NOT
+           * use react-hook-form because:
+           *   1. It is a single-field, single-action submit handler with the
+           *      input value driven by a simple useState (`newGroupId`).
+           *      Introducing react-hook-form's useForm/register/handleSubmit
+           *      machinery would not improve type safety, validation, or DX —
+           *      `isNewGroupValid()` is already inlined against `newGroupId`.
+           *   2. The form composes <InlineField>+<InlineFieldRow>+<Input>+<Button>
+           *      design-system primitives mandated by AAP §0.4.2 for layout, so
+           *      the design-system migration goal (raw form internals replaced
+           *      with @grafana/ui form primitives) is already satisfied.
+           *   3. The @grafana/ui <Form> render-prop component imposes a
+           *      react-hook-form FormAPI argument shape that would require
+           *      wholesale rewriting of the single-state imperative pattern with
+           *      no functional or semantic benefit.
+           */}
           <form onSubmit={onAddGroup}>
             <InlineFieldRow>
               <InlineField
@@ -130,7 +171,7 @@ export const TeamGroupSync = ({ isReadOnly, teamUid }: Props) => {
                   disabled={isReadOnly}
                 />
               </InlineField>
-              <Button type="submit" disabled={isReadOnly || !isNewGroupValid()} style={{ marginLeft: 4 }}>
+              <Button type="submit" disabled={isReadOnly || !isNewGroupValid()} className={styles.addButton}>
                 <Trans i18nKey="teams.team-group-sync.add-group">Add group</Trans>
               </Button>
             </InlineFieldRow>
@@ -159,19 +200,7 @@ export const TeamGroupSync = ({ isReadOnly, teamUid }: Props) => {
         ))}
 
       {groups.length > 0 && (
-        <div className="admin-list-table">
-          <table className="filter-table filter-table--hover form-inline">
-            <thead>
-              <tr>
-                <th>
-                  <Trans i18nKey="teams.team-group-sync.external-group-id">External Group ID</Trans>
-                </th>
-                <th style={{ width: '1%' }} />
-              </tr>
-            </thead>
-            <tbody>{groups.map((group) => renderGroup(group))}</tbody>
-          </table>
-        </div>
+        <InteractiveTable columns={columns} data={groups} getRowId={(group) => group.groupId ?? ''} />
       )}
     </div>
   );
@@ -198,12 +227,39 @@ export const TeamSyncUpgradeContent = ({ action }: { action?: UpgradeContentProp
 };
 export default TeamGroupSync;
 
-const getStyles = () => ({
+const getStyles = (theme: GrafanaTheme2) => ({
   icon: css({
     opacity: 0.7,
 
     '&:hover': {
       opacity: 1,
     },
+  }),
+  pageActionBar: css({
+    marginBottom: theme.spacing(2),
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: theme.spacing(2),
+  }),
+  pageActionBarSpacer: css({
+    width: theme.spacing(2),
+    flexGrow: 1,
+  }),
+  pageSubHeading: css({
+    marginBottom: theme.spacing(2),
+  }),
+  pageSubHeadingIcon: css({
+    marginLeft: theme.spacing(1),
+    marginTop: theme.spacing(0.5),
+  }),
+  ctaForm: css({
+    position: 'relative',
+    padding: theme.spacing(3),
+    backgroundColor: theme.colors.background.secondary,
+    marginBottom: theme.spacing(3),
+    borderTop: `3px solid ${theme.colors.success.main}`,
+  }),
+  addButton: css({
+    marginLeft: theme.spacing(0.5),
   }),
 });

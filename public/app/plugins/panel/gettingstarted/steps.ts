@@ -92,7 +92,7 @@ export const getSteps = (): SetupStep[] => [
         href: 'plugins',
         icon: 'plug',
         check: async () => {
-          const plugins = await getBackendSrv().get('/api/plugins', { embedded: 0, core: 0 });
+          const plugins = await getBackendSrv().get<unknown[]>('/api/plugins', { embedded: 0, core: 0 });
           return Promise.resolve(plugins.length > 0);
         },
         done: false,

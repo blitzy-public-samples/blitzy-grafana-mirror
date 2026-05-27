@@ -3,6 +3,12 @@ import { type ValidationRule } from 'react-hook-form';
 import { type SelectableValue } from '@grafana/data';
 import { type IconName } from '@grafana/ui';
 
+interface AlertEvalMatch {
+  metric: string;
+  tags?: Record<string, string> | null;
+  value: number | null;
+}
+
 export interface AlertRuleDTO {
   id: number;
   dashboardId: number;
@@ -13,7 +19,7 @@ export interface AlertRuleDTO {
   state: string;
   newStateDate: string;
   evalDate: string;
-  evalData?: { noData?: boolean; evalMatches?: any };
+  evalData?: { noData?: boolean; evalMatches?: AlertEvalMatch[] };
   executionError: string;
   url: string;
 }
@@ -35,7 +41,7 @@ export interface AlertRule {
   info?: string;
   executionError?: string;
   evalDate?: string;
-  evalData?: { noData?: boolean; evalMatches?: any };
+  evalData?: { noData?: boolean; evalMatches?: AlertEvalMatch[] };
 }
 
 export type GrafanaNotifierType =
@@ -136,25 +142,25 @@ export interface NotificationChannelType {
 }
 
 export interface NotificationChannelDTO {
-  [key: string]: string | boolean | number | SelectableValue<string>;
+  [key: string]: string | boolean | number | SelectableValue<string> | undefined;
   id: number;
   name: string;
-  type: SelectableValue<string>;
+  type: string;
   sendReminder: boolean;
   disableResolveMessage: boolean;
   frequency: string;
   settings: ChannelTypeSettings;
-  secureSettings: NotificationChannelSecureSettings;
-  secureFields: NotificationChannelSecureFields;
+  secureSettings?: NotificationChannelSecureSettings;
+  secureFields?: NotificationChannelSecureFields;
   isDefault: boolean;
 }
 
-export type NotificationChannelSecureSettings = Record<string, string | number>;
+export type NotificationChannelSecureSettings = Record<string, unknown>;
 export type NotificationChannelSecureFields = Record<string, boolean | ''>;
 
 export interface ChannelTypeSettings {
-  [key: string]: any;
-  autoResolve: true;
+  [key: string]: unknown;
+  autoResolve: boolean;
   httpMethod: string;
   severity: string;
   uploadImage: boolean;
@@ -202,7 +208,22 @@ export interface NotificationChannelOption {
 export interface NotificationChannelState {
   notificationChannelTypes: NotificationChannelType[];
   notifiers: NotifierDTO[];
-  notificationChannel: any;
+  /**
+   * The currently-selected notification channel.
+   *
+   * Typed as `Partial<NotificationChannelDTO>` to faithfully model the
+   * state-machine: on store initialization no channel is selected (initial
+   * state is `{}`, see `initialChannelState` in
+   * `public/app/features/alerting/state/reducers.ts`). Once a channel is
+   * loaded via the `notificationChannelLoaded` reducer, every required field
+   * is populated and reads (such as the `state.notificationChannel.id`
+   * lookup in `getNotificationChannel`) behave identically to the original
+   * `NotificationChannelDTO`-typed shape — `id === channelId` evaluates to
+   * `false` for `undefined === <number>`, preserving the prior null return
+   * from the selector. Runtime behavior is unchanged; only the static type
+   * is widened to admit the empty initial value without an `as` cast.
+   */
+  notificationChannel: Partial<NotificationChannelDTO>;
 }
 
 export interface NotifierStatus {
@@ -268,5 +289,5 @@ export interface AnnotationItemDTO {
   login: string;
   email: string;
   avatarUrl: string;
-  data: any;
+  data: Record<string, unknown>;
 }

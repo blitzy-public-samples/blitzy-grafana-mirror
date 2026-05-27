@@ -332,6 +332,7 @@ export const Table = memo((props: Props) => {
 
   return (
     <>
+      {/* Design system gap: dynamic table dimensions (width/height) from Props - cannot migrate to static useStyles2 */}
       <div
         {...getTableProps()}
         className={tableStyles.table}
@@ -379,6 +380,7 @@ export const Table = memo((props: Props) => {
                 />
               </div>
             ) : (
+              // Design system gap: dynamic dimensions (height - headerHeight, width) from Props - cannot migrate to static useStyles2
               <div style={{ height: height - headerHeight, width }} className={tableStyles.noData}>
                 {noValuesDisplayText}
               </div>

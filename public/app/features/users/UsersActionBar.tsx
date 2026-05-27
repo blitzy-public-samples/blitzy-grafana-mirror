@@ -1,9 +1,11 @@
+import { css } from '@emotion/css';
 import type { JSX } from 'react';
 import { connect, type ConnectedProps } from 'react-redux';
 
+import { type GrafanaTheme2 } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
 import { reportInteraction } from '@grafana/runtime';
-import { RadioButtonGroup, LinkButton, FilterInput, InlineField } from '@grafana/ui';
+import { Box, RadioButtonGroup, LinkButton, FilterInput, InlineField, useStyles2 } from '@grafana/ui';
 import { type StoreState } from 'app/types/store';
 
 import { selectTotal } from '../invites/state/selectors';
@@ -40,6 +42,8 @@ export const UsersActionBarUnconnected = ({
   onShowInvites,
   showInvites,
 }: Props): JSX.Element => {
+  const styles = useStyles2(getStyles);
+
   const options = [
     { label: t('users.users-action-bar-unconnected.options.label.users', 'Users'), value: 'users' },
     { label: `Pending Invites (${pendingInvitesCount})`, value: 'invites' },
@@ -53,7 +57,7 @@ export const UsersActionBarUnconnected = ({
   };
 
   return (
-    <div className="page-action-bar" data-testid="users-action-bar">
+    <div className={styles.pageActionBar} data-testid="users-action-bar">
       <InlineField grow>
         <FilterInput
           value={searchQuery}
@@ -65,9 +69,9 @@ export const UsersActionBarUnconnected = ({
         />
       </InlineField>
       {pendingInvitesCount > 0 && (
-        <div style={{ marginLeft: '1rem' }}>
+        <Box marginLeft={2}>
           <RadioButtonGroup value={showInvites ? 'invites' : 'users'} options={options} onChange={onShowInvites} />
-        </div>
+        </Box>
       )}
       {getCanInviteUsersToOrg() && (
         <LinkButton href="org/users/invite">
@@ -78,5 +82,14 @@ export const UsersActionBarUnconnected = ({
     </div>
   );
 };
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  pageActionBar: css({
+    marginBottom: theme.spacing(2),
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: theme.spacing(2),
+  }),
+});
 
 export const UsersActionBar = connector(UsersActionBarUnconnected);

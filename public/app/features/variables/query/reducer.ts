@@ -36,6 +36,7 @@ export const initialQueryVariableModelState: QueryVariableModel = {
   definition: '',
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Heterogeneous option shapes: callers pass options with text/value of type string|string[]|null|undefined produced from raw datasource emissions, regex group extraction, and test fixtures; strict typing as VariableOption[] would reject these inputs and require body-level narrowing that changes observable runtime behavior.
 export const sortVariableValues = (options: any[], sortOrder: VariableSort) => {
   if (sortOrder === VariableSort.disabled) {
     return options;
@@ -100,6 +101,7 @@ const getAllMatches = (str: string, regex: RegExp): RegExpExecArray[] => {
   return results;
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Heterogeneous metric shapes: inputs include MetricFindValue, raw label/value pairs from datasources, and test fixtures with null/undefined text; regex capture-group extraction (match[1]) returns string|undefined which is incompatible with VariableOption.text:string|string[] without body-level narrowing that changes runtime behavior.
 export const metricNamesToVariableValues = (variableRegEx: string, sort: VariableSort, metricNames: any[]) => {
   let regex;
   let options: VariableOption[] = [];

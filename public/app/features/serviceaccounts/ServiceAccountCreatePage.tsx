@@ -19,7 +19,7 @@ import { OrgRolePicker } from '../admin/OrgRolePicker';
 export interface Props {}
 
 const createServiceAccount = async (sa: ServiceAccountDTO) => {
-  const result = await getBackendSrv().post('/api/serviceaccounts/', sa);
+  const result = await getBackendSrv().post<ServiceAccountCreateApiResponse>('/api/serviceaccounts/', sa);
   await contextSrv.fetchUserPermissions();
   return result;
 };
@@ -128,6 +128,24 @@ export const ServiceAccountCreatePage = ({}: Props): JSX.Element => {
       <Page.Contents>
         {config.featureToggles.rolePickerDrawer && (
           <FormProvider {...methods}>
+            {/*
+             * Raw <form> retained inside a <FormProvider> per AAP §0.6.1. The
+             * rolePickerDrawer-enabled branch must remain raw because:
+             *   1. Nested <RolePickerSelect> reads from `useFormContext()` (see
+             *      public/app/core/components/RolePickerDrawer/RolePickerSelect.tsx)
+             *      to register the role field — wrapping in @grafana/ui's <Form>
+             *      render-prop component would not expose the FormProvider context
+             *      to that descendant component.
+             *   2. The deprecated @grafana/ui <Form> render-prop wrapper does not
+             *      compose with FormProvider; the wrapper instantiates its own
+             *      useForm internally and supplies only a register/errors render
+             *      argument, which is incompatible with the multi-context flow
+             *      required for the RolePicker drawer.
+             * Per @grafana/ui's own JSDoc on <Form>: "use the `useForm` hook from
+             * react-hook-form instead" — the pattern below is the recommended
+             * replacement and is composed with the FieldSet/Field primitives the
+             * checkpoint mandates for form layout.
+             */}
             <form>
               <FieldSet>
                 <Field

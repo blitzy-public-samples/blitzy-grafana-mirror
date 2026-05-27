@@ -1146,8 +1146,27 @@ function getFuncDefs(graphiteVersion: string, idx?: FuncDefs | null): FuncDefs {
   return funcs;
 }
 
+interface RawGraphiteFuncDefParam {
+  name: string;
+  type?: string;
+  required?: boolean;
+  multiple?: boolean;
+  default?: number | string;
+  suggestions?: Array<string | number>;
+  options?: Array<string | number>;
+}
+
+interface RawGraphiteFuncDef {
+  name: string;
+  group?: string;
+  description?: string;
+  params?: RawGraphiteFuncDefParam[];
+}
+
+type RawGraphiteFuncDefs = Record<string, RawGraphiteFuncDef>;
+
 // parse response from graphite /functions endpoint into internal format
-function parseFuncDefs(rawDefs: any): FuncDefs {
+function parseFuncDefs(rawDefs: RawGraphiteFuncDefs | null | undefined): FuncDefs {
   const funcDefs: FuncDefs = {};
 
   forEach(rawDefs || {}, (funcDef, funcName) => {
@@ -1178,11 +1197,11 @@ function parseFuncDefs(rawDefs: any): FuncDefs {
     if (/^seriesLists?$/.test(get(funcDef, 'params[0].type', ''))) {
       // handle functions that accept multiple seriesLists
       // we leave the param in place but mark it optional, so users can add more series if they wish
-      if (funcDef.params[0].multiple) {
-        funcDef.params[0].required = false;
+      if (funcDef.params![0].multiple) {
+        funcDef.params![0].required = false;
         // otherwise chop off the first param, it'll be handled separately
       } else {
-        funcDef.params.shift();
+        funcDef.params!.shift();
       }
       // tag function as fake
     } else {

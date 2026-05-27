@@ -86,7 +86,9 @@ export function quantizeScheme(opts: HeatmapColorOptions, theme: GrafanaTheme2):
   } else {
     const scheme = colorSchemes.find((scheme) => scheme.name === options.scheme) ?? DEFAULT_SCHEME!;
     let fnName = 'interpolate' + (scheme.name2 ?? scheme.name);
-    const interpolate: Interpolator = (d3ScaleChromatic as any)[fnName];
+    // d3-scale-chromatic exports a heterogeneous set of interpolator functions and color-scheme arrays; widening to a string-keyed map lets us look up an interpolator by its derived name without using `any`.
+    const d3Interpolators: { readonly [key: string]: unknown } = d3ScaleChromatic;
+    const interpolate = d3Interpolators[fnName] as Interpolator;
 
     for (let i = 0; i <= steps; i++) {
       let rgbStr = interpolate(i / steps);

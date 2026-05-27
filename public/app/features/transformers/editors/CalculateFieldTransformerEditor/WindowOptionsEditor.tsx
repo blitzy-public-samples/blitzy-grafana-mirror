@@ -1,4 +1,6 @@
-import { ReducerID, type SelectableValue } from '@grafana/data';
+import { css } from '@emotion/css';
+
+import { type GrafanaTheme2, ReducerID, type SelectableValue } from '@grafana/data';
 import {
   CalculateFieldMode,
   WindowAlignment,
@@ -7,7 +9,7 @@ import {
   WindowSizeMode,
 } from '@grafana/data/internal';
 import { t } from '@grafana/i18n';
-import { InlineField, RadioButtonGroup, Select, StatsPicker } from '@grafana/ui';
+import { InlineField, RadioButtonGroup, Select, StatsPicker, useStyles2 } from '@grafana/ui';
 import { NumberInput } from 'app/core/components/OptionsUI/NumberInput';
 
 import { LABEL_WIDTH } from './constants';
@@ -19,6 +21,7 @@ export const WindowOptionsEditor = (props: {
 }) => {
   const { options, names, onChange } = props;
   const { window } = options;
+  const styles = useStyles2(getStyles);
   const selectOptions = names.map((v) => ({ label: v, value: v }));
   const typeOptions = [
     {
@@ -94,7 +97,7 @@ export const WindowOptionsEditor = (props: {
         <Select
           placeholder={t('transformers.window-options-editor.placeholder-field', 'Field')}
           options={selectOptions}
-          className="min-width-18"
+          className={styles.fieldSelect}
           value={window?.field}
           onChange={onWindowFieldChange}
         />
@@ -160,3 +163,9 @@ export const WindowOptionsEditor = (props: {
     </>
   );
 };
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  fieldSelect: css({
+    minWidth: theme.spacing(36),
+  }),
+});

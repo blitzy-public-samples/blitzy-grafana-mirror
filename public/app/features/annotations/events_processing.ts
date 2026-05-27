@@ -1,7 +1,18 @@
 import { concat, every, find, groupBy, head, map, partition } from 'lodash';
 
-export function dedupAnnotations(annotations: any) {
-  let dedup = [];
+/**
+ * Annotations from alerting include an extra `eventType` discriminator
+ * (e.g. `'panel-alert'`) that is not part of `@grafana/data`'s `AnnotationEvent`.
+ * The dedup logic below references that field, so we accept any compatible
+ * shape locally rather than weakening the public type contract.
+ */
+type DedupableAnnotation = {
+  id?: unknown;
+  eventType?: string;
+};
+
+export function dedupAnnotations<T extends DedupableAnnotation>(annotations: T[]): T[] {
+  let dedup: Array<T | undefined> = [];
 
   // Split events by annotationId property existence
   const events = partition(annotations, 'id');
@@ -19,9 +30,9 @@ export function dedupAnnotations(annotations: any) {
   });
 
   dedup = concat(dedup, events[1]);
-  return dedup;
+  return dedup.filter((event): event is T => event !== undefined);
 }
 
-function isPanelAlert(event: { eventType: string }) {
+function isPanelAlert(event: { eventType?: string }) {
   return event.eventType === 'panel-alert';
 }

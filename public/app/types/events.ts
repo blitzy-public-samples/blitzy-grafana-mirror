@@ -14,16 +14,18 @@ export interface LocationChangePayload {
 }
 
 export interface ShowModalPayload {
-  model?: any;
+  model?: unknown;
   modalClass?: string;
   src?: string;
   templateHtml?: string;
-  backdrop?: any;
-  scope?: any;
+  backdrop?: unknown;
+  scope?: unknown;
 }
 
 export interface ShowModalReactPayload {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Modal payload component+props pair is intentionally heterogeneous; type erasure across the event-bus boundary is by design and re-typed by ModalsContextProvider's StateType<TProps>
   component: React.ComponentType<any>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Modal props are paired with their component dynamically and re-typed at the consumption boundary; preserving permissive typing avoids constraining the 29 publisher call sites that pass partial props (isOpen and onDismiss are injected by ModalsContextProvider)
   props?: any;
 }
 

@@ -2,7 +2,7 @@ import { css, cx } from '@emotion/css';
 import Highlighter from 'react-highlight-words';
 
 import { type GrafanaTheme2 } from '@grafana/data';
-import { Checkbox, Icon, RadioButtonDot, useStyles2, Text } from '@grafana/ui';
+import { Button, Checkbox, Icon, RadioButtonDot, useStyles2, Text } from '@grafana/ui';
 
 import { useScopesServices } from '../ScopesContextProvider';
 
@@ -49,9 +49,16 @@ interface LinkLikeButtonProps {
 function ScopeLinkLikeButton({ scopeNodeId, onClick, children }: LinkLikeButtonProps) {
   const styles = useStyles2(getStyles);
   return (
-    <button className={styles.linkLikeItem} data-testid={`scopes-tree-${scopeNodeId}-link`} onClick={onClick}>
+    <Button
+      variant="secondary"
+      fill="text"
+      size="sm"
+      className={styles.linkLikeItem}
+      data-testid={`scopes-tree-${scopeNodeId}-link`}
+      onClick={onClick}
+    >
       {children}
-    </button>
+    </Button>
   );
 }
 
@@ -159,8 +166,11 @@ function ScopeExpandButton({
   return (
     <>
       <SelectComponent />
-      <button
+      <Button
         id={buttonId}
+        variant="secondary"
+        fill="text"
+        size="sm"
         className={styles.expand}
         data-testid={`scopes-tree-${scopeNodeId}-expand`}
         onClick={onClick}
@@ -169,7 +179,7 @@ function ScopeExpandButton({
       >
         <Icon name={!expanded ? 'angle-right' : 'angle-down'} />
         {children}
-      </button>
+      </Button>
     </>
   );
 }

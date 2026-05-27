@@ -83,8 +83,13 @@ export const ToolbarButtonRow = forwardRef<HTMLDivElement, Props>(
         {childrenWithoutNull.map((child, index) => (
           <div
             key={index}
-            style={{ order: index, visibility: childVisibility[index] ? 'visible' : 'hidden' }}
-            className={styles.childWrapper}
+            className={cx(
+              styles.childWrapper,
+              css({
+                order: index,
+                visibility: childVisibility[index] ? 'visible' : 'hidden',
+              })
+            )}
           >
             {child}
           </div>

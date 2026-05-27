@@ -1,9 +1,16 @@
-import { useMemo, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useMemo, useRef, useState } from 'react';
+import { type UseFormReturn } from 'react-hook-form';
 
 import { AppEvents } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
-import { getAppEvents, getBackendSrv, isFetchError, locationService, reportInteraction } from '@grafana/runtime';
+import {
+  type FetchErrorDataProps,
+  getAppEvents,
+  getBackendSrv,
+  isFetchError,
+  locationService,
+  reportInteraction,
+} from '@grafana/runtime';
 import {
   Box,
   Button,
@@ -11,6 +18,7 @@ import {
   ConfirmModal,
   Dropdown,
   Field,
+  Form,
   IconButton,
   LinkButton,
   Menu,
@@ -35,22 +43,23 @@ interface ProviderConfigProps {
 }
 
 export const ProviderConfigForm = ({ config, provider, isLoading }: ProviderConfigProps) => {
-  const {
-    register,
-    handleSubmit,
-    control,
-    reset,
-    watch,
-    setValue,
-    getValues,
-    unregister,
-    formState: { errors, dirtyFields, isSubmitted },
-  } = useForm({ defaultValues: dataToDTO(config), mode: 'onSubmit', reValidateMode: 'onChange' });
   const [isSaving, setIsSaving] = useState(false);
   const [submitError, setSubmitError] = useState(false);
-  const dataSubmitted = isSubmitted && !submitError;
   const sections = useMemo(() => getSectionFields()[provider], [provider]);
   const [resetConfig, setResetConfig] = useState(false);
+  // Captures the FormAPI handle returned by @grafana/ui's <Form> render-prop callback so the
+  // parent-scope onSubmit handler (defined below) can invoke reset(data) after a successful
+  // submission. The ref is updated each render with the latest formApi; react-hook-form's
+  // returned methods (including reset) have stable references across renders, so callers reading
+  // formApiRef.current?.reset(...) at submit time always pick up the active form instance.
+  //
+  // Form<T>'s render-prop callback parameter is typed FormAPI<T> in @grafana/ui, defined as
+  // `Omit<UseFormReturn<T>, 'handleSubmit'> & { errors }`. We mirror that structural shape here
+  // using `Omit<UseFormReturn<T>, 'handleSubmit'>` so that assigning the formApi argument to
+  // this ref is type-correct without needing to add a `FormAPI` import (handleSubmit is the only
+  // property FormAPI excludes from UseFormReturn, and we only invoke reset on the ref).
+  const formApiRef = useRef<Omit<UseFormReturn<SSOProviderDTO>, 'handleSubmit'> | null>(null);
+  const isEnabled = config?.settings.enabled;
 
   const additionalActionsMenu = (
     <Menu>
@@ -93,15 +102,15 @@ export const ProviderConfigForm = ({ config, provider, isLoading }: ProviderConf
         type: AppEvents.alertSuccess.name,
         payload: ['Settings saved'],
       });
-      reset(data);
+      formApiRef.current?.reset(data);
       // Delay redirect so the form state can update
       setTimeout(() => {
         locationService.push(`/admin/authentication`);
       }, 300);
     } catch (error) {
       let message = '';
-      if (isFetchError(error)) {
-        message = error.data.message;
+      if (isFetchError<FetchErrorDataProps>(error)) {
+        message = error.data.message ?? '';
       } else if (error instanceof Error) {
         message = error.message;
       }
@@ -130,8 +139,8 @@ export const ProviderConfigForm = ({ config, provider, isLoading }: ProviderConf
       });
     } catch (error) {
       let message = '';
-      if (isFetchError(error)) {
-        message = error.data.message;
+      if (isFetchError<FetchErrorDataProps>(error)) {
+        message = error.data.message ?? '';
       } else if (error instanceof Error) {
         message = error.message;
       }
@@ -142,107 +151,137 @@ export const ProviderConfigForm = ({ config, provider, isLoading }: ProviderConf
     }
   };
 
-  const isEnabled = config?.settings.enabled;
-
-  const onSaveAttempt = (toggleEnabled: boolean) => {
-    reportInteraction('grafana_authentication_ssosettings_save_attempt', {
-      provider,
-      enabled: toggleEnabled ? !isEnabled : isEnabled,
-    });
-
-    if (toggleEnabled) {
-      setValue('enabled', !isEnabled);
-    }
-  };
-
   return (
     <Page.Contents isLoading={isLoading}>
-      <form onSubmit={handleSubmit(onSubmit)} style={{ maxWidth: '600px' }}>
-        <FormPrompt
-          confirmRedirect={!!Object.keys(dirtyFields).length && !dataSubmitted}
-          onDiscard={() => {
-            reportInteraction('grafana_authentication_ssosettings_abandoned', {
+      <Form<SSOProviderDTO>
+        defaultValues={dataToDTO(config)}
+        validateOn="onSubmit"
+        maxWidth={600}
+        onSubmit={onSubmit}
+      >
+        {(formApi) => {
+          // Side-effectfully capture the FormAPI for use by the parent-scope onSubmit. This is
+          // an established React pattern for bridging render-prop APIs to outer scope; the ref
+          // assignment is idempotent and benign during render.
+          formApiRef.current = formApi;
+          const {
+            register,
+            control,
+            reset,
+            watch,
+            setValue,
+            getValues,
+            unregister,
+            formState: { errors, dirtyFields, isSubmitted },
+          } = formApi;
+          const dataSubmitted = isSubmitted && !submitError;
+
+          const onSaveAttempt = (toggleEnabled: boolean) => {
+            reportInteraction('grafana_authentication_ssosettings_save_attempt', {
               provider,
+              enabled: toggleEnabled ? !isEnabled : isEnabled,
             });
-            reset();
-          }}
-        />
-        <Field label={t('auth-config.provider-config-form.label-enabled', 'Enabled')} hidden={true}>
-          <Switch
-            {...register('enabled')}
-            id="enabled"
-            label={t('auth-config.provider-config-form.enabled-label-enabled', 'Enabled')}
-          />
-        </Field>
-        <Stack gap={2} direction={'column'}>
-          {sections
-            .filter((section) => !section.hidden)
-            .map((section, index) => {
-              return (
-                <CollapsableSection label={section.name} isOpen={index === 0} key={section.name}>
-                  {section.fields
-                    .filter((field) => (typeof field !== 'string' ? !field.hidden : true))
-                    .map((field) => {
-                      return (
-                        <FieldRenderer
-                          key={typeof field === 'string' ? field : field.name}
-                          field={field}
-                          control={control}
-                          errors={errors}
-                          setValue={setValue}
-                          getValues={getValues}
-                          register={register}
-                          watch={watch}
-                          unregister={unregister}
-                          provider={provider}
-                          secretConfigured={!!config?.settings.clientSecret}
-                        />
-                      );
-                    })}
-                </CollapsableSection>
-              );
-            })}
-        </Stack>
-        <Box display={'flex'} gap={2} marginTop={5}>
-          <Stack alignItems={'center'} gap={2}>
-            <Button
-              type={'submit'}
-              disabled={isSaving}
-              onClick={() => onSaveAttempt(true)}
-              variant={isEnabled ? 'secondary' : undefined}
-            >
-              {isSaving
-                ? isEnabled
-                  ? t('auth-config.provider-config-form.disabling', 'Disabling...')
-                  : t('auth-config.provider-config-form.saving', 'Saving...')
-                : isEnabled
-                  ? t('auth-config.provider-config-form.disable', 'Disable')
-                  : t('auth-config.provider-config-form.save-and-enable', 'Save and enable')}
-            </Button>
 
-            <Button type={'submit'} disabled={isSaving} variant={'secondary'} onClick={() => onSaveAttempt(false)}>
-              {isSaving
-                ? t('auth-config.provider-config-form.saving', 'Saving...')
-                : t('auth-config.provider-config-form.save', 'Save')}
-            </Button>
-            <LinkButton href={'/admin/authentication'} variant={'secondary'}>
-              <Trans i18nKey="auth-config.provider-config-form.discard">Discard</Trans>
-            </LinkButton>
+            if (toggleEnabled) {
+              setValue('enabled', !isEnabled);
+            }
+          };
 
-            <Dropdown overlay={additionalActionsMenu} placement="bottom-start">
-              <IconButton
-                tooltip={t('auth-config.provider-config-form.tooltip-more-actions', 'More actions')}
-                title={t('auth-config.provider-config-form.title-more-actions', 'More actions')}
-                tooltipPlacement="top"
-                size="md"
-                variant="secondary"
-                name="ellipsis-v"
-                hidden={config?.source === 'system'}
+          return (
+            <>
+              <FormPrompt
+                confirmRedirect={!!Object.keys(dirtyFields).length && !dataSubmitted}
+                onDiscard={() => {
+                  reportInteraction('grafana_authentication_ssosettings_abandoned', {
+                    provider,
+                  });
+                  reset();
+                }}
               />
-            </Dropdown>
-          </Stack>
-        </Box>
-      </form>
+              <Field label={t('auth-config.provider-config-form.label-enabled', 'Enabled')} hidden={true}>
+                <Switch
+                  {...register('enabled')}
+                  id="enabled"
+                  label={t('auth-config.provider-config-form.enabled-label-enabled', 'Enabled')}
+                />
+              </Field>
+              <Stack gap={2} direction={'column'}>
+                {sections
+                  .filter((section) => !section.hidden)
+                  .map((section, index) => {
+                    return (
+                      <CollapsableSection label={section.name} isOpen={index === 0} key={section.name}>
+                        {section.fields
+                          .filter((field) => (typeof field !== 'string' ? !field.hidden : true))
+                          .map((field) => {
+                            return (
+                              <FieldRenderer
+                                key={typeof field === 'string' ? field : field.name}
+                                field={field}
+                                control={control}
+                                errors={errors}
+                                setValue={setValue}
+                                getValues={getValues}
+                                register={register}
+                                watch={watch}
+                                unregister={unregister}
+                                provider={provider}
+                                secretConfigured={!!config?.settings.clientSecret}
+                              />
+                            );
+                          })}
+                      </CollapsableSection>
+                    );
+                  })}
+              </Stack>
+              <Box display={'flex'} gap={2} marginTop={5}>
+                <Stack alignItems={'center'} gap={2}>
+                  <Button
+                    type={'submit'}
+                    disabled={isSaving}
+                    onClick={() => onSaveAttempt(true)}
+                    variant={isEnabled ? 'secondary' : undefined}
+                  >
+                    {isSaving
+                      ? isEnabled
+                        ? t('auth-config.provider-config-form.disabling', 'Disabling...')
+                        : t('auth-config.provider-config-form.saving', 'Saving...')
+                      : isEnabled
+                        ? t('auth-config.provider-config-form.disable', 'Disable')
+                        : t('auth-config.provider-config-form.save-and-enable', 'Save and enable')}
+                  </Button>
+
+                  <Button
+                    type={'submit'}
+                    disabled={isSaving}
+                    variant={'secondary'}
+                    onClick={() => onSaveAttempt(false)}
+                  >
+                    {isSaving
+                      ? t('auth-config.provider-config-form.saving', 'Saving...')
+                      : t('auth-config.provider-config-form.save', 'Save')}
+                  </Button>
+                  <LinkButton href={'/admin/authentication'} variant={'secondary'}>
+                    <Trans i18nKey="auth-config.provider-config-form.discard">Discard</Trans>
+                  </LinkButton>
+
+                  <Dropdown overlay={additionalActionsMenu} placement="bottom-start">
+                    <IconButton
+                      tooltip={t('auth-config.provider-config-form.tooltip-more-actions', 'More actions')}
+                      title={t('auth-config.provider-config-form.title-more-actions', 'More actions')}
+                      tooltipPlacement="top"
+                      size="md"
+                      variant="secondary"
+                      name="ellipsis-v"
+                      hidden={config?.source === 'system'}
+                    />
+                  </Dropdown>
+                </Stack>
+              </Box>
+            </>
+          );
+        }}
+      </Form>
       {resetConfig && (
         <ConfirmModal
           isOpen

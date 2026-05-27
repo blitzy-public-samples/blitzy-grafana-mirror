@@ -94,6 +94,18 @@ function FormContent({ initialValues, selectedItems, repository, canPushToConfig
 
   return (
     <FormProvider {...methods}>
+      {/*
+       * Raw <form> retained inside a <FormProvider> per AAP §0.6.1. The bulk-delete form
+       * must remain raw because:
+       *   1. Nested <ResourceEditFormSharedFields> relies on `useFormContext()` to
+       *      register fields and read form state from the surrounding FormProvider —
+       *      wrapping in @grafana/ui's <Form> render-prop component would not expose
+       *      that context to descendant components.
+       *   2. The deprecated @grafana/ui <Form> render-prop wrapper does not facilitate
+       *      this externalized FormProvider+useForm composition.
+       * Per @grafana/ui's own JSDoc on <Form>: "use the `useForm` hook from
+       * react-hook-form instead" — the pattern below is the recommended replacement.
+       */}
       <form onSubmit={handleSubmit(handleSubmitForm)}>
         <Stack direction="column" gap={2}>
           {hasSubmitted && job ? (

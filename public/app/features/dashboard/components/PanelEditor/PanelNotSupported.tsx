@@ -1,8 +1,10 @@
+import { css } from '@emotion/css';
 import { useCallback, type JSX } from 'react';
 
+import { type GrafanaTheme2 } from '@grafana/data';
 import { Trans } from '@grafana/i18n';
 import { locationService } from '@grafana/runtime';
-import { Button, Stack } from '@grafana/ui';
+import { Button, Stack, useStyles2 } from '@grafana/ui';
 
 import { PanelEditorTabId } from './types';
 
@@ -11,12 +13,13 @@ export interface Props {
 }
 
 export function PanelNotSupported({ message }: Props): JSX.Element {
+  const styles = useStyles2(getStyles);
   const onBackToQueries = useCallback(() => {
     locationService.partial({ tab: PanelEditorTabId.Query });
   }, []);
 
   return (
-    <div style={{ marginTop: '100px' }}>
+    <div className={styles.container}>
       <Stack direction="row" justifyContent="center">
         <Stack direction="column" gap={2}>
           <h2>{message}</h2>
@@ -30,3 +33,9 @@ export function PanelNotSupported({ message }: Props): JSX.Element {
     </div>
   );
 }
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  container: css({
+    marginTop: theme.spacing(12.5),
+  }),
+});

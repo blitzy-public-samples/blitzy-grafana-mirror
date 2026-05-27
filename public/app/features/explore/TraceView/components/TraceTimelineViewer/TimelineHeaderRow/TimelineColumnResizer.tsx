@@ -14,7 +14,7 @@
 
 import { css } from '@emotion/css';
 import cx from 'classnames';
-import * as React from 'react';
+import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 
 import type TNil from '../../types/TNil';
 import DraggableManager from '../../utils/DraggableManager/DraggableManager';
@@ -100,113 +100,130 @@ export type TimelineColumnResizerProps = {
   columnResizeHandleHeight: number;
 };
 
-type TimelineColumnResizerState = {
-  dragPosition: number | TNil;
-};
+export default function TimelineColumnResizer(props: TimelineColumnResizerProps) {
+  const { position, columnResizeHandleHeight } = props;
 
-export default class TimelineColumnResizer extends React.PureComponent<
-  TimelineColumnResizerProps,
-  TimelineColumnResizerState
-> {
-  state: TimelineColumnResizerState;
+  const [dragPosition, setDragPosition] = useState<number | TNil>(null);
 
-  _dragManager: DraggableManager;
-  _rootElm: Element | TNil;
+  // Root element ref for measuring bounds during drag
+  const rootElmRef = useRef<HTMLDivElement | null>(null);
 
-  constructor(props: TimelineColumnResizerProps) {
-    super(props);
-    this._dragManager = new DraggableManager({
-      getBounds: this._getDraggingBounds,
-      onDragEnd: this._handleDragEnd,
-      onDragMove: this._handleDragUpdate,
-      onDragStart: this._handleDragUpdate,
+  // Mirror of latest props for DraggableManager callbacks (which need to read
+  // current min/max/onChange at call time, matching class-instance method
+  // semantics — class methods always read the latest `this.props`).
+  const propsRef = useRef(props);
+  propsRef.current = props;
+
+  // DraggableManager instance — created once, lazily, on first render so it
+  // is available when render computes `dragManager.isDragging()`.
+  //
+  // CRITICAL: `resetBoundsOnResize: false` is passed so the DraggableManager
+  // constructor is pure — i.e. it does NOT call `window.addEventListener('resize', ...)`
+  // during construction. This eliminates the render-time side effect identified
+  // in Checkpoint 10 review finding ("`DraggableManager` is constructed during
+  // render via `if (draggerRef.current === null)` … performs a side effect during
+  // render and can leak if a render is discarded before the cleanup effect runs").
+  // With the constructor pure, the ref-null guard pattern is safe even in
+  // StrictMode/aborted concurrent renders. The window resize listener is
+  // registered explicitly inside the committed `useLayoutEffect` below so it
+  // is only ever active for committed component instances and is always paired
+  // with a corresponding `removeEventListener` cleanup.
+  const dragManagerRef = useRef<DraggableManager | null>(null);
+  if (dragManagerRef.current === null) {
+    dragManagerRef.current = new DraggableManager({
+      getBounds: (): DraggableBounds => {
+        const rootElm = rootElmRef.current;
+        if (!rootElm) {
+          throw new Error('invalid state');
+        }
+        const { left: clientXLeft, width } = rootElm.getBoundingClientRect();
+        const { min, max } = propsRef.current;
+        return {
+          clientXLeft,
+          width,
+          maxValue: max,
+          minValue: min,
+        };
+      },
+      onDragStart: ({ value }: DraggingUpdate) => {
+        setDragPosition(value);
+      },
+      onDragMove: ({ value }: DraggingUpdate) => {
+        setDragPosition(value);
+      },
+      onDragEnd: ({ manager, value }: DraggingUpdate) => {
+        manager.resetBounds();
+        setDragPosition(null);
+        propsRef.current.onChange(value);
+      },
+      resetBoundsOnResize: false,
     });
-    this._rootElm = undefined;
-    this.state = {
-      dragPosition: null,
+  }
+
+  // Register the window resize listener inside a committed effect and dispose
+  // the DraggableManager on unmount. Because we passed `resetBoundsOnResize:
+  // false` to the constructor, the manager does NOT register its own resize
+  // listener — we register it here, ONCE per committed mount, with a
+  // guaranteed cleanup path. This mirrors the original class's componentDidMount
+  // + componentWillUnmount semantics while removing the render-time side effect.
+  useLayoutEffect(() => {
+    const dragManager = dragManagerRef.current;
+    const onResize = () => {
+      dragManager?.resetBounds();
     };
-  }
-
-  componentWillUnmount() {
-    this._dragManager.dispose();
-  }
-
-  _setRootElm = (elm: Element | TNil) => {
-    this._rootElm = elm;
-  };
-
-  _getDraggingBounds = (): DraggableBounds => {
-    if (!this._rootElm) {
-      throw new Error('invalid state');
-    }
-    const { left: clientXLeft, width } = this._rootElm.getBoundingClientRect();
-    const { min, max } = this.props;
-    return {
-      clientXLeft,
-      width,
-      maxValue: max,
-      minValue: min,
+    window.addEventListener('resize', onResize);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      dragManager?.dispose();
     };
-  };
+  }, []);
 
-  _handleDragUpdate = ({ value }: DraggingUpdate) => {
-    this.setState({ dragPosition: value });
-  };
+  const dragManager = dragManagerRef.current;
 
-  _handleDragEnd = ({ manager, value }: DraggingUpdate) => {
-    manager.resetBounds();
-    this.setState({ dragPosition: null });
-    this.props.onChange(value);
-  };
+  let left;
+  let draggerStyle: CSSProperties;
+  left = `${position * 100}%`;
+  const gripStyle = { left };
+  let isDraggingLeft = false;
+  let isDraggingRight = false;
+  const styles = getStyles();
 
-  render() {
-    let left;
-    let draggerStyle: React.CSSProperties;
-    const { position, columnResizeHandleHeight } = this.props;
-    const { dragPosition } = this.state;
-    left = `${position * 100}%`;
-    const gripStyle = { left };
-    let isDraggingLeft = false;
-    let isDraggingRight = false;
-    const styles = getStyles();
-
-    if (this._dragManager.isDragging() && this._rootElm && dragPosition != null) {
-      isDraggingLeft = dragPosition < position;
-      isDraggingRight = dragPosition > position;
-      // Draw a highlight from the current dragged position back to the original
-      // position, e.g. highlight the change. Draw the highlight via `left` and
-      // `right` css styles (simpler than using `width`).
-      const draggerLeft = `${Math.min(position, dragPosition) * 100}%`;
-      // subtract 1px for draggerRight to deal with the right border being off
-      // by 1px when dragging left
-      const draggerRight = `calc(${(1 - Math.max(position, dragPosition)) * 100}% - 1px)`;
-      draggerStyle = { left: draggerLeft, right: draggerRight };
-    } else {
-      draggerStyle = gripStyle;
-    }
-    draggerStyle.height = columnResizeHandleHeight;
-
-    const isDragging = isDraggingLeft || isDraggingRight;
-    return (
-      <div className={styles.TimelineColumnResizer} ref={this._setRootElm} data-testid="TimelineColumnResizer">
-        <div
-          className={cx(styles.gripIcon, isDragging && styles.gripIconDragging)}
-          style={gripStyle}
-          data-testid="TimelineColumnResizer--gripIcon"
-        />
-        <div
-          aria-hidden
-          className={cx(
-            styles.dragger,
-            isDragging && styles.draggerDragging,
-            isDraggingRight && styles.draggerDraggingRight,
-            isDraggingLeft && styles.draggerDraggingLeft
-          )}
-          onMouseDown={this._dragManager.handleMouseDown}
-          style={draggerStyle}
-          data-testid="TimelineColumnResizer--dragger"
-        />
-      </div>
-    );
+  if (dragManager.isDragging() && rootElmRef.current && dragPosition != null) {
+    isDraggingLeft = dragPosition < position;
+    isDraggingRight = dragPosition > position;
+    // Draw a highlight from the current dragged position back to the original
+    // position, e.g. highlight the change. Draw the highlight via `left` and
+    // `right` css styles (simpler than using `width`).
+    const draggerLeft = `${Math.min(position, dragPosition) * 100}%`;
+    // subtract 1px for draggerRight to deal with the right border being off
+    // by 1px when dragging left
+    const draggerRight = `calc(${(1 - Math.max(position, dragPosition)) * 100}% - 1px)`;
+    draggerStyle = { left: draggerLeft, right: draggerRight };
+  } else {
+    draggerStyle = gripStyle;
   }
+  draggerStyle.height = columnResizeHandleHeight;
+
+  const isDragging = isDraggingLeft || isDraggingRight;
+  return (
+    <div className={styles.TimelineColumnResizer} ref={rootElmRef} data-testid="TimelineColumnResizer">
+      <div
+        className={cx(styles.gripIcon, isDragging && styles.gripIconDragging)}
+        style={gripStyle}
+        data-testid="TimelineColumnResizer--gripIcon"
+      />
+      <div
+        aria-hidden
+        className={cx(
+          styles.dragger,
+          isDragging && styles.draggerDragging,
+          isDraggingRight && styles.draggerDraggingRight,
+          isDraggingLeft && styles.draggerDraggingLeft
+        )}
+        onMouseDown={dragManager.handleMouseDown}
+        style={draggerStyle}
+        data-testid="TimelineColumnResizer--dragger"
+      />
+    </div>
+  );
 }

@@ -1,6 +1,6 @@
 import { closestIdx } from '../dataframe/StreamingDataFrame';
 
-export type Table = [times: number[], ...values: any[][]];
+export type Table = [times: number[], ...values: unknown[][]];
 
 // prevTable and nextTable are assumed sorted ASC on reference [0] arrays
 // nextTable is assumed to be contiguous, only edges are checked for overlap
@@ -23,11 +23,11 @@ export function amendTable(prevTable: Table, nextTable: Table): Table {
     if (nLen) {
       // append, no overlap
       if (nStart > pEnd) {
-        outTable = prevTable.map((_, i) => prevTable[i].concat(nextTable[i])) as Table;
+        outTable = prevTable.map((_, i) => [...prevTable[i], ...nextTable[i]]) as Table;
       }
       // prepend, no overlap
       else if (nEnd < pStart) {
-        outTable = nextTable.map((_, i) => nextTable[i].concat(prevTable[i])) as Table;
+        outTable = nextTable.map((_, i) => [...nextTable[i], ...prevTable[i]]) as Table;
       }
       // full replace
       else if (nStart <= pStart && nEnd >= pEnd) {
@@ -58,7 +58,7 @@ export function amendTable(prevTable: Table, nextTable: Table): Table {
       else if (nEnd >= pStart) {
         let idx = closestIdx(nEnd, prevTimes);
         idx = prevTimes[idx] < nEnd ? idx : idx + 1;
-        outTable = nextTable.map((_, i) => nextTable[i].concat(prevTable[i].slice(idx))) as Table;
+        outTable = nextTable.map((_, i) => [...nextTable[i], ...prevTable[i].slice(idx)]) as Table;
       }
     } else {
       outTable = prevTable;

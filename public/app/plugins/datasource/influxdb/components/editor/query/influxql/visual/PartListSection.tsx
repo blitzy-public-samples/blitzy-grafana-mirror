@@ -3,7 +3,7 @@ import { Fragment, useMemo, type JSX } from 'react';
 
 import { type GrafanaTheme2, type SelectableValue } from '@grafana/data';
 import { AccessoryButton } from '@grafana/plugin-ui';
-import { useTheme2 } from '@grafana/ui';
+import { useStyles2, useTheme2 } from '@grafana/ui';
 
 import { toSelectableValue } from '../utils/toSelectableValue';
 import { unwrap } from '../utils/unwrap';
@@ -46,9 +46,30 @@ const noHorizMarginPaddingClass = css({
   marginRight: '0',
 });
 
-const getPartClass = (theme: GrafanaTheme2) => {
-  return cx(
-    'gf-form-label',
+// Replicates the base `.gf-form-label` rule from
+// packages/grafana-ui/src/themes/GlobalStyles/forms.ts (without modifiers).
+// Used directly by the inner part-name <span>; composed into getPartClass
+// for the wrapping <div>.
+const getPartLabelBaseClass = (theme: GrafanaTheme2) =>
+  css({
+    display: 'flex',
+    alignItems: 'center',
+    padding: theme.spacing(0, 1),
+    flexShrink: 0,
+    fontWeight: theme.typography.fontWeightMedium,
+    fontSize: theme.typography.size.sm,
+    backgroundColor: theme.colors.background.secondary,
+    height: '32px',
+    lineHeight: '32px',
+    marginRight: theme.spacing(0.5),
+    borderRadius: theme.shape.radius.default,
+    justifyContent: 'space-between',
+    border: 'none',
+  });
+
+const getPartClass = (theme: GrafanaTheme2) =>
+  cx(
+    getPartLabelBaseClass(theme),
     css({
       paddingLeft: '0',
       // gf-form-label class makes certain css attributes incorrect
@@ -57,11 +78,11 @@ const getPartClass = (theme: GrafanaTheme2) => {
       fontSize: theme.typography.body.fontSize,
     })
   );
-};
 
 const Part = ({ name, params, onChange }: PartProps): JSX.Element => {
   const theme = useTheme2();
   const partClass = useMemo(() => getPartClass(theme), [theme]);
+  const partLabelBaseClass = useMemo(() => getPartLabelBaseClass(theme), [theme]);
 
   const onParamChange = (par: string, i: number) => {
     const newParams = params.map((p) => p.value);
@@ -70,7 +91,7 @@ const Part = ({ name, params, onChange }: PartProps): JSX.Element => {
   };
   return (
     <div className={partClass}>
-      <button className={cx('gf-form-label', noRightMarginPaddingClass)}>{name}</button>(
+      <span className={cx(partLabelBaseClass, noRightMarginPaddingClass)}>{name}</span>(
       {params.map((p, i) => {
         const { value, options } = p;
         const isLast = i === params.length - 1;
@@ -103,6 +124,7 @@ export const PartListSection = ({
   onRemovePart,
   onChange,
 }: Props): JSX.Element => {
+  const styles = useStyles2(getStyles);
   return (
     <>
       {parts.map((part, index) => (
@@ -118,7 +140,7 @@ export const PartListSection = ({
             }}
           />
           <AccessoryButton
-            style={{ marginRight: '4px' }}
+            className={styles.removePart}
             aria-label="remove"
             icon="times"
             variant="secondary"
@@ -132,3 +154,9 @@ export const PartListSection = ({
     </>
   );
 };
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  removePart: css({
+    marginRight: theme.spacing(0.5),
+  }),
+});

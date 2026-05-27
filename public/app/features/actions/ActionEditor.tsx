@@ -15,6 +15,7 @@ import {
 } from '@grafana/data';
 import { t } from '@grafana/i18n';
 import {
+  Box,
   ColorPicker,
   Field,
   InlineField,
@@ -291,18 +292,20 @@ export const ActionEditor = memo(({ index, value, onChange, suggestions, showOne
         </>
       )}
 
-      <Field label={t('grafana-ui.action-editor.button.style', 'Button style')} style={{ marginTop: '8px' }}>
-        <InlineField
-          label={t('actions.action-editor.button.style.background-color', 'Color')}
-          labelWidth={LABEL_WIDTH}
-          className={styles.colorPicker}
-        >
-          <ColorPicker
-            color={value?.style?.backgroundColor || theme.colors.secondary.main}
-            onChange={onBackgroundColorChange}
-          />
-        </InlineField>
-      </Field>
+      <Box marginTop={1}>
+        <Field label={t('grafana-ui.action-editor.button.style', 'Button style')}>
+          <InlineField
+            label={t('actions.action-editor.button.style.background-color', 'Color')}
+            labelWidth={LABEL_WIDTH}
+            className={styles.colorPicker}
+          >
+            <ColorPicker
+              color={value?.style?.backgroundColor || theme.colors.secondary.main}
+              onChange={onBackgroundColorChange}
+            />
+          </InlineField>
+        </Field>
+      </Box>
     </div>
   );
 });

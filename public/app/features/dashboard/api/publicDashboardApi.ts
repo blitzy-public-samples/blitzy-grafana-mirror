@@ -2,7 +2,7 @@ import { createApi } from '@reduxjs/toolkit/query/react';
 
 import { createBaseQuery } from '@grafana/api-clients/rtkq';
 import { t } from '@grafana/i18n';
-import { config, type FetchError, isFetchError } from '@grafana/runtime';
+import { config, type FetchError, type FetchErrorDataProps, isFetchError } from '@grafana/runtime';
 import { createErrorNotification, createSuccessNotification } from 'app/core/copy/appNotification';
 import { notifyApp } from 'app/core/reducers/appNotification';
 import {
@@ -19,12 +19,23 @@ import {
   type PublicDashboardListWithPaginationResponse,
 } from 'app/features/manage-dashboards/types';
 
-function isFetchBaseQueryError(error: unknown): error is { error: FetchError } {
+/**
+ * Body shape returned by the public-dashboard endpoints when they surface a
+ * recoverable error. Extends the canonical `FetchErrorDataProps` (`message`,
+ * `status`, `error`) with the OSS-specific `messageId` field used by
+ * `getConfigError` below to suppress the `not-found` notification.
+ */
+interface PublicDashboardErrorData extends FetchErrorDataProps {
+  messageId?: string;
+}
+
+function isFetchBaseQueryError(error: unknown): error is { error: FetchError<PublicDashboardErrorData> } {
   return typeof error === 'object' && error != null && 'error' in error;
 }
 
 export const getConfigError = (err: unknown) => ({
-  error: isFetchError(err) && err.data.messageId !== 'publicdashboards.notFound' ? err : null,
+  error:
+    isFetchError<PublicDashboardErrorData>(err) && err.data.messageId !== 'publicdashboards.notFound' ? err : null,
 });
 
 export const publicDashboardApi = createApi({
@@ -43,8 +54,14 @@ export const publicDashboardApi = createApi({
         try {
           await queryFulfilled;
         } catch (e) {
-          if (isFetchBaseQueryError(e) && isFetchError(e.error) && config.publicDashboardsEnabled) {
-            dispatch(notifyApp(createErrorNotification(e.error.data.message)));
+          if (
+            isFetchBaseQueryError(e) &&
+            // Narrow the inner fetch error to the same body shape used by
+            // `isFetchBaseQueryError` so `e.error.data.message` is typed.
+            isFetchError<PublicDashboardErrorData>(e.error) &&
+            config.publicDashboardsEnabled
+          ) {
+            dispatch(notifyApp(createErrorNotification(e.error.data.message ?? '')));
           }
         }
       },

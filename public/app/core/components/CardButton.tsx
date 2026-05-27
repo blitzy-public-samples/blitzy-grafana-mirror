@@ -16,6 +16,7 @@ export const CardButton = React.forwardRef<HTMLButtonElement, Props>(
     const styles = useStyles2(getStyles);
 
     return (
+      // Design system gap: this component IS a button primitive. Kept as raw HTML.
       <button {...restProps} className={styles.action} onClick={onClick}>
         <Icon name={icon} size="xl" />
         {children}

@@ -10,6 +10,14 @@ import { type ServerDiscoveryFormData, type SSOProviderDTO } from '../types';
 
 import { ServerDiscoveryModal } from './ServerDiscoveryModal';
 
+// Shape of the /.well-known/openid-configuration response. We only consume a
+// small subset of the standard OIDC discovery document fields here.
+interface OpenIdConfiguration {
+  token_endpoint?: string;
+  authorization_endpoint?: string;
+  userinfo_endpoint?: string;
+}
+
 interface Props {
   setValue: UseFormSetValue<SSOProviderDTO>;
 }
@@ -29,7 +37,7 @@ export const ServerDiscoveryField = ({ setValue }: Props) => {
         data.url = url.origin + wellKnownSuffix;
       }
 
-      const res = await getBackendSrv().get(data.url);
+      const res = await getBackendSrv().get<OpenIdConfiguration>(data.url);
 
       if (!res['token_endpoint'] || !res['authorization_endpoint']) {
         appEvents.publish({

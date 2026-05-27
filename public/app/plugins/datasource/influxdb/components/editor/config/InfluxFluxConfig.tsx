@@ -31,7 +31,7 @@ export const InfluxFluxConfig = (props: Props) => {
         <InlineField labelWidth={WIDTH_SHORT} label="Organization" htmlFor={`${htmlPrefix}-org`}>
           <Input
             id={`${htmlPrefix}-org`}
-            className="width-20"
+            width={40}
             value={jsonData.organization || ''}
             onChange={onUpdateDatasourceJsonDataOption(props, 'organization')}
             onBlur={trackInfluxDBConfigV1FluxOrgInputField}
@@ -45,7 +45,7 @@ export const InfluxFluxConfig = (props: Props) => {
             value={secureJsonData?.token || ''}
             label="Token"
             aria-label="Token"
-            className="width-20"
+            width={40}
             onReset={() => updateDatasourcePluginResetOption(props, 'token')}
             onChange={onUpdateDatasourceSecureJsonDataOption(props, 'token')}
             onBlur={trackInfluxDBConfigV1FluxTokenInputField}
@@ -55,7 +55,7 @@ export const InfluxFluxConfig = (props: Props) => {
       <InlineFieldRow>
         <InlineField labelWidth={WIDTH_SHORT} label="Default Bucket">
           <Input
-            className="width-20"
+            width={40}
             placeholder="default bucket"
             value={jsonData.defaultBucket || ''}
             onChange={onUpdateDatasourceJsonDataOption(props, 'defaultBucket')}
@@ -72,7 +72,7 @@ export const InfluxFluxConfig = (props: Props) => {
 				for example 1m if your data is written every minute."
         >
           <Input
-            className="width-20"
+            width={40}
             placeholder="10s"
             value={jsonData.timeInterval || ''}
             onChange={onUpdateDatasourceJsonDataOption(props, 'timeInterval')}

@@ -1,5 +1,5 @@
 import { css, cx } from '@emotion/css';
-import { forwardRef } from 'react';
+import { forwardRef, type Ref } from 'react';
 import { useAsync } from 'react-use';
 
 import { type GrafanaTheme2, type ScopedVars } from '@grafana/data';
@@ -194,7 +194,7 @@ export const DashboardLinkButton = forwardRef<unknown, ButtonLinkProps>(({ class
       variant="secondary"
       fill="outline"
       className={cx(className, styles.dashButton)}
-      ref={ref as any}
+      ref={ref as Ref<HTMLAnchorElement & HTMLButtonElement>}
     />
   );
 });

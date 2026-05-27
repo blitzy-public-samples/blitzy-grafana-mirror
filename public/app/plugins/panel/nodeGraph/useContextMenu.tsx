@@ -4,7 +4,7 @@ import * as React from 'react';
 
 import { type DataFrame, type Field, type GrafanaTheme2, type LinkModel, type LinkTarget } from '@grafana/data';
 import { t } from '@grafana/i18n';
-import { ContextMenu, MenuGroup, MenuItem, useStyles2 } from '@grafana/ui';
+import { ContextMenu, MenuGroup, MenuItem, Stack, useStyles2 } from '@grafana/ui';
 
 import { type Config } from './layout';
 import { type EdgeDatumLayout, type NodeDatum } from './types';
@@ -189,10 +189,10 @@ function FieldRow({ field, index }: { field: Field; index: number }) {
 function HeaderRow({ label, value }: { label: string; value: string }) {
   const styles = useStyles2(getLabelStyles);
   return (
-    <tr>
-      <td className={styles.label}>{label}: </td>
-      <td className={styles.value}>{value}</td>
-    </tr>
+    <Stack direction="row" gap={0} alignItems="baseline">
+      <span className={styles.label}>{label}: </span>
+      <span className={styles.value}>{value}</span>
+    </Stack>
   );
 }
 
@@ -221,9 +221,9 @@ function NodeHeader({ node, nodes }: { node: NodeDatum; nodes?: DataFrame }) {
   }
 
   return (
-    <table style={{ width: '100%' }}>
-      <tbody>{rows}</tbody>
-    </table>
+    <Stack direction="column" gap={0}>
+      {rows}
+    </Stack>
   );
 }
 
@@ -254,9 +254,9 @@ function EdgeHeader(props: { edge: EdgeDatumLayout; edges: DataFrame }) {
   }
 
   return (
-    <table style={{ width: '100%' }}>
-      <tbody>{rows}</tbody>
-    </table>
+    <Stack direction="column" gap={0}>
+      {rows}
+    </Stack>
   );
 }
 

@@ -11,13 +11,51 @@ import {
 
 import { type FieldConfig, type Options } from './panelcfg.gen';
 
+/**
+ * Subset of the legacy `natel-discrete-panel` angular options shape consumed by
+ * the migration to state-timeline. Only the fields actually read by the
+ * migration are typed; all other legacy properties are intentionally omitted
+ * because they are ignored by the migration. Inner record fields are declared
+ * as required (non-optional) to match the migration body, which assigns each
+ * field directly to a `string`-typed local; runtime falsy guards in the body
+ * (`if (color)`, `if (text && value)`) still catch any missing values produced
+ * by older or partially-migrated dashboard JSON without altering behavior.
+ */
+interface LegacyDiscreteOptions {
+  units?: string;
+  colorMaps?: Array<{ color: string; text: string }>;
+  valueMaps?: Array<{ op?: string; text: string; value: string }>;
+  rangeMaps?: Array<{ from: string; to: string; text: string }>;
+}
+
+/**
+ * Wrapper for the `prevOptions` argument of the panel-changed handler when
+ * migrating from the angular `natel-discrete-panel`. The legacy options are
+ * carried under the `angular` key.
+ */
+interface LegacyDiscretePrevOptions {
+  angular?: LegacyDiscreteOptions;
+}
+
+/**
+ * Permissive panel-model shape accepted by `timelinePanelChangedHandler`,
+ * structurally compatible with both the SDK `PanelModel<Partial<Options>>` and
+ * the looser dashboard `PanelModel` class used at the test call site (whose
+ * `options` is declared as `{ [key: string]: any }`). Only the fields read or
+ * written by the migration are typed.
+ */
+interface LegacyDiscretePanelModel {
+  options?: Partial<Options>;
+  fieldConfig?: FieldConfigSource;
+}
+
 // This is called when the panel changes from another panel
 export const timelinePanelChangedHandler = (
-  panel: PanelModel<Partial<Options>> | any,
+  panel: PanelModel<Partial<Options>> | LegacyDiscretePanelModel,
   prevPluginId: string,
-  prevOptions: any
+  prevOptions: LegacyDiscretePrevOptions
 ) => {
-  let options: Options = panel.options ?? {};
+  let options: Partial<Options> = panel.options ?? {};
 
   // Changing from angular singlestat
   if (prevPluginId === 'natel-discrete-panel' && prevOptions.angular) {

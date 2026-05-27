@@ -14,6 +14,7 @@
 
 import { css } from '@emotion/css';
 import cx from 'classnames';
+import { type CSSProperties } from 'react';
 import * as React from 'react';
 
 import { type GrafanaTheme2, type IconName } from '@grafana/data';
@@ -72,8 +73,16 @@ const getStyles = (divider: boolean) => (theme: GrafanaTheme2) => {
       marginRight: '0.5rem',
       verticalAlign: 'middle',
       borderRadius: theme.shape.radius.default,
+      // Dynamic per-item service-line background color consumed via CSS custom property.
+      backgroundColor: 'var(--labeled-list-service-line-bg)',
     }),
   };
+};
+
+// CSS custom property intersection type replaces the previous inline `style={{}}` literal
+// while preserving the caller-provided per-item service-line color per AAP Dimension 3.
+type LabeledListServiceLineCSSVars = CSSProperties & {
+  '--labeled-list-service-line-bg'?: string;
 };
 
 type LabeledListProps = {
@@ -86,6 +95,8 @@ type LabeledListProps = {
 export default function LabeledList(props: LabeledListProps) {
   const { className, divider = false, items, color } = props;
   const styles = useStyles2(getStyles(divider));
+  // Dynamic per-render service-line background color passed via CSS custom property.
+  const serviceLineStyle: LabeledListServiceLineCSSVars = { '--labeled-list-service-line-bg': color };
 
   return (
     <ul className={cx(styles.LabeledList, className)}>
@@ -94,7 +105,7 @@ export default function LabeledList(props: LabeledListProps) {
           // If label is service, create small line on left with color
           <li className={styles.LabeledListItem} key={`${key}`}>
             {label === 'Service:' && (
-              <div className={styles.LabeledListServiceLine} style={{ backgroundColor: color }} />
+              <div className={styles.LabeledListServiceLine} style={serviceLineStyle} />
             )}
             {icon && <Icon name={icon} className={styles.LabeledListIcon} size="sm" />}
             <span className={styles.LabeledListLabel}>{label}</span>

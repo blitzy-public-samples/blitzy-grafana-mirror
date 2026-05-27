@@ -89,6 +89,7 @@ export function SoloPanelPageLogo({ containerRef, isHovered, hideLogo }: SoloPan
   return (
     <div
       className={cx(styles.logoContainer, isHovered && styles.logoHidden)}
+      // Design system gap: dynamic logo dimensions from runtime config (scale computed from container size via ResizeObserver)
       style={{
         fontSize: `${scale * 100}%`,
         top: `${8 * scale}px`,
@@ -103,6 +104,7 @@ export function SoloPanelPageLogo({ containerRef, isHovered, hideLogo }: SoloPan
         src={grafanaLogo}
         alt="Grafana"
         className={styles.logo}
+        // Design system gap: dynamic logo dimensions from runtime config (scale computed from container size via ResizeObserver)
         style={{
           height: `${16 * scale}px`,
           marginLeft: '0.25em',

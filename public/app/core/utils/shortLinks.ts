@@ -34,7 +34,7 @@ function getRelativeURLPath(url: string) {
 }
 
 const createShortLinkLegacy = async (path: string): Promise<string> => {
-  const shortLink = await getBackendSrv().post(`/api/short-urls`, {
+  const shortLink = await getBackendSrv().post<{ url: string }>(`/api/short-urls`, {
     path: getRelativeURLPath(path),
   });
   return shortLink.url;
@@ -60,7 +60,12 @@ export const createShortLink = memoizeOne(async (path: string): Promise<string> 
       );
 
       if ('data' in result && result.data) {
-        return buildShortUrl(result.data);
+        // The RTK Query generated `ShortUrl` type (apiVersion/kind/metadata/spec)
+        // and the app-SDK generated `ShortURL` type are structurally compatible
+        // for the fields buildShortUrl reads (metadata.name and metadata.namespace).
+        // They are declared in two separate generated modules with nominal-only differences.
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+        return buildShortUrl(result.data as unknown as ShortURL);
       }
 
       if ('error' in result) {

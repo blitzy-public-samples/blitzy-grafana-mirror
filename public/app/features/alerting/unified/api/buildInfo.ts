@@ -1,6 +1,6 @@
 import { lastValueFrom } from 'rxjs';
 
-import { getBackendSrv, isFetchError } from '@grafana/runtime';
+import { type FetchErrorDataProps, getBackendSrv, isFetchError } from '@grafana/runtime';
 import {
   type AlertmanagerApiFeatures,
   type PromApiFeatures,
@@ -199,7 +199,9 @@ async function hasRulerSupport(dataSourceName: string) {
 }
 // there errors indicate that the ruler API might be disabled or not supported for Cortex
 function errorIndicatesMissingRulerSupport(error: unknown) {
-  return isFetchError(error)
+  // Narrow with the canonical fetch-error body shape so `error.data.message` is
+  // typed and the substring checks below compile cleanly.
+  return isFetchError<FetchErrorDataProps>(error)
     ? error.data.message?.includes('GetRuleGroup unsupported in rule local store') || // "local" rule storage
         error.data.message?.includes('page not found') || // ruler api disabled
         error.data.message?.includes(RULER_NOT_SUPPORTED_MSG) // ruler api not supported

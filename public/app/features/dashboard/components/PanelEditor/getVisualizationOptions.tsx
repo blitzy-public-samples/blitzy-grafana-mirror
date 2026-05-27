@@ -306,11 +306,13 @@ export function getVisualizationOptions2(props: OptionPaneRenderProps2): Options
  *
  * @internal
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- public API surface: function is consumed by out-of-scope external callers (transformers/spatial/optionsHelper.tsx, plugins/panel/canvas/editor/inline/InlineEditBody.tsx) that pass PanelOptionsSupplier<T> with arbitrary T. Per AAP §0.9.1 (preserve public API) and §0.9.2.12 (minimal change), `any` is retained at this consumer boundary so heterogeneous callers continue to type-check.
 export function fillOptionsPaneItems(
   idPrefix: string,
   supplier: PanelOptionsSupplier<any>,
   access: NestedValueAccess,
   getOptionsPaneCategory: categoryGetter,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- see justification above for supplier type
   context: StandardEditorContext<any>,
   parentCategory?: OptionsPaneCategoryDescriptor
 ) {
@@ -318,7 +320,7 @@ export function fillOptionsPaneItems(
   supplier(builder, context);
 
   for (const pluginOption of builder.getItems()) {
-    if (pluginOption.showIf && !pluginOption.showIf(context.options, context.data, context.annotations)) {
+    if (pluginOption.showIf && !pluginOption.showIf(context.options!, context.data, context.annotations)) {
       continue;
     }
 

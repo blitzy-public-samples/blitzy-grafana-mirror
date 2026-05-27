@@ -1,12 +1,21 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useAsync, useDebounce } from 'react-use';
 
 import { Trans, t } from '@grafana/i18n';
-import { Button, Icon, Input, Modal, useStyles2 } from '@grafana/ui';
+import { Button, type Column, Icon, Input, InteractiveTable, Modal, useStyles2 } from '@grafana/ui';
 import { getConnectedDashboards } from 'app/features/library-panels/state/api';
 import { getModalStyles } from 'app/features/library-panels/styles';
 
 import { type LibraryPanelBehavior } from '../scene/LibraryPanelBehavior';
+
+interface DashboardRow {
+  // Stable, unique row identifier derived from the original index. The previous raw
+  // <table> used an index-based key (`dashrow-${i}`); we preserve that contract because
+  // dashboards in different folders can share display names, so `name` alone is not
+  // guaranteed unique. See review finding for SaveLibraryVizPanelModal.tsx L98.
+  id: string;
+  name: string;
+}
 
 interface Props {
   libraryPanel: LibraryPanelBehavior;
@@ -43,6 +52,22 @@ export const SaveLibraryVizPanelModal = ({ libraryPanel, isUnsavedPrompt, onDism
   );
 
   const styles = useStyles2(getModalStyles);
+
+  const tableData = useMemo<DashboardRow[]>(
+    () => filteredDashboards.map((name, i) => ({ id: `dashrow-${i}`, name })),
+    [filteredDashboards]
+  );
+
+  const columns = useMemo<Array<Column<DashboardRow>>>(
+    () => [
+      {
+        id: 'name',
+        header: t('dashboard-scene.save-library-viz-panel-modal.dashboard-name', 'Dashboard name'),
+      },
+    ],
+    []
+  );
+
   const discardAndClose = useCallback(() => {
     onDiscard();
   }, [onDiscard]);
@@ -78,22 +103,11 @@ export const SaveLibraryVizPanelModal = ({ libraryPanel, isUnsavedPrompt, onDism
             </Trans>
           </p>
         ) : (
-          <table className={styles.myTable}>
-            <thead>
-              <tr>
-                <th>
-                  <Trans i18nKey="dashboard-scene.save-library-viz-panel-modal.dashboard-name">Dashboard name</Trans>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredDashboards.map((dashName, i) => (
-                <tr key={`dashrow-${i}`}>
-                  <td>{dashName}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          /* Omit `pageSize` (defaults to 0 -> pagination disabled) to preserve the
+           * original raw-<table> behavior of rendering every affected dashboard in the
+           * list. Use the synthesized stable `id` (see DashboardRow) as the row key
+           * because dashboard names alone are not guaranteed unique across folders. */
+          <InteractiveTable columns={columns} data={tableData} getRowId={(row) => row.id} />
         )}
         <Modal.ButtonRow>
           <Button variant="secondary" onClick={onDismiss} fill="outline">

@@ -2,8 +2,8 @@ import { css } from '@emotion/css';
 import { type MouseEvent } from 'react';
 
 import { type AnnotationEvent, type DateTimeInput, type GrafanaTheme2, type PanelProps } from '@grafana/data';
-import { Trans } from '@grafana/i18n';
-import { Card, RenderUserContentAsHTML, TagList, Tooltip, useStyles2 } from '@grafana/ui';
+import { Trans, t } from '@grafana/i18n';
+import { Button, Card, RenderUserContentAsHTML, TagList, Tooltip, useStyles2 } from '@grafana/ui';
 
 import { type Options } from './panelcfg.gen';
 
@@ -89,9 +89,18 @@ const Avatar = ({ onClick, avatarUrl, login, email }: AvatarProps) => {
 
   return (
     <Tooltip content={tooltipContent} theme="info" placement="top">
-      <button onClick={onAvatarClick} className={styles.avatar}>
+      <Button
+        onClick={onAvatarClick}
+        fill="text"
+        variant="secondary"
+        size="sm"
+        className={styles.avatar}
+        aria-label={t('annolist.annotation-list-item.aria-label-filter-by-user', 'Filter by user {{login}}', {
+          login,
+        })}
+      >
         <img src={avatarUrl} alt="avatar icon" />
-      </button>
+      </Button>
     </Tooltip>
   );
 };

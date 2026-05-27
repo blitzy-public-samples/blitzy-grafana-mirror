@@ -1,3 +1,4 @@
+import { css } from '@emotion/css';
 import { useId, useRef, useState } from 'react';
 import * as React from 'react';
 import { useEffectOnce } from 'react-use';
@@ -43,7 +44,7 @@ export function LazyLoader({ children, width, height, onLoad, onChange }: Props)
   });
 
   return (
-    <div id={id} ref={wrapperRef} style={{ width, height }}>
+    <div id={id} ref={wrapperRef} className={css({ width, height })}>
       {loaded && (typeof children === 'function' ? children({ isInView }) : children)}
     </div>
   );

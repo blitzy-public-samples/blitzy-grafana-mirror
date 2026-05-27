@@ -8,6 +8,7 @@ import { FunctionalVector } from '../vector/FunctionalVector';
 import { guessFieldTypeFromValue, guessFieldTypeForField, toDataFrameDTO } from './processDataFrame';
 
 /** @deprecated */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic default `T = any` preserved to mirror parent `Field<T = any>` default in types/dataFrame.ts; consumers default to `any` for field values when not parameterizing
 export type MutableField<T = any> = Field<T>;
 
 /** @deprecated */
@@ -22,13 +23,14 @@ export const MISSING_VALUE = undefined; // Treated as connected in new graph pan
  *
  * @deprecated use standard DataFrame, or create one with PartialDataFrame
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic default `T = any` preserved for back-compat: most callers (csv.ts, merge.ts, seriesToRows.ts, jaeger/grafana/tempo datasources, Table.story.tsx) instantiate `new MutableDataFrame({...})` without explicit T and pass row objects to `frame.add({...})` directly; internal `set(index, value)` uses `Record<string, unknown> = value || {}` which only works when T = any (assigning `unknown | {}` to `Record<string, unknown>` requires an assertion)
 export class MutableDataFrame<T = any> extends FunctionalVector<T> implements DataFrame {
   name?: string;
   refId?: string;
   meta?: QueryResultMeta;
   fields: MutableField[] = [];
 
-  private first: any[] = [];
+  private first: unknown[] = [];
   private creator: MutableVectorCreator;
 
   constructor(source?: DataFrame | DataFrameDTO, creator?: MutableVectorCreator) {
@@ -37,7 +39,7 @@ export class MutableDataFrame<T = any> extends FunctionalVector<T> implements Da
     // This creates the underlying storage buffers
     this.creator = creator
       ? creator
-      : (buffer?: any[]) => {
+      : (buffer?: unknown[]) => {
           return buffer ?? [];
         };
 
@@ -82,7 +84,7 @@ export class MutableDataFrame<T = any> extends FunctionalVector<T> implements Da
   }
 
   addField(f: Field | FieldDTO, startLength?: number): Field {
-    let buffer: any[] | undefined = undefined;
+    let buffer: unknown[] | undefined = undefined;
 
     if (f.values) {
       buffer = f.values;
@@ -224,7 +226,7 @@ export class MutableDataFrame<T = any> extends FunctionalVector<T> implements Da
    */
   add(value: T): void {
     // Will add one value for every field
-    const obj: any = value;
+    const obj: Record<string, unknown> = value || {};
     for (const field of this.fields) {
       let val = obj[field.name];
 

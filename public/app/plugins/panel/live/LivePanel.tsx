@@ -1,6 +1,5 @@
 import { css, cx } from '@emotion/css';
-import { isEqual } from 'lodash';
-import { PureComponent } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { type Unsubscribable, type PartialObserver } from 'rxjs';
 
 import {
@@ -20,7 +19,7 @@ import {
 } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
 import { config, getGrafanaLiveSrv } from '@grafana/runtime';
-import { Alert, stylesFactory, JSONFormatter, CustomScrollbar } from '@grafana/ui';
+import { Alert, CustomScrollbar, JSONFormatter, useStyles2 } from '@grafana/ui';
 
 import { TablePanel } from '../table/TablePanel';
 
@@ -29,100 +28,82 @@ import { type LivePanelOptions, MessageDisplayMode, MessagePublishMode } from '.
 
 interface Props extends PanelProps<LivePanelOptions> {}
 
-interface State {
-  error?: unknown;
-  addr?: LiveChannelAddress;
-  status?: LiveChannelStatusEvent;
-  message?: unknown;
-  changed: number;
-}
+export const LivePanel = memo(function LivePanel(props: Props) {
+  const styles = useStyles2(getStyles);
+  // `isValid` is derived from a stable global lookup; computing it on every render is
+  // equivalent to the original constructor-time computation because the Grafana Live
+  // service availability does not change at runtime once the app boots.
+  const isValid = !!getGrafanaLiveSrv();
 
-export class LivePanel extends PureComponent<Props, State> {
-  private readonly isValid: boolean;
-  subscription?: Unsubscribable;
-  styles = getStyles(config.theme2);
+  const [error, setError] = useState<unknown>(undefined);
+  const [addr, setAddr] = useState<LiveChannelAddress | undefined>(undefined);
+  const [status, setStatus] = useState<LiveChannelStatusEvent | undefined>(undefined);
+  const [message, setMessage] = useState<unknown>(undefined);
+  // The `changed` state is preserved verbatim from the original class state to maintain
+  // exact behavior parity with the original PureComponent. It is bumped on every status
+  // and message event (Date.now()) to guarantee a re-render even when the same event
+  // reference is re-emitted. Never read in render — matches the original.
+  const [, setChanged] = useState<number>(0);
 
-  constructor(props: Props) {
-    super(props);
+  const subscriptionRef = useRef<Unsubscribable | undefined>(undefined);
 
-    this.isValid = !!getGrafanaLiveSrv();
-    this.state = { changed: 0 };
-  }
+  useEffect(() => {
+    const propsChannel = props.options?.channel;
 
-  async componentDidMount() {
-    this.loadChannel();
-  }
-
-  componentWillUnmount() {
-    if (this.subscription) {
-      this.subscription.unsubscribe();
-    }
-  }
-
-  componentDidUpdate(prevProps: Props): void {
-    if (this.props.options?.channel !== prevProps.options?.channel) {
-      this.loadChannel();
-    }
-  }
-
-  streamObserver: PartialObserver<LiveChannelEvent> = {
-    next: (event: LiveChannelEvent) => {
-      if (isLiveChannelStatusEvent(event)) {
-        this.setState({ status: event, changed: Date.now() });
-      } else if (isLiveChannelMessageEvent(event)) {
-        this.setState({ message: event.message, changed: Date.now() });
-      } else {
-        console.log('ignore', event);
+    const cleanup = () => {
+      if (subscriptionRef.current) {
+        subscriptionRef.current.unsubscribe();
+        subscriptionRef.current = undefined;
       }
-    },
-  };
+    };
 
-  unsubscribe = () => {
-    if (this.subscription) {
-      this.subscription.unsubscribe();
-      this.subscription = undefined;
-    }
-  };
-
-  async loadChannel() {
-    const addr = this.props.options?.channel;
-    if (!isValidLiveChannelAddress(addr)) {
-      console.log('INVALID', addr);
-      this.unsubscribe();
-      this.setState({
-        addr: undefined,
-      });
-      return;
-    }
-
-    if (isEqual(addr, this.state.addr)) {
-      console.log('Same channel', this.state.addr);
-      return;
+    if (!isValidLiveChannelAddress(propsChannel)) {
+      console.log('INVALID', propsChannel);
+      cleanup();
+      setAddr(undefined);
+      return cleanup;
     }
 
     const live = getGrafanaLiveSrv();
     if (!live) {
-      console.log('INVALID', addr);
-      this.unsubscribe();
-      this.setState({
-        addr: undefined,
-      });
-      return;
+      console.log('INVALID', propsChannel);
+      cleanup();
+      setAddr(undefined);
+      return cleanup;
     }
-    this.unsubscribe();
 
-    console.log('LOAD', addr);
+    cleanup();
+
+    console.log('LOAD', propsChannel);
+
+    const streamObserver: PartialObserver<LiveChannelEvent> = {
+      next: (event: LiveChannelEvent) => {
+        if (isLiveChannelStatusEvent(event)) {
+          setStatus(event);
+          setChanged(Date.now());
+        } else if (isLiveChannelMessageEvent(event)) {
+          setMessage(event.message);
+          setChanged(Date.now());
+        } else {
+          console.log('ignore', event);
+        }
+      },
+    };
 
     // Subscribe to new events
     try {
-      this.subscription = live.getStream(addr).subscribe(this.streamObserver);
-      this.setState({ addr, error: undefined });
+      subscriptionRef.current = live.getStream(propsChannel).subscribe(streamObserver);
+      setAddr(propsChannel);
+      setError(undefined);
     } catch (err) {
-      this.setState({ addr: undefined, error: err });
+      setAddr(undefined);
+      setError(err);
     }
-  }
 
-  renderNotEnabled() {
+    return cleanup;
+  }, [props.options?.channel]);
+
+  const renderNotEnabled = () => {
     const preformatted = `[feature_toggles]
     enable = live`;
     return (
@@ -136,11 +117,10 @@ export class LivePanel extends PureComponent<Props, State> {
         <pre>{preformatted}</pre>
       </Alert>
     );
-  }
+  };
 
-  renderMessage(height: number) {
-    const { options } = this.props;
-    const { message } = this.state;
+  const renderMessage = (height: number) => {
+    const { options } = props;
 
     if (!message) {
       return (
@@ -171,63 +151,61 @@ export class LivePanel extends PureComponent<Props, State> {
           }),
           state: LoadingState.Streaming,
         } as PanelData;
-        const props: PanelProps = {
-          ...this.props,
+        const tableProps: PanelProps = {
+          ...props,
           options: { frameIndex: 0, showHeader: true },
         };
-        return <TablePanel {...props} data={data} height={height} />;
+        return <TablePanel {...tableProps} data={data} height={height} />;
       }
     }
 
     return <pre>{JSON.stringify(message)}</pre>;
-  }
+  };
 
-  renderPublish(height: number) {
-    const { options } = this.props;
+  const renderPublish = (height: number) => {
+    const { options } = props;
     return (
       <LivePublish
         height={height}
         body={options.message}
         mode={options.publish ?? MessagePublishMode.JSON}
-        onSave={(message) => this.props.onOptionsChange({ ...options, message })}
-        addr={this.state.addr}
+        onSave={(message) => props.onOptionsChange({ ...options, message })}
+        addr={addr}
       />
     );
-  }
+  };
 
-  renderStatus() {
-    const { status } = this.state;
+  const renderStatus = () => {
     if (status?.state === LiveChannelConnectionState.Connected) {
       return; // nothing
     }
 
     let statusClass = '';
     if (status) {
-      statusClass = this.styles.status[status.state];
+      statusClass = styles.status[status.state];
     }
-    return <div className={cx(statusClass, this.styles.statusWrap)}>{status?.state}</div>;
-  }
+    return <div className={cx(statusClass, styles.statusWrap)}>{status?.state}</div>;
+  };
 
-  renderBody() {
-    const { status } = this.state;
-    const { options, height } = this.props;
+  const renderBody = () => {
+    const { options, height } = props;
     const publish = options.publish === MessagePublishMode.JSON || options.publish === MessagePublishMode.Influx;
 
     if (publish) {
       if (options.display === MessageDisplayMode.None) {
-        return this.renderPublish(height);
+        return renderPublish(height);
       }
 
       // Both message and publish
       const halfHeight = height / 2;
       return (
         <div>
-          <div style={{ height: halfHeight, overflow: 'hidden' }}>
+          <div className={css({ height: halfHeight, overflow: 'hidden' })}>
             <CustomScrollbar autoHeightMin="100%" autoHeightMax="100%">
-              {this.renderMessage(halfHeight)}
+              {renderMessage(halfHeight)}
             </CustomScrollbar>
           </div>
-          <div>{this.renderPublish(halfHeight)}</div>
+          <div>{renderPublish(halfHeight)}</div>
         </div>
       );
     }
@@ -237,46 +215,43 @@ export class LivePanel extends PureComponent<Props, State> {
 
     // Only message
     return (
-      <div style={{ overflow: 'hidden', height }}>
+      <div className={css({ overflow: 'hidden', height })}>
         <CustomScrollbar autoHeightMin="100%" autoHeightMax="100%">
-          {this.renderMessage(height)}
+          {renderMessage(height)}
         </CustomScrollbar>
       </div>
     );
-  }
+  };
 
-  render() {
-    if (!this.isValid) {
-      return this.renderNotEnabled();
-    }
-    const { addr, error } = this.state;
-    if (!addr) {
-      return (
-        <Alert title={t('live.live-panel.title-grafana-live', 'Grafana Live')} severity="info">
-          <Trans i18nKey="live.live-panel.panel-editor-channel">Use the panel editor to pick a channel</Trans>
-        </Alert>
-      );
-    }
-    if (error) {
-      return (
-        <div>
-          <h2>
-            <Trans i18nKey="live.live-panel.error">Error</Trans>
-          </h2>
-          <div>{JSON.stringify(error)}</div>
-        </div>
-      );
-    }
+  if (!isValid) {
+    return renderNotEnabled();
+  }
+  if (!addr) {
     return (
-      <>
-        {this.renderStatus()}
-        {this.renderBody()}
-      </>
+      <Alert title={t('live.live-panel.title-grafana-live', 'Grafana Live')} severity="info">
+        <Trans i18nKey="live.live-panel.panel-editor-channel">Use the panel editor to pick a channel</Trans>
+      </Alert>
     );
   }
-}
+  if (error) {
+    return (
+      <div>
+        <h2>
+          <Trans i18nKey="live.live-panel.error">Error</Trans>
+        </h2>
+        <div>{JSON.stringify(error)}</div>
+      </div>
+    );
+  }
+  return (
+    <>
+      {renderStatus()}
+      {renderBody()}
+    </>
+  );
+});
 
-const getStyles = stylesFactory((theme: GrafanaTheme2) => ({
+const getStyles = (theme: GrafanaTheme2) => ({
   statusWrap: css({
     margin: 'auto',
     position: 'absolute',
@@ -306,4 +281,4 @@ const getStyles = stylesFactory((theme: GrafanaTheme2) => ({
       border: '1px solid red',
     }),
   },
-}));
+});

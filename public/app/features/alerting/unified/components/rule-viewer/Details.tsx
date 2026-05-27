@@ -134,7 +134,11 @@ export const Details = ({ rule }: DetailsProps) => {
             value={
               <Link href={`/connections/datasources/edit/${datasource?.uid}`}>
                 <Stack direction="row" gap={1}>
-                  <img style={{ width: '16px' }} src={datasource?.meta.info.logos.small} alt="datasource logo" />
+                  <img
+                    className={styles.datasourceLogo}
+                    src={datasource?.meta.info.logos.small}
+                    alt="datasource logo"
+                  />
                   {datasource?.name}
                 </Stack>
               </Link>
@@ -401,5 +405,8 @@ const getStyles = (theme: GrafanaTheme2) => ({
     gridTemplateColumns: '1fr',
     overflowWrap: 'break-word',
     wordBreak: 'break-word',
+  }),
+  datasourceLogo: css({
+    width: '16px',
   }),
 });

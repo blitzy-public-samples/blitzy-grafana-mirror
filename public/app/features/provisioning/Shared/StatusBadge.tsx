@@ -1,8 +1,10 @@
+import { css } from '@emotion/css';
 import { useCallback } from 'react';
 
+import { type GrafanaTheme2 } from '@grafana/data';
 import { t } from '@grafana/i18n';
 import { locationService } from '@grafana/runtime';
-import { Badge, type BadgeColor, type IconName } from '@grafana/ui';
+import { Badge, type BadgeColor, type IconName, useStyles2 } from '@grafana/ui';
 import { type Repository } from 'app/api/clients/provisioning/v0alpha1';
 
 import { PROVISIONING_URL } from '../constants';
@@ -84,6 +86,8 @@ export function StatusBadge({ repo, displayOnly = false }: StatusBadgeProps) {
     locationService.push(`${PROVISIONING_URL}/${repo.metadata.name}/?tab=overview`);
   }, [repo?.metadata?.name, displayOnly]);
 
+  const styles = useStyles2(getStyles, displayOnly);
+
   if (!repo) {
     return null;
   }
@@ -91,13 +95,12 @@ export function StatusBadge({ repo, displayOnly = false }: StatusBadgeProps) {
   const { color, text, icon, tooltip } = getBadgeConfig(repo);
 
   return (
-    <Badge
-      color={color}
-      icon={icon}
-      text={text}
-      style={{ cursor: displayOnly ? 'default' : 'pointer' }}
-      tooltip={tooltip}
-      onClick={handleClick}
-    />
+    <Badge color={color} icon={icon} text={text} className={styles.badge} tooltip={tooltip} onClick={handleClick} />
   );
 }
+
+const getStyles = (theme: GrafanaTheme2, displayOnly: boolean) => ({
+  badge: css({
+    cursor: displayOnly ? 'default' : 'pointer',
+  }),
+});

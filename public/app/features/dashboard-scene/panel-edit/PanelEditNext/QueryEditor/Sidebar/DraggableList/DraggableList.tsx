@@ -73,6 +73,7 @@ export function DraggableList<T>({
               );
             })}
             {indicator && (
+              // Design system gap: drop-indicator absolute positioning uses runtime drag state (indicator.top/indicator.height) recomputed on each onDragUpdate; @grafana/ui Box/Stack do not accept dynamic per-frame top/height values, so the literal inline style is required for correct visual placement during drag. Static rule (position, left/right offsets, background, borderRadius, ::before pseudo) lives in styles.dropIndicator; only top/height remain inline. Kept per refactor protocol per AAP §0.4.4.
               <div className={styles.dropIndicator} style={{ top: indicator.top, height: indicator.height }} />
             )}
             {dropProvided.placeholder}

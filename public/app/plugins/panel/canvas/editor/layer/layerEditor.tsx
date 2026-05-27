@@ -1,5 +1,6 @@
 import { get as lodashGet } from 'lodash';
 
+import { type PanelOptionsEditorBuilder } from '@grafana/data';
 import { type NestedPanelOptions, type NestedValueAccess } from '@grafana/data/internal';
 import { t } from '@grafana/i18n';
 import { type ElementState } from 'app/features/canvas/runtime/element';
@@ -8,6 +9,7 @@ import { type Scene } from 'app/features/canvas/runtime/scene';
 import { setOptionImmutably } from 'app/features/dashboard/components/PanelEditor/utils';
 
 import { type InstanceState } from '../../CanvasPanel';
+import { type CanvasElementOptions } from '../../panelcfg.gen';
 import { PlacementEditor } from '../element/PlacementEditor';
 import { optionBuilder } from '../options';
 
@@ -78,10 +80,10 @@ export function getLayerEditor(opts: InstanceState): NestedPanelOptions<LayerEdi
       });
 
       const ctx = { ...context, options };
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/consistent-type-assertions
-      optionBuilder.addBackground(builder as any, ctx);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/consistent-type-assertions
-      optionBuilder.addBorder(builder as any, ctx);
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+      optionBuilder.addBackground(builder as unknown as PanelOptionsEditorBuilder<CanvasElementOptions>, ctx);
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+      optionBuilder.addBorder(builder as unknown as PanelOptionsEditorBuilder<CanvasElementOptions>, ctx);
 
       if (currentLayer && !currentLayer.isRoot()) {
         builder.addCustomEditor({

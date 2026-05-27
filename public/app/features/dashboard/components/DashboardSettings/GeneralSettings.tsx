@@ -130,7 +130,7 @@ export function GeneralSettingsUnconnected({
 
   return (
     <Page navModel={sectionNav} pageNav={pageNav}>
-      <div style={{ maxWidth: '600px' }}>
+      <Box maxWidth={75}>
         <Box marginBottom={5}>
           <Field
             label={
@@ -220,7 +220,7 @@ export function GeneralSettingsUnconnected({
         </CollapsableSection>
 
         <Box marginTop={3}>{dashboard.meta.canDelete && <DeleteDashboardButton />}</Box>
-      </div>
+      </Box>
     </Page>
   );
 }

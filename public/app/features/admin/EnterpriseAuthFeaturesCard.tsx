@@ -22,7 +22,9 @@ export function EnterpriseAuthFeaturesCard({ page }: Props) {
 
   const onDismiss = () => {
     backendSrv
-      .put(`/api/user/helpflags/${HELP_FLAG_ENTERPRISE_AUTH}`, undefined, { showSuccessAlert: false })
+      .put<{ helpFlags1: number }>(`/api/user/helpflags/${HELP_FLAG_ENTERPRISE_AUTH}`, undefined, {
+        showSuccessAlert: false,
+      })
       .then((res) => {
         contextSrv.user.helpFlags1 = res.helpFlags1;
         setDismissed(true);

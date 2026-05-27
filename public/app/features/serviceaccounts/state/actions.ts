@@ -3,7 +3,7 @@ import { debounce } from 'lodash';
 import { getBackendSrv } from '@grafana/runtime';
 import { fetchRoleOptions } from 'app/core/components/RolePicker/api';
 import { contextSrv } from 'app/core/services/context_srv';
-import { AccessControlAction } from 'app/types/accessControl';
+import { AccessControlAction, type Role } from 'app/types/accessControl';
 import { type ServiceAccountDTO, ServiceAccountStateFilter } from 'app/types/serviceaccount';
 import { type ThunkResult } from 'app/types/store';
 
@@ -19,7 +19,12 @@ import {
   serviceAccountsFetched,
   serviceAccountsFetchEnd,
   stateFilterChanged,
+  type ServiceAccountsFetched,
 } from './reducers';
+
+// Server response shape for POST /api/access-control/users/roles/search.
+// Maps a user id to that user's roles. Untyped on the wire, so we narrow here.
+type UserRolesSearchResponse = Record<number, Role[]> | undefined;
 
 const BASE_URL = `/api/serviceaccounts`;
 
@@ -50,7 +55,7 @@ export function fetchServiceAccounts(
           dispatch(serviceAccountsFetchBegin());
         }
         const { perPage, page, query, serviceAccountStateFilter } = getState().serviceAccounts;
-        const result = await getBackendSrv().get(
+        const result = await getBackendSrv().get<ServiceAccountsFetched>(
           `/api/serviceaccounts/search?perpage=${perPage}&page=${page}&query=${query}${getStateFilter(
             serviceAccountStateFilter
           )}&accesscontrol=true`
@@ -63,10 +68,13 @@ export function fetchServiceAccounts(
           dispatch(rolesFetchBegin());
           const orgId = contextSrv.user.orgId;
           const userIds = result?.serviceAccounts.map((u: ServiceAccountDTO) => u.id);
-          const roles = await getBackendSrv().post(`/api/access-control/users/roles/search?includeHidden=true`, {
-            userIds,
-            orgId,
-          });
+          const roles = await getBackendSrv().post<UserRolesSearchResponse>(
+            `/api/access-control/users/roles/search?includeHidden=true`,
+            {
+              userIds,
+              orgId,
+            }
+          );
           result.serviceAccounts.forEach((u: ServiceAccountDTO) => {
             u.roles = roles ? roles[u.id] || [] : [];
           });
@@ -103,13 +111,22 @@ export function deleteServiceAccount(serviceAccountUid: string): ThunkResult<voi
   };
 }
 
+// Server response shape for POST /api/serviceaccounts/:saUid/tokens.
+// Only the `key` field is consumed by the caller.
+interface CreateServiceAccountTokenResponse {
+  key: string;
+}
+
 export function createServiceAccountToken(
   saUid: string,
   token: ServiceAccountToken,
   onTokenCreated: (key: string) => void
 ): ThunkResult<void> {
   return async (dispatch) => {
-    const result = await getBackendSrv().post(`${BASE_URL}/${saUid}/tokens`, token);
+    const result = await getBackendSrv().post<CreateServiceAccountTokenResponse>(
+      `${BASE_URL}/${saUid}/tokens`,
+      token
+    );
     onTokenCreated(result.key);
     dispatch(fetchServiceAccounts());
   };

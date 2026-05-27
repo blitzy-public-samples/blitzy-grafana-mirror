@@ -29,7 +29,12 @@ import { getDataSourceSrv } from '@grafana/runtime';
 import { SearchTableType } from './dataquery.gen';
 import { type Span, type SpanAttributes, type Spanset, type TempoJsonData, type TraceSearchMetadata } from './types';
 
-function getAttributeValue(value: collectorTypes.opentelemetryProto.common.v1.AnyValue): any {
+// OTLPAttributeValue mirrors the recursive shape of values produced by
+// `getAttributeValue` from an OTLP AnyValue: strings, booleans, numbers,
+// or arrays of the same. Replaces the previous `any` return annotation.
+type OTLPAttributeValue = string | number | boolean | OTLPAttributeValue[];
+
+function getAttributeValue(value: collectorTypes.opentelemetryProto.common.v1.AnyValue): OTLPAttributeValue {
   if (value.stringValue) {
     return value.stringValue;
   }
@@ -47,7 +52,7 @@ function getAttributeValue(value: collectorTypes.opentelemetryProto.common.v1.An
   }
 
   if (value.arrayValue) {
-    const arrayValue = [];
+    const arrayValue: OTLPAttributeValue[] = [];
     for (const arValue of value.arrayValue.values) {
       arrayValue.push(getAttributeValue(arValue));
     }
@@ -263,7 +268,17 @@ export function transformToOTLP(data: MutableDataFrame): {
       parentSpanId: span.parentSpanID || '',
       traceState: span.traceState || '',
       name: span.operationName,
-      kind: getOTLPSpanKind(span.kind) as any,
+      // OTLP's TypeScript definitions declare `Span.kind` as a numeric enum,
+      // but the runtime wire format (and Tempo's own test fixtures) uses the
+      // canonical string-literal names ('SPAN_KIND_SERVER', etc.) that
+      // `getOTLPSpanKind` returns. The string-literal source type and numeric
+      // enum target type are structurally disjoint, so bridging requires an
+      // `unknown` intermediate cast. This is the same pattern Tempo's own
+      // tests use (resultTransformer.test.ts uses `as unknown as ResourceSpans[]`).
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- bridging string-literal runtime values to OTLP's numeric SpanKind enum requires the unknown-cast pair; this preserves byte-equivalent runtime behavior.
+      kind: getOTLPSpanKind(span.kind) as unknown as
+        | collectorTypes.opentelemetryProto.trace.v1.Span.SpanKind
+        | undefined,
       startTimeUnixNano: span.startTime * 1000000,
       endTimeUnixNano: (span.startTime + span.duration) * 1000000,
       attributes: span.tags ? tagsToAttributes(span.tags) : [],
@@ -279,8 +294,15 @@ export function transformToOTLP(data: MutableDataFrame): {
   return result;
 }
 
-function getOTLPSpanKind(kind: string): string | undefined {
-  let spanKind = undefined;
+type OTLPSpanKind =
+  | 'SPAN_KIND_SERVER'
+  | 'SPAN_KIND_CLIENT'
+  | 'SPAN_KIND_PRODUCER'
+  | 'SPAN_KIND_CONSUMER'
+  | 'SPAN_KIND_INTERNAL';
+
+function getOTLPSpanKind(kind: string): OTLPSpanKind | undefined {
+  let spanKind: OTLPSpanKind | undefined = undefined;
   if (kind) {
     switch (kind) {
       case 'server':

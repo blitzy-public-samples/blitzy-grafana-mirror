@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { render, screen } from 'test/test-utils';
 
 import { getFolderFixtures } from '@grafana/test-utils/unstable';
+import { Button } from '@grafana/ui';
 import { AppNotificationList } from 'app/core/components/AppNotifications/AppNotificationList';
 
 import { useCreateFolder, useUpdateFolder } from './hooks';
@@ -14,10 +15,10 @@ const TestCreationComponent = () => {
   return (
     <>
       <AppNotificationList />
-      <button onClick={() => createFolder({ title: 'test' })}>Create Folder at root</button>
-      <button onClick={() => createFolder({ title: 'test', parentUid: folderA.item.uid })}>
+      <Button onClick={() => createFolder({ title: 'test' })}>Create Folder at root</Button>
+      <Button onClick={() => createFolder({ title: 'test', parentUid: folderA.item.uid })}>
         Create Folder in nested folder
-      </button>
+      </Button>
       <div>{result.isSuccess ? 'Folder created' : 'Error creating folder'}</div>
     </>
   );
@@ -32,7 +33,7 @@ const TestUpdateComponent = ({ folderUID }: { folderUID: string }) => {
       <AppNotificationList />
       <label htmlFor="title">Folder Title</label>
       <input id="title" type="text" value={title} onChange={(e) => setTitle(e.target.value)} />
-      <button onClick={() => updateFolder({ title, uid: folderUID })}>Update Folder</button>
+      <Button onClick={() => updateFolder({ title, uid: folderUID })}>Update Folder</Button>
       <div>{result.isSuccess ? 'Folder updated' : 'Error updating folder'}</div>
     </>
   );

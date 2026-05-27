@@ -2,7 +2,7 @@ import { isString, isUndefined } from 'lodash';
 
 import { type Field, FieldType } from '@grafana/data';
 
-export function convertToType(value: any, field: Field) {
+export function convertToType(value: unknown, field: Field) {
   switch (field.type) {
     case FieldType.boolean:
       if (isUndefined(value)) {
@@ -11,10 +11,10 @@ export function convertToType(value: any, field: Field) {
       return convertToBool(value);
 
     case FieldType.number:
-      if (isNaN(value)) {
+      if (isNaN(Number(value))) {
         return 0;
       }
-      return parseFloat(value);
+      return parseFloat(String(value));
 
     case FieldType.string:
       if (!value) {

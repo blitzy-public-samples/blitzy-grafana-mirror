@@ -859,14 +859,14 @@ export class TempoDatasource extends DataSourceWithBackend<TempoQuery, TempoJson
     return request;
   }
 
-  async metadataRequest(url: string, params = {}) {
+  async metadataRequest<T = unknown>(url: string, params = {}): Promise<T> {
     // url must not start with a `/`, otherwise the AJAX-request
     // going from the browser will contain `//`, which can cause problems.
     if (url.startsWith('/')) {
       throw new Error(`invalid metadata request url: ${url}`);
     }
 
-    const res = await this.getResource(url, params, { method: 'GET', hideFromInspector: true });
+    const res = await this.getResource<T & { data?: T }>(url, params, { method: 'GET', hideFromInspector: true });
     return res?.data ?? res;
   }
 
@@ -1338,7 +1338,7 @@ function getServiceGraphViewDataFrames(
   tempoDatasourceUid: string,
   useNativeHistogram?: boolean
 ) {
-  let df: any = { fields: [] };
+  let df: DataFrameDTO = { fields: [] };
 
   const rate = rateResponse.rates.filter((x) => {
     return x.refId === buildExpr(rateMetric, defaultTableFilter, request);
@@ -1378,7 +1378,7 @@ function getServiceGraphViewDataFrames(
     df.fields.push({
       ...rate[0].fields[2],
       name: '  ',
-      labels: null,
+      labels: undefined,
       config: {
         color: {
           mode: 'continuous-BlPu',
@@ -1430,7 +1430,7 @@ function getServiceGraphViewDataFrames(
       ...errorRate[0].fields[2],
       name: '   ',
       values: values,
-      labels: null,
+      labels: undefined,
       config: {
         color: {
           mode: 'continuous-RdYlGr',

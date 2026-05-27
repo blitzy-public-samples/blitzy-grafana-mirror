@@ -21,7 +21,7 @@ export type BackendSrvRequest = {
    * Please have a look at {@link https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API | Fetch API}
    * for supported headers.
    */
-  headers?: Record<string, any>;
+  headers?: Record<string, unknown>;
 
   /**
    * HTTP verb to perform in the remote call GET, POST, PUT etc.
@@ -54,12 +54,12 @@ export type BackendSrvRequest = {
   /**
    * The data to send
    */
-  data?: any;
+  data?: unknown;
 
   /**
    * Query params
    */
-  params?: Record<string, any>;
+  params?: Record<string, unknown>;
 
   /**
    * Define how the response object should be parsed.  See:
@@ -98,7 +98,7 @@ export type BackendSrvRequest = {
  *
  * @public
  */
-export interface FetchResponse<T = any> {
+export interface FetchResponse<T = unknown> {
   data: T;
   readonly status: number;
   readonly statusText: string;
@@ -119,7 +119,7 @@ export interface FetchResponse<T = any> {
 export interface FetchErrorDataProps {
   message?: string;
   status?: string;
-  error?: string | any;
+  error?: string | unknown;
 }
 
 /**
@@ -127,7 +127,7 @@ export interface FetchErrorDataProps {
  *
  * @public
  */
-export interface FetchError<T = any> {
+export interface FetchError<T = unknown> {
   status: number;
   statusText?: string;
   data: T;
@@ -138,7 +138,7 @@ export interface FetchError<T = any> {
   traceId?: string;
 }
 
-export function isFetchError<T = any>(e: unknown): e is FetchError<T> {
+export function isFetchError<T = unknown>(e: unknown): e is FetchError<T> {
   return typeof e === 'object' && e !== null && 'status' in e && 'data' in e;
 }
 
@@ -158,11 +158,11 @@ export function isFetchError<T = any>(e: unknown): e is FetchError<T> {
  * @public
  */
 export interface BackendSrv {
-  get<T = any>(url: string, params?: any, requestId?: string, options?: Partial<BackendSrvRequest>): Promise<T>;
+  get<T = unknown>(url: string, params?: BackendSrvRequest['params'], requestId?: string, options?: Partial<BackendSrvRequest>): Promise<T>;
   delete<T = unknown>(url: string, data?: unknown, options?: Partial<BackendSrvRequest>): Promise<T>;
-  post<T = any>(url: string, data?: unknown, options?: Partial<BackendSrvRequest>): Promise<T>;
-  patch<T = any>(url: string, data?: unknown, options?: Partial<BackendSrvRequest>): Promise<T>;
-  put<T = any>(url: string, data?: unknown, options?: Partial<BackendSrvRequest>): Promise<T>;
+  post<T = unknown>(url: string, data?: unknown, options?: Partial<BackendSrvRequest>): Promise<T>;
+  patch<T = unknown>(url: string, data?: unknown, options?: Partial<BackendSrvRequest>): Promise<T>;
+  put<T = unknown>(url: string, data?: unknown, options?: Partial<BackendSrvRequest>): Promise<T>;
 
   /**
    * @deprecated Use the `.fetch()` function instead. If you prefer to work with a promise

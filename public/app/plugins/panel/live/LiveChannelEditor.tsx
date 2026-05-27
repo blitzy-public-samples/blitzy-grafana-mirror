@@ -139,7 +139,7 @@ export function LiveChannelEditor(props: Props) {
                 'Select watchable resource'
               )}
               onChange={(v) => {
-                const resource: GroupDiscoveryResource = (v as any).resource;
+                const resource = (v as { resource?: GroupDiscoveryResource }).resource;
                 if (resource) {
                   props.onChange({
                     scope: LiveChannelScope.Watch,

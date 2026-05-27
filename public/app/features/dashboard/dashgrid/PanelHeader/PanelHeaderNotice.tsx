@@ -32,7 +32,7 @@ export const PanelHeaderNotice = ({ notice, onClick }: Props) => {
   if (notice.link) {
     return (
       <a className={styles.notice} aria-label={notice.text} href={notice.link} target="_blank" rel="noreferrer">
-        <Icon name={iconName} style={{ marginRight: '8px' }} size="md" />
+        <Icon name={iconName} className={styles.linkIcon} size="md" />
       </a>
     );
   }
@@ -75,5 +75,8 @@ const getStyles = (theme: GrafanaTheme2) => ({
       color: `${theme.colors.text.primary}`,
       background: `${theme.colors.background.secondary}`,
     },
+  }),
+  linkIcon: css({
+    marginRight: theme.spacing(1),
   }),
 });

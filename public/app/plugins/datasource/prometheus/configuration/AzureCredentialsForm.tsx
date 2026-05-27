@@ -1,17 +1,17 @@
-import { cx } from '@emotion/css';
+import { css } from '@emotion/css';
 import { type ChangeEvent, useMemo } from 'react';
 
 import { type AzureAuthType, type AzureCredentials } from '@grafana/azure-sdk';
-import { type SelectableValue } from '@grafana/data';
-import { InlineFormLabel, Button, Select, Input } from '@grafana/ui';
+import { type GrafanaTheme2, type SelectableValue } from '@grafana/data';
+import { Button, InlineFormLabel, Input, Select, Stack, useStyles2 } from '@grafana/ui';
 
 export interface Props {
   managedIdentityEnabled: boolean;
   workloadIdentityEnabled: boolean;
   credentials: AzureCredentials;
-  azureCloudOptions?: SelectableValue[];
+  azureCloudOptions?: Array<SelectableValue<string>>;
   onCredentialsChange: (updatedCredentials: AzureCredentials) => void;
-  getSubscriptions?: () => Promise<SelectableValue[]>;
+  getSubscriptions?: () => Promise<Array<SelectableValue<string>>>;
   disabled?: boolean;
 }
 
@@ -24,6 +24,7 @@ export const AzureCredentialsForm = (props: Props) => {
     managedIdentityEnabled,
     workloadIdentityEnabled,
   } = props;
+  const styles = useStyles2(getStyles);
 
   const authTypeOptions = useMemo(() => {
     let opts: Array<SelectableValue<AzureAuthType>> = [
@@ -113,102 +114,82 @@ export const AzureCredentialsForm = (props: Props) => {
   };
 
   return (
-    <div className="gf-form-group">
+    <div className={styles.formGroup}>
       {authTypeOptions.length > 1 && (
-        <div className="gf-form-inline">
-          <div className="gf-form">
-            <InlineFormLabel className="width-12" tooltip="Choose the type of authentication to Azure services">
-              Authentication
-            </InlineFormLabel>
-            <Select
-              className="width-15"
-              value={authTypeOptions.find((opt) => opt.value === credentials.authType)}
-              options={authTypeOptions}
-              onChange={onAuthTypeChange}
-              isDisabled={disabled}
-            />
-          </div>
-        </div>
+        <Stack direction="row" gap={0.5} alignItems="center">
+          <InlineFormLabel width={12} tooltip="Choose the type of authentication to Azure services">
+            Authentication
+          </InlineFormLabel>
+          <Select
+            width={30}
+            value={authTypeOptions.find((opt) => opt.value === credentials.authType)}
+            options={authTypeOptions}
+            onChange={onAuthTypeChange}
+            isDisabled={disabled}
+          />
+        </Stack>
       )}
       {credentials.authType === 'clientsecret' && (
         <>
           {azureCloudOptions && (
-            <div className="gf-form-inline">
-              <div className="gf-form">
-                <InlineFormLabel className="width-12" tooltip="Choose an Azure Cloud">
-                  Azure Cloud
-                </InlineFormLabel>
-                <Select
-                  className="width-15"
-                  value={azureCloudOptions.find((opt) => opt.value === credentials.azureCloud)}
-                  options={azureCloudOptions}
-                  onChange={onAzureCloudChange}
-                  isDisabled={disabled}
-                />
-              </div>
-            </div>
+            <Stack direction="row" gap={0.5} alignItems="center">
+              <InlineFormLabel width={12} tooltip="Choose an Azure Cloud">
+                Azure Cloud
+              </InlineFormLabel>
+              <Select
+                width={30}
+                value={azureCloudOptions.find((opt) => opt.value === credentials.azureCloud)}
+                options={azureCloudOptions}
+                onChange={onAzureCloudChange}
+                isDisabled={disabled}
+              />
+            </Stack>
           )}
-          <div className="gf-form-inline">
-            <div className="gf-form">
-              <InlineFormLabel className="width-12">Directory (tenant) ID</InlineFormLabel>
-              <div className="width-15">
-                <Input
-                  className={cx('width-20')}
-                  placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-                  value={credentials.tenantId || ''}
-                  onChange={onTenantIdChange}
-                  disabled={disabled}
-                />
-              </div>
-            </div>
-          </div>
-          <div className="gf-form-inline">
-            <div className="gf-form">
-              <InlineFormLabel className="width-12">Application (client) ID</InlineFormLabel>
-              <div className="width-15">
-                <Input
-                  className={cx('width-20')}
-                  placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-                  value={credentials.clientId || ''}
-                  onChange={onClientIdChange}
-                  disabled={disabled}
-                />
-              </div>
-            </div>
-          </div>
+          <Stack direction="row" gap={0.5} alignItems="center">
+            <InlineFormLabel width={12}>Directory (tenant) ID</InlineFormLabel>
+            <Input
+              width={40}
+              placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
+              value={credentials.tenantId || ''}
+              onChange={onTenantIdChange}
+              disabled={disabled}
+            />
+          </Stack>
+          <Stack direction="row" gap={0.5} alignItems="center">
+            <InlineFormLabel width={12}>Application (client) ID</InlineFormLabel>
+            <Input
+              width={40}
+              placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
+              value={credentials.clientId || ''}
+              onChange={onClientIdChange}
+              disabled={disabled}
+            />
+          </Stack>
           {typeof credentials.clientSecret === 'symbol' ? (
-            <div className="gf-form-inline">
-              <div className="gf-form">
-                <InlineFormLabel htmlFor="azure-client-secret" className="width-12">
-                  Client Secret
-                </InlineFormLabel>
-                <Input id="azure-client-secret" className={cx('width-20')} placeholder="configured" disabled />
-              </div>
+            <Stack direction="row" gap={0.5} alignItems="center">
+              <InlineFormLabel htmlFor="azure-client-secret" width={12}>
+                Client Secret
+              </InlineFormLabel>
+              <Input id="azure-client-secret" width={40} placeholder="configured" disabled />
               {!disabled && (
-                <div className="gf-form">
-                  <div className={cx('max-width-20 gf-form-inline')}>
-                    <Button variant="secondary" type="button" onClick={onClientSecretReset}>
-                      reset
-                    </Button>
-                  </div>
+                <div className={styles.resetButtonGroup}>
+                  <Button variant="secondary" type="button" onClick={onClientSecretReset}>
+                    reset
+                  </Button>
                 </div>
               )}
-            </div>
+            </Stack>
           ) : (
-            <div className="gf-form-inline">
-              <div className="gf-form">
-                <InlineFormLabel className="width-12">Client Secret</InlineFormLabel>
-                <div className="width-15">
-                  <Input
-                    className={cx('width-20')}
-                    placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-                    value={credentials.clientSecret || ''}
-                    onChange={onClientSecretChange}
-                    disabled={disabled}
-                  />
-                </div>
-              </div>
-            </div>
+            <Stack direction="row" gap={0.5} alignItems="center">
+              <InlineFormLabel width={12}>Client Secret</InlineFormLabel>
+              <Input
+                width={40}
+                placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
+                value={credentials.clientSecret || ''}
+                onChange={onClientSecretChange}
+                disabled={disabled}
+              />
+            </Stack>
           )}
         </>
       )}
@@ -217,3 +198,14 @@ export const AzureCredentialsForm = (props: Props) => {
 };
 
 export default AzureCredentialsForm;
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  formGroup: css({
+    marginBottom: theme.spacing(2.5),
+  }),
+  resetButtonGroup: css({
+    display: 'flex',
+    maxWidth: theme.spacing(40),
+    flexGrow: 1,
+  }),
+});

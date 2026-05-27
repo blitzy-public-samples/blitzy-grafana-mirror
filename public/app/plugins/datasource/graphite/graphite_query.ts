@@ -6,7 +6,7 @@ import { type TemplateSrv } from '@grafana/runtime';
 import { type GraphiteDatasource } from './datasource';
 import { type FuncInstance } from './gfunc';
 import { type AstNode, Parser } from './parser';
-import { type GraphiteSegment } from './types';
+import { type GraphiteQuery as GraphiteQueryShape, type GraphiteSegment } from './types';
 import { arrayMove } from './utils';
 
 export type GraphiteTagOperator = '=' | '=~' | '!=' | '!=~';
@@ -34,14 +34,19 @@ export default class GraphiteQuery {
   functions: FuncInstance[] = [];
   segments: GraphiteSegment[] = [];
   tags: GraphiteTag[] = [];
-  error: any;
+  error: string | null = null;
   seriesByTagUsed = false;
   checkOtherSegmentsIndex = 0;
   removeTagValue: string;
   templateSrv: TemplateSrv | undefined;
   scopedVars?: ScopedVars;
 
-  constructor(datasource: GraphiteDatasource, target: any, templateSrv?: TemplateSrv, scopedVars?: ScopedVars) {
+  constructor(
+    datasource: GraphiteDatasource,
+    target: GraphiteTarget,
+    templateSrv?: TemplateSrv,
+    scopedVars?: ScopedVars
+  ) {
     this.datasource = datasource;
     this.target = target;
     this.templateSrv = templateSrv;
@@ -115,14 +120,17 @@ export default class GraphiteQuery {
     );
   }
 
-  parseTargetRecursive(astNode: any, func: any): any {
+  parseTargetRecursive(astNode: AstNode | null, func: FuncInstance | null): void {
     if (astNode === null) {
-      return null;
+      return;
     }
 
     switch (astNode.type) {
       case 'function':
-        const innerFunc = this.datasource.createFuncInstance(astNode.name, {
+        // For 'function' AstNodes the parser always populates `name`. The non-null assertion
+        // documents that invariant for the type checker; addressing the AstNode shape is out
+        // of scope for this any-elimination refactor.
+        const innerFunc = this.datasource.createFuncInstance(astNode.name!, {
           withDefaultParams: false,
         });
 
@@ -146,23 +154,62 @@ export default class GraphiteQuery {
         }
 
         break;
+      // For the non-'function' cases below `func` is the inner function being filled during a
+      // recursive descent from the 'function' branch above (line ~135); the top-level call
+      // (line ~79) starts the recursion with `func === null` but only the 'function' / top-level
+      // 'metric' branches can be reached at that point. The non-null assertions on `func!`
+      // document this recursion invariant for the type checker.
       case 'series-ref':
         if (this.segments.length > 0 || this.getSeriesByTagFuncIndex() >= 0) {
-          this.addFunctionParameter(func, astNode.value);
+          // 'series-ref' AstNodes carry a string `value` per the parser grammar. The typeof
+          // narrowing satisfies addFunctionParameter's typed surface while preserving runtime
+          // behavior (the value is already a string at this point).
+          if (typeof astNode.value === 'string' || typeof astNode.value === 'number') {
+            this.addFunctionParameter(func!, astNode.value);
+          }
         } else {
-          this.segments.push(astNode);
+          // Construct a minimal GraphiteSegment for the series-ref. The AstNode carries a
+          // string `value`; explicit construction (rather than a structural cast) keeps the
+          // typed surface narrow and lets contextual typing infer the literal segment kind.
+          const segment: GraphiteSegment = {
+            value: typeof astNode.value === 'string' ? astNode.value : String(astNode.value ?? ''),
+            type: 'series-ref',
+          };
+          this.segments.push(segment);
         }
         break;
       case 'bool':
+        // FuncInstance.params is typed as Array<string | number>, so the parser's boolean
+        // 'bool' AstNode values must be stringified to satisfy that typed surface. The
+        // Graphite renderer (FuncInstance.render in gfunc.ts) emits boolean parameters
+        // unquoted whether stored as a literal boolean or as 'true'/'false' strings, so
+        // rendered query output is preserved.
+        this.addFunctionParameter(func!, astNode.value === true ? 'true' : 'false');
+        break;
       case 'string':
       case 'number':
-        this.addFunctionParameter(func, astNode.value);
+        // 'string' AstNodes carry string values; 'number' AstNodes carry numeric values
+        // (from parseFloat). Preserve the primitive type with a typeof narrowing — this
+        // matches the original runtime behavior where `astNode.value as string` was a
+        // no-op at runtime and pushed the primitive directly into FuncInstance.params.
+        if (typeof astNode.value === 'string' || typeof astNode.value === 'number') {
+          this.addFunctionParameter(func!, astNode.value);
+        }
         break;
       case 'metric':
         if (this.segments.length || this.tags.length) {
-          this.addFunctionParameter(func, join(map(astNode.segments, 'value'), '.'));
+          this.addFunctionParameter(func!, join(map(astNode.segments, 'value'), '.'));
         } else {
-          this.segments = astNode.segments;
+          // Map the parser's AstNode[] children into GraphiteSegment[] explicitly. Each child
+          // metric segment carries a string `value`; the optional `type` field is omitted
+          // because the parser emits internal kinds ('segment', 'template') that either lie
+          // outside GraphiteSegment.type's narrow union or are never read by downstream
+          // consumers (the only segment.type checks elsewhere are for 'tag' and 'series-ref').
+          this.segments = (astNode.segments ?? []).map(
+            (s): GraphiteSegment => ({
+              value: typeof s.value === 'string' ? s.value : String(s.value ?? ''),
+            })
+          );
         }
         break;
     }
@@ -180,7 +227,7 @@ export default class GraphiteQuery {
     this.functions.push(newFunc);
   }
 
-  addFunctionParameter(func: FuncInstance, value: string) {
+  addFunctionParameter(func: FuncInstance, value: string | number) {
     if (func.params.length >= func.def.params.length && !get(last(func.def.params), 'multiple', false)) {
       throw { message: 'too many parameters for function ' + func.def.name };
     }
@@ -206,7 +253,7 @@ export default class GraphiteQuery {
     return reduce(this.functions, wrapFunction, metricPath);
   }
 
-  updateModelTarget(targets: any) {
+  updateModelTarget(targets: GraphiteQueryShape[]) {
     if (!this.target.textEditor) {
       this.target.target = this.generateQueryString();
     }
@@ -224,12 +271,23 @@ export default class GraphiteQuery {
     this.functions.forEach((func) => (func.added = false));
   }
 
-  updateRenderedTarget(target: { refId: string | number; target: string; targetFull: any }, targets: any) {
+  updateRenderedTarget(
+    target: { refId: string | number; target?: string; targetFull?: string },
+    targets: GraphiteQueryShape[]
+  ) {
     // render nested query
-    const targetsByRefId = keyBy(targets, 'refId');
+    // `refCount` is a transient property attached during the interpolation pass below; it is
+    // not declared on GraphiteQuery / GraphiteTarget because it is purely internal to this
+    // routine. Use a local intersection type so the assignment at `t.refCount = refCount;`
+    // typechecks without resorting to `any`.
+    const targetsByRefId: Record<string, GraphiteQueryShape & { refCount?: number }> = keyBy(targets, 'refId');
 
     const nestedSeriesRefRegex = /\#([A-Z])/g;
-    let targetWithNestedQueries = target.target;
+    // Callers (e.g. state/helpers.ts) filter their `targets` argument so that every entry has
+    // a defined string `target`, and `this.target` is a GraphiteTarget whose `target` field is
+    // also a defined string. The non-null assertions document those invariants for the type
+    // checker without altering runtime behavior.
+    let targetWithNestedQueries: string = target.target!;
 
     // Use ref count to track circular references
     each(targetsByRefId, (t, id) => {
@@ -237,7 +295,7 @@ export default class GraphiteQuery {
       let refCount = 0;
       each(targetsByRefId, (t2, id2) => {
         if (id2 !== id) {
-          const refMatches = t2.target.match(regex);
+          const refMatches = t2.target!.match(regex);
           refCount += refMatches?.length ?? 0;
         }
       });
@@ -257,9 +315,9 @@ export default class GraphiteQuery {
         if (t.refCount === 0) {
           delete targetsByRefId[g1];
         }
-        t.refCount--;
+        t.refCount!--;
 
-        return t.target;
+        return t.target!;
       });
 
       if (updated === targetWithNestedQueries) {
@@ -275,10 +333,15 @@ export default class GraphiteQuery {
     }
   }
 
-  splitSeriesByTagParams(func: { params: any }) {
+  splitSeriesByTagParams(func: { params: Array<string | number> }) {
     const tagPattern = /([^\!=~]+)(\!?=~?)(.*)/;
     return flatten(
-      map(func.params, (param: string) => {
+      map(func.params, (param) => {
+        // FuncInstance.params is typed as Array<string | number>; only string params can match
+        // the tag expression regex (numeric params would not be valid seriesByTag arguments).
+        if (typeof param !== 'string') {
+          return [];
+        }
         const matches = tagPattern.exec(param);
         if (matches) {
           const tag = matches.slice(1);

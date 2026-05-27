@@ -274,8 +274,8 @@ export class BackendSrv implements BackendService {
     return parseUrlFromOptions(options).pipe(
       this.getFromFetchStream<T>(options),
       this.handleStreamResponse<T>(options),
-      this.handleStreamError(options),
-      this.handleStreamCancellation(options)
+      this.handleStreamError<T>(options),
+      this.handleStreamCancellation<T>(options)
     );
   }
 
@@ -375,9 +375,9 @@ export class BackendSrv implements BackendService {
       return;
     }
 
-    const data: { message: string } = response.data as any;
+    const data: unknown = response.data;
 
-    if (data?.message) {
+    if (data && typeof data === 'object' && 'message' in data && typeof data.message === 'string' && data.message) {
       this.dependencies.appEvents.emit(AppEvents.alertSuccess, [data.message]);
     }
   }
@@ -402,8 +402,20 @@ export class BackendSrv implements BackendService {
       return;
     }
 
+    // err.data is normalized by processRequestError (the only internal caller) and the
+    // showErrorAlert public API contract into an object carrying message/error/traceID
+    // properties. After the `<T = unknown>` defaulting in @grafana/runtime, `err.data`
+    // is `unknown` and must be narrowed before structured access. Use `typeof` and `in`
+    // operator predicates to extract the expected fields without a type assertion.
+    const errData = err.data;
+    const errDataIsObject = errData != null && typeof errData === 'object';
+    const dataMessage =
+      errDataIsObject && 'message' in errData && typeof errData.message === 'string' ? errData.message : '';
+    const dataTraceID =
+      errDataIsObject && 'traceID' in errData && typeof errData.traceID === 'string' ? errData.traceID : undefined;
+
     let description = '';
-    let message = err.data.message;
+    let message = dataMessage;
 
     // Sometimes we have a better error message on err.message
     if (message === 'Unexpected error' && err.message) {
@@ -417,14 +429,14 @@ export class BackendSrv implements BackendService {
 
     // Validation
     if (err.status === 422) {
-      description = err.data.message;
+      description = dataMessage;
       message = 'Validation failed';
     }
 
     this.dependencies.appEvents.emit(err.status < 500 ? AppEvents.alertWarning : AppEvents.alertError, [
       message,
       description,
-      err.data.traceID,
+      dataTraceID,
     ]);
   }
 
@@ -433,25 +445,115 @@ export class BackendSrv implements BackendService {
    *
    * @see DataQueryError.data
    */
-  processRequestError(options: BackendSrvRequest, err: FetchError): FetchError<{ message: string; error?: string }> {
-    err.data = err.data ?? { message: 'Unexpected error' };
+  processRequestError(options: BackendSrvRequest, err: FetchError): FetchError {
+    // After the `<T = unknown>` defaulting in @grafana/runtime, inbound `err.data` is
+    // `unknown` and must be narrowed before structured access. Build a typed
+    // `normalizedData` payload from `err.data` via runtime checks (`typeof` + `in`
+    // operator predicates), then mutate `err.data` in place to preserve the prototype
+    // chain of the inbound error. Mutation (rather than constructing `{ ...err, ... }`)
+    // matters for non-FetchError errors such as `PathValidationError` whose
+    // `instanceof` semantics must survive normalization — downstream observable
+    // consumers and rejection handlers rely on those prototype checks.
+    //
+    // Returning the bare `FetchError` (rather than `FetchError<{ message, error? }>`)
+    // keeps the function free of type assertions: `err.data` is typed as `unknown`
+    // (from the `<T = unknown>` defaulting), so the mutation `err.data = normalizedData`
+    // type-checks without any cast. `processRequestError` is internal to this file —
+    // verified via a repository-wide grep — and its sole caller (`catchError` →
+    // `throwError`) does not consume the return type, so widening to `FetchError` is
+    // safe for the public API surface.
+    //
+    // PRESERVATION CONTRACT (CRITICAL — see history below):
+    // For object-shaped `rawData`, ALL inbound fields MUST be preserved on the
+    // normalized output. This includes — but is not limited to — Kubernetes-style
+    // `errors: ErrorDetails[]` arrays returned by the provisioning API, the
+    // `kind`/`status`/`details` fields of a Kubernetes `Status` payload, and
+    // `error: { id, maxConcurrentSessions }` nested objects emitted on
+    // `ERR_TOKEN_REVOKED` responses. Downstream callers
+    // (`extractFormErrors`/`getFormErrors`/`getConnectionFormErrors` in
+    // `features/provisioning/utils/getFormErrors.ts`, `data.errors[0].message`
+    // accesses in `features/alerting/unified/components/rule-editor/util.ts`,
+    // `features/dashboard/components/PanelEditor/PanelEditorTableView.tsx`, and
+    // `plugins/datasource/tempo/datasource.ts`) all read these fields off of
+    // `err.data` after normalization. The earlier closed-allowlist normalizer
+    // (`{message, error, response, traceID}` only) silently dropped those fields
+    // and broke per-field form validation in provisioning forms; the preservation
+    // pattern below restores the original contract while keeping `<T = unknown>`
+    // type safety. The `NormalizedData` index signature carries arbitrary
+    // passthrough fields as `unknown`, matching the inbound shape.
+    type NormalizedData = {
+      message: string;
+      error?: string;
+      response?: string;
+      traceID?: string;
+      [key: string]: unknown;
+    };
+    const rawData = err.data;
 
-    if (typeof err.data === 'string') {
-      const message = isHtmlResponse(err.data) ? `${err.status} ${err.statusText ?? 'Error'}` : err.data;
-      err.data = {
+    // `normalizedData` widens to `unknown[]` for raw array payloads (e.g., the
+    // `ErrorDetails[]` shape declared in the union type of
+    // `extractFormErrors(data: ErrorDetails[] | Status)`). For object-shaped
+    // payloads, `NormalizedData` carries arbitrary passthrough fields via its
+    // index signature so callers that read `data.errors[]`, `data.kind`,
+    // `data.details`, etc. see the inbound shape unchanged after normalization.
+    let normalizedData: NormalizedData | unknown[];
+    if (rawData == null) {
+      normalizedData = { message: 'Unexpected error' };
+    } else if (typeof rawData === 'string') {
+      const message = isHtmlResponse(rawData) ? `${err.status} ${err.statusText ?? 'Error'}` : rawData;
+      normalizedData = {
         message,
         error: err.statusText,
-        response: err.data,
+        response: rawData,
       };
+    } else if (Array.isArray(rawData)) {
+      // Preserve raw array payloads (e.g., `ErrorDetails[]` directly returned by
+      // the provisioning API). Downstream consumers like `extractFormErrors`
+      // detect arrays via `Array.isArray(data)` before accessing object fields,
+      // so the array is forwarded as-is without wrapping. No alert is fired for
+      // array payloads because there is no `message` field on an array — this
+      // matches the pre-088f3c7da2 behavior where `err.data.message` on an array
+      // was `undefined` and the alert short-circuited via `if (err.data.message)`.
+      normalizedData = rawData;
+    } else if (typeof rawData === 'object') {
+      // Preserve ALL fields from the inbound error object (errors[], kind, details,
+      // nested error sub-objects, etc.). Narrow `message`/`error` to strings for
+      // type-safe access by `showErrorAlert` and downstream consumers, falling back
+      // to the `error` string if no `message` is present (preserves the pre-088f3c7da2
+      // behavior of copying `error` to `message` when `message` is empty). For
+      // payloads that have neither `message` nor a string `error` field, default to
+      // an empty string so the alert-trigger check below stays falsy — matching the
+      // original behavior of skipping the alert for such payloads. The `in` operator
+      // predicate narrows `rawData` for property access without a type assertion
+      // (assertions are disallowed by `@typescript-eslint/consistent-type-assertions:
+      // ['error', { assertionStyle: 'never' }]`); the spread `{...rawData}` is
+      // permitted on the post-narrowed `object` type and carries every enumerable
+      // own field into the new normalized payload.
+      const rawMessage = 'message' in rawData ? rawData.message : undefined;
+      const rawError = 'error' in rawData ? rawData.error : undefined;
+      const dataMessage = typeof rawMessage === 'string' ? rawMessage : undefined;
+      const dataError = typeof rawError === 'string' ? rawError : undefined;
+      const message = dataMessage ?? dataError ?? '';
+      normalizedData = {
+        ...rawData,
+        message,
+      };
+    } else {
+      // numbers, booleans, etc. — treat like null/undefined
+      normalizedData = { message: 'Unexpected error' };
     }
 
-    // If no message but got error string, copy to message prop
-    if (err.data && !err.data.message && typeof err.data.error === 'string') {
-      err.data.message = err.data.error;
-    }
+    // Mutate `err.data` in place. Since `err.data` is typed as `unknown`, this
+    // assignment is type-safe without a cast. Mutation preserves `err`'s prototype
+    // chain — critical for `instanceof` checks on custom error subclasses like
+    // `PathValidationError` that flow through this normalization path.
+    err.data = normalizedData;
 
-    // check if we should show an error alert
-    if (err.data.message) {
+    // check if we should show an error alert (skip for raw array payloads which
+    // have no `message` field — preserves pre-088f3c7da2 behavior where the
+    // `if (err.data.message)` check short-circuited on arrays).
+    const alertMessage = !Array.isArray(normalizedData) ? normalizedData.message : '';
+    if (alertMessage) {
       setTimeout(() => {
         if (!err.isHandled) {
           this.showErrorAlert(options, err);
@@ -538,7 +640,7 @@ export class BackendSrv implements BackendService {
       );
   }
 
-  private handleStreamCancellation(options: BackendSrvRequest): MonoTypeOperatorFunction<FetchResponse> {
+  private handleStreamCancellation<T>(options: BackendSrvRequest): MonoTypeOperatorFunction<FetchResponse<T>> {
     return (inputStream) =>
       inputStream.pipe(
         takeUntil(
@@ -578,7 +680,7 @@ export class BackendSrv implements BackendService {
     return this.inspectorStream;
   }
 
-  async get<T = any>(
+  async get<T = unknown>(
     url: string,
     params?: BackendSrvRequest['params'],
     requestId?: BackendSrvRequest['requestId'],
@@ -591,15 +693,15 @@ export class BackendSrv implements BackendService {
     return this.request<T>({ ...options, method: 'DELETE', url, data });
   }
 
-  async post<T = any>(url: string, data?: unknown, options?: Partial<BackendSrvRequest>) {
+  async post<T = unknown>(url: string, data?: unknown, options?: Partial<BackendSrvRequest>) {
     return this.request<T>({ ...options, method: 'POST', url, data });
   }
 
-  async patch<T = any>(url: string, data: unknown, options?: Partial<BackendSrvRequest>) {
+  async patch<T = unknown>(url: string, data: unknown, options?: Partial<BackendSrvRequest>) {
     return this.request<T>({ ...options, method: 'PATCH', url, data });
   }
 
-  async put<T = any>(url: string, data: unknown, options?: Partial<BackendSrvRequest>): Promise<T> {
+  async put<T = unknown>(url: string, data: unknown, options?: Partial<BackendSrvRequest>): Promise<T> {
     return this.request<T>({ ...options, method: 'PUT', url, data });
   }
 

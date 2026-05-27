@@ -250,7 +250,7 @@ export function filterByValue(field?: Field) {
   };
 }
 
-export function calculateUniqueFieldValues(rows: any[], field?: Field) {
+export function calculateUniqueFieldValues(rows: Row[], field?: Field) {
   if (!field || rows.length === 0) {
     return {};
   }
@@ -265,7 +265,7 @@ export function calculateUniqueFieldValues(rows: any[], field?: Field) {
   return set;
 }
 
-export function rowToFieldValue(row: any, field?: Field): string {
+export function rowToFieldValue(row: Row, field?: Field): string {
   if (!field || !row) {
     return '';
   }
@@ -326,12 +326,12 @@ export function sortNumber(rowA: Row, rowB: Row, id: string) {
   return a === b ? 0 : a > b ? 1 : -1;
 }
 
-function toNumber(value: any): number {
+function toNumber(value: unknown): number {
   if (isDataFrameWithValue(value)) {
     return value.value ?? Number.NEGATIVE_INFINITY;
   }
 
-  if (value === null || value === undefined || value === '' || isNaN(value)) {
+  if (value === null || value === undefined || value === '' || Number.isNaN(Number(value))) {
     return Number.NEGATIVE_INFINITY;
   }
 
@@ -344,7 +344,7 @@ function toNumber(value: any): number {
 
 export function getFooterItems(
   filterFields: Array<{ id: string; field?: Field } | undefined>,
-  values: any[number],
+  values: Record<string, unknown[]>,
   options: TableFooterCalc,
   theme2: GrafanaTheme2
 ): FooterItem[] {
@@ -424,8 +424,8 @@ function getFormattedValue(field: Field, reducer: string[], theme: GrafanaTheme2
 }
 
 // This strips the raw vales from the `rows` object.
-export function createFooterCalculationValues(rows: Row[]): any[number] {
-  const values: any[number] = [];
+export function createFooterCalculationValues(rows: Row[]): Record<string, unknown[]> {
+  const values: Record<string, unknown[]> = {};
 
   for (const key in rows) {
     for (const [valKey, val] of Object.entries(rows[key].values)) {

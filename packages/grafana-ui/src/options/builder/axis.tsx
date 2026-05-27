@@ -204,7 +204,6 @@ export const ScaleDistributionEditor = ({
           label={t('grafana-ui.axis-builder.linear-threshold.label', 'Linear threshold')}
           invalid={!!linearThresholdWarning}
           error={linearThresholdWarning}
-          style={{ marginBottom: 0 }}
           noMargin
         >
           <Input

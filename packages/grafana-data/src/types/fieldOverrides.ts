@@ -15,6 +15,7 @@ import { type MatcherConfig } from './transformations';
 
 export interface DynamicConfigValue {
   id: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- value is heterogeneous (varies per config property id: number, string, color object, thresholds, mappings, etc.) and downstream consumers across @grafana/data and @grafana/ui access shape-specific properties (e.g., value.fixedColor, value.wrapText) without narrowing; preserving `any` avoids cascading type-narrowing changes in out-of-scope files
   value?: any;
 }
 
@@ -55,6 +56,7 @@ export const isSystemOverride = (override: ConfigOverrideRule): override is Syst
   return '__systemRef' in override && typeof override.__systemRef === 'string';
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic default `TOptions = any` preserved for back-compat: FieldConfigSource is heavily used across panel plugins; consumers default to `any` for custom field config when not parameterizing
 export interface FieldConfigSource<TOptions = any> {
   // Defaults applied to all numeric fields
   defaults: FieldConfig<TOptions>;
@@ -63,7 +65,7 @@ export interface FieldConfigSource<TOptions = any> {
   overrides: ConfigOverrideRule[];
 }
 
-export interface FieldOverrideContext extends StandardEditorContext<any> {
+export interface FieldOverrideContext extends StandardEditorContext<unknown> {
   field?: Field;
   dataFrameIndex?: number; // The index for the selected field frame
 }
@@ -74,6 +76,7 @@ export type FieldConfigEditorProps<TValue, TSettings extends {}> = StandardEdito
 /** @deprecated Use StandardEditorProps instead */
 export type FieldOverrideEditorProps<TValue, TSettings extends {}> = StandardEditorProps<TValue, TSettings>;
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic defaults `TSettings = any, TValue = any` preserved for back-compat to match parent OptionEditorConfig defaults; field config editors omit explicit type parameters
 export interface FieldConfigEditorConfig<TOptions, TSettings = any, TValue = any>
   extends OptionEditorConfig<TOptions, TSettings, TValue> {
   /**
@@ -89,6 +92,7 @@ export interface FieldConfigEditorConfig<TOptions, TSettings = any, TValue = any
   hideFromOverrides?: boolean;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic defaults preserved for back-compat: FieldConfigPropertyItem is registered with 3 type parameters often omitted by callers; defaults to `any` for ergonomics in registry usage
 export interface FieldConfigPropertyItem<TOptions = any, TValue = any, TSettings extends {} = any>
   extends OptionsEditorItem<TOptions, TSettings, StandardEditorProps<TValue, TSettings>, TValue> {
   // An editor that can be filled in with context info (template variables etc)
@@ -104,6 +108,7 @@ export interface FieldConfigPropertyItem<TOptions = any, TValue = any, TSettings
   hideFromOverrides?: boolean;
 
   /** Convert the override value to a well typed value */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- `value` parameter must remain `any` to accept processor implementations whose `value` parameter is typed more strictly (e.g., booleanOverrideProcessor: (value: boolean) => ..., unitOverrideProcessor: (value: boolean) => ...); TypeScript function parameter contravariance prevents `unknown` here without modifying out-of-scope processor implementations
   process: (value: any, context: FieldOverrideContext, settings?: TSettings) => TValue | undefined | null;
 
   /** Checks if field should be processed */

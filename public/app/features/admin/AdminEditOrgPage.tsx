@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
 import { useParams } from 'react-router-dom-v5-compat';
 import { useAsyncFn } from 'react-use';
 
 import { type NavModelItem, type OrgRole } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
-import { Field, Input, Button, Legend, Alert } from '@grafana/ui';
+import { Alert, Box, Button, Field, Form, Input, Legend } from '@grafana/ui';
 import { Page } from 'app/core/components/Page/Page';
 import { contextSrv } from 'app/core/services/context_srv';
 import { AccessControlAction } from 'app/types/accessControl';
@@ -29,11 +28,6 @@ const AdminEditOrgPage = () => {
   const [totalPages, setTotalPages] = useState(1);
 
   const [orgState, fetchOrg] = useAsyncFn(() => getOrg(orgId), []);
-  const {
-    handleSubmit,
-    register,
-    formState: { errors },
-  } = useForm<OrgNameDTO>();
   const [, fetchOrgUsers] = useAsyncFn(async (page) => {
     const result = await getOrgUsers(orgId, page);
 
@@ -99,26 +93,30 @@ const AdminEditOrgPage = () => {
             <Trans i18nKey="admin.edit-org.heading">Edit Organization</Trans>
           </Legend>
           {orgState.value && (
-            <form onSubmit={handleSubmit(onUpdateOrgName)} style={{ maxWidth: '600px' }}>
-              <Field
-                label={t('admin.admin-edit-org-page.label-name', 'Name')}
-                invalid={!!errors.orgName}
-                error="Name is required"
-                disabled={!canWriteOrg}
-              >
-                <Input
-                  {...register('orgName', { required: true })}
-                  id="org-name-input"
-                  defaultValue={orgState.value.name}
-                />
-              </Field>
-              <Button type="submit" disabled={!canWriteOrg}>
-                <Trans i18nKey="admin.edit-org.update-button">Update</Trans>
-              </Button>
-            </form>
+            <Form<OrgNameDTO>
+              defaultValues={{ orgName: orgState.value.name }}
+              onSubmit={onUpdateOrgName}
+              maxWidth={600}
+            >
+              {({ register, formState: { errors } }) => (
+                <>
+                  <Field
+                    label={t('admin.admin-edit-org-page.label-name', 'Name')}
+                    invalid={!!errors.orgName}
+                    error="Name is required"
+                    disabled={!canWriteOrg}
+                  >
+                    <Input {...register('orgName', { required: true })} id="org-name-input" />
+                  </Field>
+                  <Button type="submit" disabled={!canWriteOrg}>
+                    <Trans i18nKey="admin.edit-org.update-button">Update</Trans>
+                  </Button>
+                </>
+              )}
+            </Form>
           )}
 
-          <div style={{ marginTop: '20px' }}>
+          <Box marginTop={2.5}>
             <Legend>
               <Trans i18nKey="admin.edit-org.users-heading">Organization users</Trans>
             </Legend>
@@ -134,7 +132,7 @@ const AdminEditOrgPage = () => {
                 totalPages={totalPages}
               />
             )}
-          </div>
+          </Box>
         </>
       </Page.Contents>
     </Page>

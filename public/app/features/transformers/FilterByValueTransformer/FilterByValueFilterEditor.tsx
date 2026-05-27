@@ -1,9 +1,10 @@
+import { css } from '@emotion/css';
 import { useCallback } from 'react';
 
-import { type Field, type SelectableValue, valueMatchers } from '@grafana/data';
+import { type Field, type GrafanaTheme2, type SelectableValue, valueMatchers } from '@grafana/data';
 import { type FilterByValueFilter } from '@grafana/data/internal';
 import { t } from '@grafana/i18n';
-import { Button, Select, InlineField, InlineFieldRow, Box } from '@grafana/ui';
+import { Box, Button, InlineField, InlineFieldRow, Select, useStyles2 } from '@grafana/ui';
 
 import { valueMatchersUI } from './ValueMatchers/valueMatchersUI';
 
@@ -21,6 +22,7 @@ export interface DataFrameFieldsInfo {
 
 export const FilterByValueFilterEditor = (props: Props) => {
   const { onDelete, onChange, filter, fieldsInfo } = props;
+  const styles = useStyles2(getStyles);
   const { fieldsAsOptions, fieldByDisplayName } = fieldsInfo;
   const fieldName = getFieldName(filter, fieldsAsOptions) ?? '';
   const field = fieldByDisplayName[fieldName];
@@ -79,7 +81,7 @@ export const FilterByValueFilterEditor = (props: Props) => {
     <InlineFieldRow>
       <InlineField label={t('transformers.filter-by-value-filter-editor.label-field', 'Field')} labelWidth={14}>
         <Select
-          className="min-width-15 max-width-24"
+          className={styles.fieldSelect}
           placeholder={t('transformers.filter-by-value-filter-editor.placeholder-field-name', 'Field name')}
           options={fieldsAsOptions}
           value={filter.fieldName}
@@ -88,7 +90,7 @@ export const FilterByValueFilterEditor = (props: Props) => {
       </InlineField>
       <InlineField label={t('transformers.filter-by-value-filter-editor.label-match', 'Match')}>
         <Select
-          className="width-12"
+          className={styles.matcherSelect}
           placeholder={t('transformers.filter-by-value-filter-editor.placeholder-select-test', 'Select test')}
           options={matcherOptions}
           value={matcherId}
@@ -167,3 +169,14 @@ const getFieldName = (
 
   return;
 };
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  fieldSelect: css({
+    minWidth: theme.spacing(30),
+    maxWidth: theme.spacing(48),
+    flexGrow: 1,
+  }),
+  matcherSelect: css({
+    width: theme.spacing(24),
+  }),
+});

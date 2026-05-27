@@ -37,6 +37,13 @@ import { type Correlation, type CreateCorrelationParams, type OmitUnion } from '
 // Set app events up, otherwise plugin modules will fail to load
 setAppEvents(appEvents);
 
+// Pre-existing flake category from QA CP3: the suite passes comfortably in
+// isolation (12/12 tests in ~39s) but individual tests can exceed the default
+// 30s per-test budget under parallel CPU contention in CI. Bumping the budget
+// to 180s eliminates the parallel-execution timeout flake without changing
+// any behavior under test.
+jest.setTimeout(180 * 1000);
+
 const renderWithContext = async (
   datasources: ConstructorParameters<typeof MockDataSourceSrv>[0] = {},
   correlations: Correlation[] = []

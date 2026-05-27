@@ -61,9 +61,10 @@ export function StandardVariableQueryEditor<
   datasource: propsDatasource,
   query: propsQuery,
   onChange: propsOnChange,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- TypeScript's invariance in DataSourceApi's generic parameters means a parameterized DataSourceApi<TQuery, TOptions> cannot be assigned to LegacyVariableQueryEditor's default DataSourceApi parameter through React's PropTypes validation chain; preserving `any` here matches the variance-driven pattern documented in the parent `types.ts` (see VariableQueryEditorType).
 }: QueryEditorProps<any, TQuery, TOptions, StandardVariableQuery>) {
   const onChange = useCallback(
-    (query: any) => {
+    (query: string) => {
       propsOnChange({ refId: 'StandardVariableQuery', query });
     },
     [propsOnChange]

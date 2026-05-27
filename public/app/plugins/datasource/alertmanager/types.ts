@@ -75,6 +75,7 @@ export type WebhookConfig = {
   max_alerts?: number;
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Receiver settings are heterogeneous per integration type (slack, pagerduty, telegram, opsgenie, webhook, etc.); each integration has its own schema and consumers (e.g. onCall.ts, useOnCallIntegration.tsx, useReceiversMetadata.ts, ChannelOptions.tsx, ChannelSubForm.tsx) read arbitrary keys without narrowing — narrowing to unknown would require updating consumer files outside this refactor's minimal-change scope.
 type GrafanaManagedReceiverConfigSettings<T = any> = Record<string, T>;
 export type GrafanaManagedReceiverSecureFields = Record<string, boolean>;
 
@@ -124,6 +125,7 @@ export interface AlertmanagerReceiver {
   webhook_configs?: WebhookConfig[];
 
   // this is supposedly to support any *_configs
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Cloud Alertmanager *_configs (slack, pagerduty, telegram, victorops, opsgenie, etc.) are heterogeneous per integration type per the Prometheus Alertmanager config schema; consumers (notably mocks/server.ts which is out of scope for this refactor) access type-specific properties (chat_id, parse_mode, etc.) without narrowing.
   [key: `${string}_configs`]: any[] | undefined;
 }
 

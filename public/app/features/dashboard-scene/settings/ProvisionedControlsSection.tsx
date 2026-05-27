@@ -1,5 +1,4 @@
 import { css } from '@emotion/css';
-import classNames from 'classnames';
 import { type ReactNode, useMemo, useState } from 'react';
 
 import { type GrafanaTheme2 } from '@grafana/data';
@@ -25,7 +24,19 @@ export function ProvisionedControlsSection({ columns, children }: Props) {
   return (
     <div className={styles.container}>
       <CollapsableSection label={<ProvisionedControlsSectionLabel />} isOpen={isOpen} onToggle={setIsOpen}>
-        <table className={classNames('filter-table', 'filter-table--hover', styles.table)} role="grid">
+        {/*
+          Design system gap: this component is a slot-based table wrapper that accepts
+          body rows as React children (JSX <tr><td>...</td></tr>). @grafana/ui's
+          InteractiveTable requires a data: T[] + cell-renderer config and does not
+          support children-as-JSX. Converting would require breaking API changes to
+          callers in subfolders (ProvisionedLinksSection.tsx, ProvisionedVariablesSection.tsx)
+          which is out of scope per AAP §0.9.2.12 (minimal change mandate). Kept as raw
+          per AAP §0.4.4 Gaps Inventory. The legacy 'filter-table' / 'filter-table--hover'
+          Sass classes have been replaced with a local theme-aware Emotion style block
+          (see getStyles.table) which reproduces the same zebra striping, hover, padding
+          and lineHeight using theme.spacing / theme.colors tokens per AAP §0.4.3.
+        */}
+        <table className={styles.table} role="grid">
           <thead>
             <tr>
               {columns.map((col) => (
@@ -92,8 +103,43 @@ const getStyles = (theme: GrafanaTheme2) => ({
   container: css({
     marginTop: theme.spacing(3),
   }),
+  // Theme-aware replacement for the legacy `filter-table` / `filter-table--hover`
+  // Sass selectors defined in packages/grafana-ui/src/themes/GlobalStyles/filterTable.ts.
+  // Reproduces zebra striping, hover background, header/cell padding, line height and
+  // row height using theme tokens (theme.spacing, theme.colors.emphasize) so the
+  // appearance and behavior of the slot-based table is preserved verbatim while
+  // removing the legacy className strings flagged in Dimension 3.
   table: css({
     width: '100%',
+    borderCollapse: 'separate',
+
+    '& *': {
+      boxSizing: 'border-box',
+    },
+
+    'tbody tr:nth-of-type(odd)': {
+      background: theme.colors.emphasize(theme.colors.background.primary, 0.02),
+    },
+
+    'tbody tr:hover': {
+      background: theme.colors.emphasize(theme.colors.background.primary, 0.05),
+    },
+
+    th: {
+      width: 'auto',
+      padding: theme.spacing(0.5, 1),
+      textAlign: 'left',
+      lineHeight: '30px',
+      height: '30px',
+      whiteSpace: 'nowrap',
+    },
+
+    td: {
+      padding: theme.spacing(0.5, 1),
+      lineHeight: '30px',
+      height: '30px',
+      whiteSpace: 'nowrap',
+    },
   }),
   thNarrow: css({
     width: '1%',

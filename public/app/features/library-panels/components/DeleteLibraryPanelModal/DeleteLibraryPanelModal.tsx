@@ -2,7 +2,7 @@ import { type FC, useEffect, useMemo, useReducer } from 'react';
 
 import { LoadingState } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
-import { Button, Modal, useStyles2 } from '@grafana/ui';
+import { Button, type Column, InteractiveTable, Modal, useStyles2 } from '@grafana/ui';
 
 import { getModalStyles } from '../../styles';
 import { type LibraryElementDTO } from '../../types';
@@ -74,10 +74,35 @@ const Confirm = () => {
   );
 };
 
+interface ConnectedDashboardRow {
+  id: string;
+  name: string;
+}
+
 const HasConnectedDashboards: FC<{ dashboardTitles: string[] }> = ({ dashboardTitles }) => {
   const styles = useStyles2(getModalStyles);
   const suffix = dashboardTitles.length === 1 ? 'dashboard.' : 'dashboards.';
   const message = `${dashboardTitles.length} ${suffix}`;
+  // Use the source array index as the stable row identity. Dashboard titles are not
+  // guaranteed to be unique across folders, and `InteractiveTable`'s underlying
+  // `react-table` requires a unique `id` per row — using the title would collapse
+  // duplicate-name rows into a single row, regressing the original raw-<table>
+  // behavior which keyed rows by `dash-title-${i}`. The connected-dashboards API
+  // does not currently surface dashboard UIDs for this list, so the array index is
+  // the most stable available identifier.
+  const tableData = useMemo<ConnectedDashboardRow[]>(
+    () => dashboardTitles.map((name, index) => ({ id: String(index), name })),
+    [dashboardTitles]
+  );
+  const columns = useMemo<Array<Column<ConnectedDashboardRow>>>(
+    () => [
+      {
+        id: 'name',
+        header: t('library-panels.has-connected-dashboards.dashboard-name', 'Dashboard name'),
+      },
+    ],
+    []
+  );
   if (dashboardTitles.length === 0) {
     return null;
   }
@@ -89,22 +114,7 @@ const HasConnectedDashboards: FC<{ dashboardTitles: string[] }> = ({ dashboardTi
         <strong>{message}</strong>
         {' Remove the library panel from the dashboards listed below and retry.'}
       </p>
-      <table className={styles.myTable}>
-        <thead>
-          <tr>
-            <th>
-              <Trans i18nKey="library-panels.has-connected-dashboards.dashboard-name">Dashboard name</Trans>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {dashboardTitles.map((title, i) => (
-            <tr key={`dash-title-${i}`}>
-              <td>{title}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <InteractiveTable columns={columns} data={tableData} getRowId={(row) => row.id} />
     </div>
   );
 };

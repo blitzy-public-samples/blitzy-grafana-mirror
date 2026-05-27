@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import { css } from '@emotion/css';
 import { memo } from 'react';
 
 import { t } from '@grafana/i18n';
-import { IconButton, Input } from '@grafana/ui';
+import { IconButton, Input, useStyles2 } from '@grafana/ui';
 
 type Props = {
   value?: string;
@@ -23,6 +24,7 @@ type Props = {
 };
 
 const SearchBarInput = memo(({ value = '', onChange }: Props) => {
+  const styles = useStyles2(getStyles);
   const clearUiFind = () => {
     onChange('');
   };
@@ -40,7 +42,7 @@ const SearchBarInput = memo(({ value = '', onChange }: Props) => {
   );
 
   return (
-    <div style={{ width: '200px' }}>
+    <div className={styles.searchBarInput}>
       <Input
         placeholder={t('explore.search-bar-input.placeholder-find', 'Find...')}
         onChange={(e) => onChange(e.currentTarget.value)}
@@ -51,5 +53,11 @@ const SearchBarInput = memo(({ value = '', onChange }: Props) => {
   );
 });
 SearchBarInput.displayName = 'SearchBarInput';
+
+const getStyles = () => ({
+  searchBarInput: css({
+    width: '200px',
+  }),
+});
 
 export default SearchBarInput;

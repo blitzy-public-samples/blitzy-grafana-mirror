@@ -1,6 +1,6 @@
 import { t } from '@grafana/i18n';
 import { type SceneObject } from '@grafana/scenes';
-import { Icon, ModalsController } from '@grafana/ui';
+import { IconButton, ModalsController } from '@grafana/ui';
 
 import { type OnRowOptionsUpdate } from './RowOptionsForm';
 import { RowOptionsModal } from './RowOptionsModal';
@@ -18,9 +18,8 @@ export const RowOptionsButton = ({ repeat, title, parent, onUpdate, isUsingDashb
     <ModalsController>
       {({ showModal, hideModal }) => {
         return (
-          <button
-            type="button"
-            className="pointer"
+          <IconButton
+            name="cog"
             aria-label={t('dashboard.default-layout.row-options.button.label', 'Row options')}
             onClick={() => {
               showModal(RowOptionsModal, {
@@ -35,9 +34,7 @@ export const RowOptionsButton = ({ repeat, title, parent, onUpdate, isUsingDashb
                 isUsingDashboardDS,
               });
             }}
-          >
-            <Icon name="cog" />
-          </button>
+          />
         );
       }}
     </ModalsController>

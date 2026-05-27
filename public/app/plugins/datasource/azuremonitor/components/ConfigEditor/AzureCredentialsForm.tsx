@@ -1,10 +1,11 @@
+import { css } from '@emotion/css';
 import { useMemo, type JSX } from 'react';
 
 import { type AzureAuthType, type AzureCredentials, getAzureClouds } from '@grafana/azure-sdk';
-import { type SelectableValue } from '@grafana/data';
+import { type GrafanaTheme2, type SelectableValue } from '@grafana/data';
 import { t } from '@grafana/i18n';
 import { ConfigSection } from '@grafana/plugin-ui';
-import { Field, Select, Stack } from '@grafana/ui';
+import { Field, Select, Stack, useStyles2 } from '@grafana/ui';
 
 import { selectors } from '../../e2e/selectors';
 
@@ -40,6 +41,7 @@ export const AzureCredentialsForm = (props: Props) => {
     workloadIdentityEnabled,
     userIdentityEnabled,
   } = props;
+  const styles = useStyles2(getStyles);
 
   const authTypeOptions = useMemo(() => {
     let opts: Array<SelectableValue<AzureAuthType>> = [
@@ -117,7 +119,7 @@ export const AzureCredentialsForm = (props: Props) => {
             noMargin
           >
             <Select
-              className="width-15"
+              className={styles.width15}
               value={authTypeOptions.find((opt) => opt.value === credentials.authType)}
               options={authTypeOptions}
               onChange={onAuthTypeChange}
@@ -148,5 +150,11 @@ export const AzureCredentialsForm = (props: Props) => {
     </ConfigSection>
   );
 };
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  width15: css({
+    width: theme.spacing(30),
+  }),
+});
 
 export default AzureCredentialsForm;

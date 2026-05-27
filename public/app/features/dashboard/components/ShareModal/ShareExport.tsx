@@ -2,11 +2,13 @@ import { saveAs } from 'file-saver';
 import { memo, useState, useMemo } from 'react';
 
 import { Trans, t } from '@grafana/i18n';
+import { type Dashboard } from '@grafana/schema';
 import { Button, Field, Modal, Switch } from '@grafana/ui';
 import { appEvents } from 'app/core/app_events';
 import { DashboardExporter } from 'app/features/dashboard/components/DashExportModal/DashboardExporter';
 import { makeExportableV1 } from 'app/features/dashboard-scene/scene/export/exporters';
 import { DashboardInteractions } from 'app/features/dashboard-scene/utils/interactions';
+import { type DashboardJson } from 'app/features/manage-dashboards/types';
 import { ShowModalReactEvent } from 'app/types/events';
 
 import { ViewJsonModal } from './ViewJsonModal';
@@ -51,7 +53,10 @@ export const ShareExport = memo(({ dashboard, panel, onDismiss }: Props) => {
     }
   };
 
-  const openSaveAsDialog = (dash: any) => {
+  // The exporter's makeExportable may return either a `Dashboard`, a `DashboardJson`, or an
+  // error variant `{ error: unknown }`. The error variant is admitted to keep the existing
+  // callsite typecheck-safe; pre-existing behavior is preserved per the minimal-change mandate.
+  const openSaveAsDialog = (dash: Dashboard | DashboardJson | { error: unknown; title?: undefined }) => {
     const dashboardJsonPretty = JSON.stringify(dash, null, 2);
     const blob = new Blob([dashboardJsonPretty], {
       type: 'application/json;charset=utf-8',

@@ -36,7 +36,7 @@ export function GrafanaRouteError({ error, errorInfo }: Props) {
               <Trans i18nKey="route-error.title">Unable to find application file</Trans>
             </h2>
             <br />
-            <h2 className="page-heading">
+            <h2 className={styles.pageHeading}>
               <Trans i18nKey="route-error.description">
                 Grafana has likely been updated. Please try reloading the page.
               </Trans>
@@ -64,5 +64,10 @@ const getStyles = (theme: GrafanaTheme2) => ({
   container: css({
     width: '500px',
     margin: theme.spacing(8, 'auto'),
+  }),
+  pageHeading: css({
+    fontSize: theme.typography.h4.fontSize,
+    marginTop: 0,
+    marginBottom: theme.spacing(2),
   }),
 });

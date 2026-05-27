@@ -1,8 +1,11 @@
+import { css } from '@emotion/css';
+
 import {
   type BinaryOperationID,
   binaryOperators,
   FieldMatcherID,
   FieldType,
+  type GrafanaTheme2,
   type SelectableValue,
 } from '@grafana/data';
 import {
@@ -13,7 +16,7 @@ import {
   checkBinaryValueType,
 } from '@grafana/data/internal';
 import { t } from '@grafana/i18n';
-import { getFieldTypeIconName, InlineField, InlineFieldRow, Select } from '@grafana/ui';
+import { getFieldTypeIconName, InlineField, InlineFieldRow, Select, useStyles2 } from '@grafana/ui';
 
 import { LABEL_WIDTH } from './constants';
 
@@ -23,6 +26,7 @@ export const BinaryOperationOptionsEditor = (props: {
   names: string[];
 }) => {
   const { options, onChange } = props;
+  const styles = useStyles2(getStyles);
   const newLeft = checkBinaryValueType(props.options.binary?.left ?? '', props.names);
   const newRight = checkBinaryValueType(props.options.binary?.right ?? '', props.names);
   // If there is a change due to migration, update save model
@@ -148,14 +152,14 @@ export const BinaryOperationOptionsEditor = (props: {
               'Field(s) or number'
             )}
             options={leftNames}
-            className="min-width-18"
+            className={styles.fieldSelect}
             value={JSON.stringify(binary?.left)}
             onChange={onBinaryLeftChanged}
           />
         </InlineField>
         <InlineField>
           <Select
-            className="width-4"
+            className={styles.literalInput}
             options={ops}
             value={binary?.operator ?? ops[0].value}
             onChange={onBinaryOperationChanged}
@@ -168,7 +172,7 @@ export const BinaryOperationOptionsEditor = (props: {
               'transformers.binary-operation-options-editor.placeholder-field-or-number',
               'Field or number'
             )}
-            className="min-width-10"
+            className={styles.operationSelect}
             options={rightNames}
             value={JSON.stringify(binary?.right)}
             onChange={onBinaryRightChanged}
@@ -178,3 +182,15 @@ export const BinaryOperationOptionsEditor = (props: {
     </>
   );
 };
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  fieldSelect: css({
+    minWidth: theme.spacing(36),
+  }),
+  literalInput: css({
+    width: theme.spacing(8),
+  }),
+  operationSelect: css({
+    minWidth: theme.spacing(20),
+  }),
+});

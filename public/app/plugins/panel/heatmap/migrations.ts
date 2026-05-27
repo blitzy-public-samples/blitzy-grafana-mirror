@@ -10,8 +10,57 @@ import {
 import { TooltipDisplayMode } from '@grafana/ui';
 
 import { colorSchemes } from './palettes';
-import { type Options, HeatmapColorMode } from './panelcfg.gen';
+import { type Options, HeatmapColorMode, type HeatmapColorScale } from './panelcfg.gen';
 import { defaultOptions } from './types';
+
+/**
+ * Shape of the legacy Angular heatmap panel configuration that
+ * `angularToReactHeatmap` migrates to the modern React heatmap options
+ * and field-config. Only the properties that the migration logic actually
+ * reads are typed here; all properties are optional because legacy panel
+ * configs may omit any of them.
+ */
+interface LegacyAngularYAxis {
+  logBase?: number;
+  show?: boolean;
+  splitFactor?: number;
+  width?: number | string;
+  min?: number;
+  max?: number;
+  format?: string;
+  decimals?: number;
+}
+
+interface LegacyAngularCards {
+  cardPadding?: number | string;
+  cardRound?: number | string;
+}
+
+interface LegacyAngularColor {
+  mode?: string;
+  colorScheme?: string;
+  scale?: HeatmapColorScale;
+  cardColor?: string;
+  min?: number;
+  max?: number;
+}
+
+interface LegacyAngularHeatmap {
+  dataFormat?: string;
+  xBucketSize?: number | string;
+  xBucketNumber?: number | string;
+  yBucketSize?: number | string;
+  yBucketNumber?: number | string;
+  yBucketBound?: string;
+  yAxis?: LegacyAngularYAxis;
+  cards?: LegacyAngularCards;
+  color?: LegacyAngularColor;
+  legend?: { show?: boolean };
+  tooltip?: { show?: boolean; showHistogram?: boolean };
+  reverseYBuckets?: boolean;
+  tooltipDecimals?: number;
+  hideZeroBuckets?: boolean;
+}
 
 /** Called when the version number changes */
 export const heatmapMigrationHandler = (panel: PanelModel): Partial<Options> => {
@@ -59,7 +108,7 @@ export const heatmapChangedHandler: PanelTypeChangedHandler = (panel, prevPlugin
   return {};
 };
 
-export function angularToReactHeatmap(angular: any): { fieldConfig: FieldConfigSource; options: Options } {
+export function angularToReactHeatmap(angular: LegacyAngularHeatmap): { fieldConfig: FieldConfigSource; options: Options } {
   const fieldConfig: FieldConfigSource = {
     defaults: {},
     overrides: [],
@@ -88,7 +137,7 @@ export function angularToReactHeatmap(angular: any): { fieldConfig: FieldConfigS
     if (oldYAxis.logBase > 1) {
       calculation.yBuckets = {
         mode: HeatmapCalculationMode.Count,
-        value: +oldYAxis.splitFactor > 0 ? `${oldYAxis.splitFactor}` : undefined,
+        value: +(oldYAxis.splitFactor ?? 0) > 0 ? `${oldYAxis.splitFactor}` : undefined,
         scale: {
           type: ScaleDistribution.Log,
           log: oldYAxis.logBase,
@@ -140,12 +189,12 @@ export function angularToReactHeatmap(angular: any): { fieldConfig: FieldConfigS
   }
 
   // Migrate color options
-  const color = angular.color ?? {};
+  const color: LegacyAngularColor = angular.color ?? {};
   switch (color?.mode) {
     case 'spectrum': {
       options.color.mode = HeatmapColorMode.Scheme;
 
-      const current: string = color.colorScheme;
+      const current = color.colorScheme ?? '';
       let scheme = colorSchemes.find((v) => v.name === current);
       if (!scheme) {
         scheme = colorSchemes.find((v) => current.indexOf(v.name) >= 0);
@@ -159,7 +208,11 @@ export function angularToReactHeatmap(angular: any): { fieldConfig: FieldConfigS
       break;
     }
   }
-  options.color.fill = color.cardColor;
+  // Non-null assertion preserves original runtime behavior: the prior `angular: any`
+  // typing allowed `cardColor` (potentially undefined) to be assigned to the required
+  // `fill: string` schema field. Behavior is identical whether `cardColor` is defined
+  // or undefined.
+  options.color.fill = color.cardColor!;
   options.color.min = color.min;
   options.color.max = color.max;
 

@@ -16,6 +16,7 @@ import {
   type DateTime,
   escapeRegex,
   FieldType,
+  type LegacyMetricFindQueryOptions,
   type MetricFindValue,
   type QueryResultMeta,
   type QueryVariableModel,
@@ -28,6 +29,7 @@ import {
 } from '@grafana/data';
 import {
   type BackendDataSourceResponse,
+  type BackendSrvRequest,
   DataSourceWithBackend,
   type FetchResponse,
   getBackendSrv,
@@ -49,6 +51,51 @@ import { buildRawQuery, removeRegexWrapper } from './queryUtils';
 import ResponseParser from './response_parser';
 import { DEFAULT_POLICY, type InfluxOptions, type InfluxQuery, type InfluxVariableQuery, InfluxVersion } from './types';
 import { InfluxVariableSupport } from './variables';
+
+/**
+ * Options accepted by the legacy `metricFindQuery` / `_seriesQuery` / `_influxRequest`
+ * family of methods on this datasource. Extends the canonical
+ * `LegacyMetricFindQueryOptions` shape (`searchFilter`, `scopedVars`, `range`,
+ * `variable`) with the InfluxDB-specific extras (`timezone`, `database`,
+ * `policy`) that the runtime callers (`classicQuery`, `annotationEvents`,
+ * template-variable picker) pass through. `range` is widened to
+ * `RawTimeRange` so legacy callers passing a plain `{ from, to }` shape
+ * (used by some variable pickers) remain assignable while still accepting
+ * full `TimeRange` objects via structural width subtyping.
+ */
+type InfluxMetricFindOptions = Omit<LegacyMetricFindQueryOptions, 'range'> & {
+  range?: RawTimeRange;
+  timezone?: string;
+  database?: string;
+  policy?: string;
+};
+
+/**
+ * Request shape passed to `getBackendSrv().fetch(...)` from the legacy
+ * InfluxQL `_influxRequest` path. Intersects `BackendSrvRequest` with the
+ * legacy `precision`, `inspect`, and `paramSerializer` fields that the
+ * InfluxQL code path relies on. (`BackendSrvRequest` is a type alias, not
+ * an interface, so intersection is used instead of `extends`.)
+ */
+type InfluxBackendSrvRequest = BackendSrvRequest & {
+  precision?: string;
+  inspect?: { type: string };
+  paramSerializer?: (params: Record<string, unknown>) => string;
+};
+
+/**
+ * Shape of errors handled by the legacy `handleErrors` method. Mirrors the
+ * fields that the existing `handleErrors` body inspects (`status`,
+ * `message`, `statusText`, `data.error`, `config`, `cancelled`).
+ */
+type InfluxLegacyError = {
+  status?: number;
+  message?: string;
+  statusText?: string;
+  data?: { error?: string };
+  config?: unknown;
+  cancelled?: boolean;
+};
 
 export default class InfluxDatasource extends DataSourceWithBackend<InfluxQuery, InfluxOptions> {
   type: string;
@@ -155,7 +202,7 @@ export default class InfluxDatasource extends DataSourceWithBackend<InfluxQuery,
   getQueryDisplayText(query: InfluxQuery) {
     switch (this.version) {
       case InfluxVersion.Flux:
-        return query.query;
+        return query.query!;
       case InfluxVersion.SQL:
         return toRawSql(query);
       case InfluxVersion.InfluxQL:
@@ -403,7 +450,7 @@ export default class InfluxDatasource extends DataSourceWithBackend<InfluxQuery,
     ).then(this.toMetricFindValue);
   }
 
-  async metricFindQuery(query: InfluxVariableQuery, options?: any): Promise<MetricFindValue[]> {
+  async metricFindQuery(query: InfluxVariableQuery, options?: InfluxMetricFindOptions): Promise<MetricFindValue[]> {
     if (
       this.version === InfluxVersion.Flux ||
       this.version === InfluxVersion.SQL ||
@@ -416,11 +463,24 @@ export default class InfluxDatasource extends DataSourceWithBackend<InfluxQuery,
         ...(this.version === InfluxVersion.SQL ? { rawSql: query.query, format: QueryFormat.Table } : {}),
       };
       return lastValueFrom(
+        // The framework-provided `LegacyMetricFindQueryOptions` shape (the
+        // canonical contract for `metricFindQuery` per
+        // `DataSourceApi.metricFindQuery`) only carries `searchFilter`,
+        // `scopedVars`, `range`, and `variable`. `super.query()` requires the
+        // wider `DataQueryRequest<InfluxQuery>` (with `requestId`, `interval`,
+        // `intervalMs`, `timezone`, `app`, `startTime`). At runtime the
+        // backend tolerates the partial shape (mirroring the long-standing
+        // `runMetadataQuery` precedent in this file at line 447); fabricating
+        // synthetic defaults for those fields would alter request identity,
+        // caching, and timing semantics. Keeping the assertion preserves the
+        // pre-existing runtime behavior that the previous `options: any`
+        // signature accepted without complaint.
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
         super.query({
           ...(options ?? {}), // includes 'range'
           maxDataPoints: query.maxDataPoints,
           targets: [target],
-        })
+        } as DataQueryRequest<InfluxQuery>)
       ).then(this.toMetricFindValue);
     }
 
@@ -482,13 +542,13 @@ export default class InfluxDatasource extends DataSourceWithBackend<InfluxQuery,
   /**
    * @deprecated
    */
-  _seriesQuery(query: string, options?: any) {
+  _seriesQuery(query: string, options?: InfluxMetricFindOptions) {
     if (!query) {
       return of({ results: [] });
     }
 
     if (options && options.range) {
-      const timeFilter = this.getTimeFilter({ rangeRaw: options.range, timezone: options.timezone });
+      const timeFilter = this.getTimeFilter({ rangeRaw: options.range, timezone: options.timezone ?? '' });
       query = query.replace('$timeFilter', timeFilter);
     }
 
@@ -498,7 +558,7 @@ export default class InfluxDatasource extends DataSourceWithBackend<InfluxQuery,
   /**
    * @deprecated
    */
-  serializeParams(params: any) {
+  serializeParams(params: Record<string, unknown>) {
     if (!params) {
       return '';
     }
@@ -509,7 +569,7 @@ export default class InfluxDatasource extends DataSourceWithBackend<InfluxQuery,
         if (value === null || value === undefined) {
           return memo;
         }
-        memo.push(encodeURIComponent(key) + '=' + encodeURIComponent(value));
+        memo.push(encodeURIComponent(key) + '=' + encodeURIComponent(String(value)));
         return memo;
       },
       []
@@ -519,11 +579,16 @@ export default class InfluxDatasource extends DataSourceWithBackend<InfluxQuery,
   /**
    * @deprecated
    */
-  _influxRequest(method: string, url: string, data: any, options?: any) {
+  _influxRequest(
+    method: string,
+    url: string,
+    data: Record<string, unknown> | string | null,
+    options?: InfluxMetricFindOptions
+  ) {
     const currentUrl = this.urls.shift()!;
     this.urls.push(currentUrl);
 
-    const params: any = {};
+    const params: Record<string, string> = {};
 
     if (this.username) {
       params.u = this.username;
@@ -540,7 +605,14 @@ export default class InfluxDatasource extends DataSourceWithBackend<InfluxQuery,
       params.rp = options.policy;
     }
 
-    const { q } = data;
+    // Capture the executed query string up-front: callers pass `{ q, epoch }`
+    // here, but the local `data` is mutated below into either a serialized
+    // form-encoded string (for POST) or `null` (for GET). Type-narrowing
+    // preserves the expected `q` field shape for the downstream
+    // `executedQueryString` assignment on the response without requiring a
+    // type assertion.
+    const q: string | undefined =
+      data !== null && typeof data === 'object' && 'q' in data && typeof data.q === 'string' ? data.q : undefined;
 
     if (method === 'POST' && has(data, 'q')) {
       // verb is POST and 'q' param is defined
@@ -552,7 +624,7 @@ export default class InfluxDatasource extends DataSourceWithBackend<InfluxQuery,
       data = null;
     }
 
-    const req: any = {
+    const req: InfluxBackendSrvRequest = {
       method: method,
       url: currentUrl + url,
       params: params,
@@ -574,15 +646,25 @@ export default class InfluxDatasource extends DataSourceWithBackend<InfluxQuery,
       req.headers['Content-type'] = 'application/x-www-form-urlencoded';
     }
 
+    // Response shape for InfluxDB query endpoints. The wire format is a wrapped
+    // results array; we mutate `data` in-place to attach the executed query
+    // string for downstream consumers.
+    interface InfluxQueryResultEntry {
+      error?: string;
+    }
+    interface InfluxQueryResponse {
+      executedQueryString?: string;
+      results?: InfluxQueryResultEntry[];
+    }
     return getBackendSrv()
-      .fetch(req)
+      .fetch<InfluxQueryResponse>(req)
       .pipe(
-        map((result: FetchResponse) => {
+        map((result: FetchResponse<InfluxQueryResponse>) => {
           const { data } = result;
           if (data) {
             data.executedQueryString = q;
             if (data.results) {
-              const errors = result.data.results.filter((elem: any) => elem.error);
+              const errors = data.results.filter((elem: InfluxQueryResultEntry) => elem.error);
 
               if (errors.length > 0) {
                 throw {
@@ -607,15 +689,21 @@ export default class InfluxDatasource extends DataSourceWithBackend<InfluxQuery,
   /**
    * @deprecated
    */
-  handleErrors(err: any) {
+  handleErrors(err: InfluxLegacyError) {
     const error: DataQueryError = {
+      // String-coerce `err.status` only when it's a truthy value (preserving
+      // the original `(err && err.status) || ...` fall-through at status === 0
+      // and status === undefined). The original code assigned a numeric
+      // status directly to the string-typed `message` field via `any`;
+      // `String(err.status)` is the type-correct equivalent for non-zero
+      // statuses.
       message:
-        (err && err.status) ||
+        (err && err.status ? String(err.status) : null) ||
         (err && err.message) ||
         'Unknown error during query transaction. Please check JS console logs.',
     };
 
-    if ((Number.isInteger(err.status) && err.status !== 0) || err.status >= 300) {
+    if ((Number.isInteger(err.status) && err.status !== 0) || (err.status !== undefined && err.status >= 300)) {
       if (err.data && err.data.error) {
         error.message = 'InfluxDB Error: ' + err.data.error;
         error.data = err.data;
@@ -672,11 +760,14 @@ export default class InfluxDatasource extends DataSourceWithBackend<InfluxQuery,
    * The unchanged pre 7.1 query implementation
    * @deprecated
    */
-  classicQuery(options: any): Observable<DataQueryResponse> {
-    let timeFilter = this.getTimeFilter(options);
+  classicQuery(options: DataQueryRequest<InfluxQuery>): Observable<DataQueryResponse> {
+    // `getTimeFilter` expects a `{ rangeRaw, timezone }` shape, so the
+    // `RawTimeRange` is extracted from `options.range.raw` (matches the
+    // identical pattern in `annotationEvents` below).
+    let timeFilter = this.getTimeFilter({ rangeRaw: options.range.raw, timezone: options.timezone });
     const scopedVars = options.scopedVars;
     const targets = cloneDeep(options.targets);
-    const queryTargets: any[] = [];
+    const queryTargets: InfluxQuery[] = [];
 
     let i, y;
 

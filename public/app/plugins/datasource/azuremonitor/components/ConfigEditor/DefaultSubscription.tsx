@@ -3,7 +3,7 @@ import { useEffect, useReducer } from 'react';
 import { type AzureCredentials, isCredentialsComplete } from '@grafana/azure-sdk';
 import { type SelectableValue } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
-import { Select, Button, Field } from '@grafana/ui';
+import { Button, Field, Select, Stack } from '@grafana/ui';
 
 import { selectors } from '../../e2e/selectors';
 import { type AzureMonitorDataSourceJsonData } from '../../types/types';
@@ -74,7 +74,7 @@ export const DefaultSubscription = (props: Props) => {
         data-testid={selectors.components.configEditor.defaultSubscription.input}
         htmlFor="default-subscription"
       >
-        <div className="width-30" style={{ display: 'flex', gap: '4px' }}>
+        <Stack direction="row" gap={0.5} width={60}>
           <Select
             inputId="default-subscription"
             aria-label={t('components.default-subscription.aria-label-default-subscription', 'Default Subscription')}
@@ -94,7 +94,7 @@ export const DefaultSubscription = (props: Props) => {
           >
             <Trans i18nKey="components.default-subscription.load-subscriptions">Load Subscriptions</Trans>
           </Button>
-        </div>
+        </Stack>
       </Field>
     </>
   );

@@ -2,7 +2,7 @@ import { css } from '@emotion/css';
 import { uniqueId } from 'lodash';
 import { memo, useState } from 'react';
 
-import { type DataSourceSettings } from '@grafana/data';
+import { type DataSourceJsonData, type DataSourceSettings } from '@grafana/data';
 import { t, Trans } from '@grafana/i18n';
 
 import { useStyles2 } from '../../themes/ThemeContext';
@@ -22,9 +22,26 @@ export interface CustomHeader {
 
 export type CustomHeaders = CustomHeader[];
 
-export interface Props {
-  dataSourceConfig: DataSourceSettings<any, any>;
-  onChange: (config: DataSourceSettings) => void;
+/**
+ * Public SDK type consumed by CustomHeadersSettings (exported from the
+ * `@grafana/ui` barrel and consumed by external datasource plugins, including
+ * `public/app/plugins/datasource/influxdb/components/editor/config-v2/AdvancedHttpSettings.tsx`).
+ *
+ * Generic defaults are intentionally `any` to mirror the public `HttpSettingsBaseProps`
+ * shape — see `./types.ts` for the long-form justification. Narrowing breaks
+ * datasource-plugin config editors that read plugin-specific `jsonData` fields
+ * (`timeInterval`, `httpMode`, `tlsAuth`, ...) without threading explicit
+ * generic arguments through every consumer site (AAP §0.8.7 public API
+ * preservation; AAP §0.8.6 step 7 last-resort retained `any`).
+ */
+export interface Props<
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Props is a public SDK type re-exported via @grafana/ui; default must remain `any` for backwards-compatible plugin authoring (AAP §0.8.7).
+  JSONData extends DataSourceJsonData = any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Props is a public SDK type re-exported via @grafana/ui; default must remain `any` for backwards-compatible plugin authoring (AAP §0.8.7).
+  SecureJSONData = any,
+> {
+  dataSourceConfig: DataSourceSettings<JSONData, SecureJSONData>;
+  onChange: (config: DataSourceSettings<JSONData, SecureJSONData>) => void;
 }
 
 interface CustomHeaderRowProps {
@@ -97,14 +114,16 @@ CustomHeaderRow.displayName = 'CustomHeaderRow';
 export const CustomHeadersSettings = memo<Props>(({ dataSourceConfig, onChange }) => {
   const [headers, setHeaders] = useState<CustomHeaders>(() => {
     const { jsonData, secureJsonData, secureJsonFields } = dataSourceConfig;
-    return Object.keys(jsonData)
-      .sort()
-      .filter((key) => key.startsWith('httpHeaderName'))
-      .map((key, index) => {
+    const secureJsonEntries = secureJsonData !== undefined ? Object.entries(secureJsonData) : undefined;
+    return Object.entries(jsonData)
+      .filter(([key]) => key.startsWith('httpHeaderName'))
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+      .map(([key, rawName], index) => {
+        const rawValue = secureJsonEntries !== undefined ? secureJsonEntries.find(([k]) => k === key)?.[1] : '';
         return {
           id: uniqueId(),
-          name: jsonData[key],
-          value: secureJsonData !== undefined ? secureJsonData[key] : '',
+          name: typeof rawName === 'string' ? rawName : '',
+          value: typeof rawValue === 'string' ? rawValue : '',
           configured: (secureJsonFields && secureJsonFields[`httpHeaderValue${index + 1}`]) || false,
         };
       });

@@ -94,6 +94,7 @@ export const ConfirmContent = ({
   const placeholder = t('grafana-ui.confirm-content.placeholder', 'Type "{{confirmPromptText}}" to confirm', {
     confirmPromptText,
   });
+  // Design system gap: this component already uses react-hook-form's useForm() directly per the Form.tsx @deprecated JSDoc; raw <form> kept to preserve direct useForm() integration with minimal change.
   return (
     <form onSubmit={handleSubmit(onConfirmClick)}>
       <div className={styles.text}>

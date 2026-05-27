@@ -24,6 +24,7 @@ export type { FrameGeometrySource, MapLayerOptions } from '@grafana/schema';
 /**
  * @alpha
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- preserved as default for back-compat with downstream geomap layer consumers
 export interface MapLayerHandler<TConfig = any> {
   init: () => BaseLayer;
   /**

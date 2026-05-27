@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { css } from '@emotion/css';
+import { css, cx } from '@emotion/css';
 import { sortBy as _sortBy } from 'lodash';
 import * as React from 'react';
 
@@ -54,6 +54,9 @@ const getStyles = (theme: GrafanaTheme2) => {
     parenthesis: css({
       color: `${autoColor(theme, '#777')}`,
     }),
+    arrowCollapsed: css({
+      margin: theme.spacing(0, 0.5, 0, 0),
+    }),
   };
 };
 
@@ -76,6 +79,7 @@ export default function AccordianLogs({
   onToggle,
   timestamp,
 }: AccordianLogsProps) {
+  const styles = useStyles2(getStyles);
   let arrow: React.ReactNode | null = null;
   let HeaderComponent: 'span' | 'a' = 'span';
   let headerProps: {} | null = null;
@@ -83,7 +87,7 @@ export default function AccordianLogs({
     arrow = isOpen ? (
       <Icon name={'angle-down'} className={alignIcon} />
     ) : (
-      <Icon name={'angle-right'} className="u-align-icon" style={{ margin: '0 0.25rem 0 0' }} />
+      <Icon name={'angle-right'} className={cx('u-align-icon', styles.arrowCollapsed)} />
     );
     HeaderComponent = 'a';
     headerProps = {
@@ -93,7 +97,6 @@ export default function AccordianLogs({
     };
   }
 
-  const styles = useStyles2(getStyles);
   return (
     <div className={styles.AccordianLogs}>
       <HeaderComponent className={styles.AccordianLogsHeader} {...headerProps}>

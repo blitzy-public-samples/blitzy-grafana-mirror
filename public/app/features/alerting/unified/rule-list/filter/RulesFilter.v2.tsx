@@ -4,7 +4,7 @@ import { Controller, useForm } from 'react-hook-form';
 
 import { type GrafanaTheme2 } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
-import { Box, FilterInput, Icon, Label, Stack, useStyles2 } from '@grafana/ui';
+import { Box, Field, FilterInput, Icon, Stack, useStyles2 } from '@grafana/ui';
 
 import { trackAlertRuleFilterEvent, trackRulesSearchInputCleared } from '../../Analytics';
 import { PopupCard } from '../../components/HoverCard';
@@ -62,10 +62,13 @@ export default function RulesFilter({ viewMode, onViewModeChange }: RulesFilterP
     updateFilters(parsedFilter);
   };
 
+  // Design system gap: @grafana/ui's <Form> is a deprecated render-prop wrapper around react-hook-form.
+  // This component uses react-hook-form's useForm() directly (the modern recommended pattern per Form.tsx JSDoc).
+  // Keeping raw <form> with useForm integration per refactor protocol; internal field layout uses <Field>.
   return (
     <form onSubmit={handleSubmit(submitHandler)} onReset={() => {}}>
-      <Stack direction="column" gap={1}>
-        <Label htmlFor="rulesSearchInput">
+      <Field
+        label={
           <Stack gap={0.5} alignItems="center">
             <span>
               <Trans i18nKey="alerting.rules-filter.search">Search</Trans>
@@ -79,7 +82,10 @@ export default function RulesFilter({ viewMode, onViewModeChange }: RulesFilterP
               />
             </PopupCard>
           </Stack>
-        </Label>
+        }
+        htmlFor="rulesSearchInput"
+        noMargin
+      >
         <Stack direction="row" alignItems="center" gap={1}>
           <Box flex={1}>
             <Controller
@@ -134,7 +140,7 @@ export default function RulesFilter({ viewMode, onViewModeChange }: RulesFilterP
           )}
           <RulesViewModeSelector viewMode={viewMode} onViewModeChange={onViewModeChange} />
         </Stack>
-      </Stack>
+      </Field>
     </form>
   );
 }

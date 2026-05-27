@@ -2,8 +2,65 @@ import { clone, map } from 'lodash';
 
 import { functionRenderer, QueryPart, QueryPartDef, suffixRenderer } from 'app/features/alerting/state/query_part';
 
-const index: QueryPartDef[] = [];
-const categories = {
+// Input shape passed to createPart(). Only `type` is required at runtime;
+// `params`/`interval` mirror the persisted InfluxQueryPart shape from ./types,
+// keeping the parameter assignable from both the on-disk InfluxQueryPart
+// objects and any literal `{ type, params }` constructed at call sites.
+interface InfluxQueryPartInput {
+  type: string;
+  params?: unknown[];
+  interval?: string;
+}
+
+// Categories registry: each category is a list of QueryPartDef instances
+// pushed during register() calls below. The string index signature lets the
+// returned object remain assignable to consumers that view it as a generic
+// Record<string, QueryPartDef[]> (e.g. partListUtils.tsx).
+interface InfluxQueryPartCategories {
+  Aggregations: QueryPartDef[];
+  GroupByTimeFunctions: QueryPartDef[];
+  Selectors: QueryPartDef[];
+  Transformations: QueryPartDef[];
+  Predictors: QueryPartDef[];
+  Math: QueryPartDef[];
+  Aliasing: QueryPartDef[];
+  Fields: QueryPartDef[];
+  [key: string]: QueryPartDef[];
+}
+
+// Per-parameter descriptor used inside the params[] array of a register() call.
+interface InfluxQueryPartParam {
+  name?: string;
+  type: string;
+  options?: Array<string | number>;
+  dynamicLookup?: boolean;
+  quote?: 'single' | 'double';
+  optional?: boolean;
+}
+
+// Subset of InfluxQueryModel that addFieldStrategy depends on. Declared
+// structurally so the runtime call site (`partModel.def.addStrategy(..., this)`
+// in influx_query_model.ts) — where `this` is an InfluxQueryModel — remains
+// assignable.
+interface InfluxQueryPartQuery {
+  selectModels: QueryPart[][];
+}
+
+// Registration descriptor passed to register(). Matches the field set
+// accessed at runtime (line `new QueryPartDef(options)` and the subsequent
+// `options.category.push(...)`).
+interface InfluxQueryPartRegisterOptions {
+  type: string;
+  addStrategy?: (selectParts: QueryPart[], partModel: QueryPart, query: InfluxQueryPartQuery) => void;
+  category: QueryPartDef[];
+  params: InfluxQueryPartParam[];
+  defaultParams: Array<string | number>;
+  renderer: (part: QueryPart, innerExpr: string) => string;
+  renderMode?: string;
+}
+
+const index: Record<string, QueryPartDef> = {};
+const categories: InfluxQueryPartCategories = {
   Aggregations: [],
   GroupByTimeFunctions: [],
   Selectors: [],
@@ -14,7 +71,7 @@ const categories = {
   Fields: [],
 };
 
-function createPart(part: any) {
+function createPart(part: InfluxQueryPartInput) {
   const def = index[part.type];
   if (!def) {
     throw { message: 'Could not find query part ' + part.type };
@@ -23,7 +80,7 @@ function createPart(part: any) {
   return new QueryPart(part, def);
 }
 
-function register(options: any) {
+function register(options: InfluxQueryPartRegisterOptions) {
   index[options.type] = new QueryPartDef(options);
   options.category.push(index[options.type]);
 }
@@ -52,7 +109,7 @@ function fieldRenderer(part: { params: string[] }) {
   return escapedParam;
 }
 
-function replaceAggregationAddStrategy(selectParts: any[], partModel: { def: { type: string } }) {
+function replaceAggregationAddStrategy(selectParts: QueryPart[], partModel: QueryPart) {
   // look for existing aggregation
   for (let i = 0; i < selectParts.length; i++) {
     const part = selectParts[i];
@@ -91,7 +148,7 @@ function replaceAggregationAddStrategy(selectParts: any[], partModel: { def: { t
   selectParts.splice(1, 0, partModel);
 }
 
-function addTransformationStrategy(selectParts: any[], partModel: any) {
+function addTransformationStrategy(selectParts: QueryPart[], partModel: QueryPart) {
   let i;
   // look for index to add transformation
   for (i = 0; i < selectParts.length; i++) {
@@ -104,7 +161,7 @@ function addTransformationStrategy(selectParts: any[], partModel: any) {
   selectParts.splice(i, 0, partModel);
 }
 
-function addMathStrategy(selectParts: any[], partModel: any) {
+function addMathStrategy(selectParts: QueryPart[], partModel: QueryPart) {
   const partCount = selectParts.length;
   if (partCount > 0) {
     // if last is math, replace it
@@ -125,7 +182,7 @@ function addMathStrategy(selectParts: any[], partModel: any) {
   selectParts.push(partModel);
 }
 
-function addAliasStrategy(selectParts: any[], partModel: any) {
+function addAliasStrategy(selectParts: QueryPart[], partModel: QueryPart) {
   const partCount = selectParts.length;
   if (partCount > 0) {
     // if last is alias, replace it
@@ -137,7 +194,7 @@ function addAliasStrategy(selectParts: any[], partModel: any) {
   selectParts.push(partModel);
 }
 
-function addFieldStrategy(selectParts: any, partModel: any, query: { selectModels: any[][] }) {
+function addFieldStrategy(selectParts: QueryPart[], partModel: QueryPart, query: InfluxQueryPartQuery) {
   // copy all parts
   const parts = map(selectParts, (part) => {
     return createPart({ type: part.def.type, params: clone(part.params) });

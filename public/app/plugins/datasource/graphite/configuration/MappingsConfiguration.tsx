@@ -1,6 +1,6 @@
 import { type ChangeEvent, useState, type JSX } from 'react';
 
-import { Box, Button, Icon, InlineField, InlineFieldRow, Input } from '@grafana/ui';
+import { Box, Button, Icon, InlineField, InlineFieldRow, Input, Text } from '@grafana/ui';
 
 import MappingsHelp from './MappingsHelp';
 
@@ -17,7 +17,9 @@ export const MappingsConfiguration = (props: Props): JSX.Element => {
 
   return (
     <div>
-      <h3 className="page-heading">Label mappings</h3>
+      <Text element="h3" variant="h3">
+        Label mappings
+      </Text>
       {!props.showHelp && (
         <p>
           <Button fill="text" onClick={props.onRestoreHelp}>

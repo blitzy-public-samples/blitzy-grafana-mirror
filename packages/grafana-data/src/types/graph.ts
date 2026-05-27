@@ -27,5 +27,6 @@ export interface GraphSeriesXY {
 }
 
 export interface CreatePlotOverlay {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- legacy flot.js library integration: `event`, `manager`, and return type are all untyped flot internals with no upstream `.d.ts`
   (element: JQuery, event: any, plot: { getOptions: () => { events: { manager: any } } }): any;
 }

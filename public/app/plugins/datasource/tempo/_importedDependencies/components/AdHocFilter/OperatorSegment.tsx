@@ -1,5 +1,7 @@
-import { type SelectableValue } from '@grafana/data';
-import { Segment } from '@grafana/ui';
+import { css } from '@emotion/css';
+
+import { type GrafanaTheme2, type SelectableValue } from '@grafana/data';
+import { Segment, useStyles2 } from '@grafana/ui';
 
 interface Props {
   value: string;
@@ -13,9 +15,11 @@ const options = ['=', '!=', '<', '>', '=~', '!~'].map<SelectableValue<string>>((
 }));
 
 export const OperatorSegment = ({ value, disabled, onChange }: Props) => {
+  const styles = useStyles2(getStyles);
+
   return (
     <Segment
-      className="query-segment-operator"
+      className={styles.querySegmentOperator}
       value={value}
       disabled={disabled}
       options={options}
@@ -23,3 +27,9 @@ export const OperatorSegment = ({ value, disabled, onChange }: Props) => {
     />
   );
 };
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  querySegmentOperator: css({
+    color: theme.colors.warning.text,
+  }),
+});

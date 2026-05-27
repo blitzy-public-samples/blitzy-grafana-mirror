@@ -1,6 +1,9 @@
+import { css } from '@emotion/css';
 import type { JSX } from 'react';
 
+import { type GrafanaTheme2 } from '@grafana/data';
 import { AccessoryButton } from '@grafana/plugin-ui';
+import { useStyles2 } from '@grafana/ui';
 
 import { DEFAULT_POLICY } from '../../../../../types';
 import { toSelectableValue } from '../utils/toSelectableValue';
@@ -33,6 +36,8 @@ export const FromSection = ({
   getPolicyOptions,
   getMeasurementOptions,
 }: Props): JSX.Element => {
+  const styles = useStyles2(getStyles);
+
   const handlePolicyLoadOptions = async () => {
     const allPolicies = await getPolicyOptions();
     // if `default` does not exist in the list of policies, we add it
@@ -69,7 +74,7 @@ export const FromSection = ({
       />
       {measurement && (
         <AccessoryButton
-          style={{ marginRight: '4px' }}
+          className={styles.removeMeasurement}
           aria-label="remove"
           icon="times"
           variant="secondary"
@@ -81,3 +86,9 @@ export const FromSection = ({
     </>
   );
 };
+
+const getStyles = (theme: GrafanaTheme2) => ({
+  removeMeasurement: css({
+    marginRight: theme.spacing(0.5),
+  }),
+});

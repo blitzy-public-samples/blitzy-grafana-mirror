@@ -1,3 +1,4 @@
+import { css } from '@emotion/css';
 import { isEqual } from 'lodash';
 import { useState, useCallback, useMemo } from 'react';
 import { useAsync } from 'react-use';
@@ -32,6 +33,11 @@ interface Props {
   panel?: PanelModel;
   data?: PanelData;
 }
+
+// Replaces the legacy `flex-grow-1` utility class string (see public/sass/utils).
+// Static — does not depend on the theme — so declared at module scope rather than
+// inside a useStyles2 callback to avoid a redundant theme subscription.
+const flexGrowStyle = css({ flexGrow: 1 });
 
 export function InspectJSONTab({ panel, dashboard, data, onClose }: Props) {
   const options: Array<SelectableValue<ShowContent>> = useMemo(
@@ -125,7 +131,7 @@ export function InspectJSONTab({ panel, dashboard, data, onClose }: Props) {
   return (
     <div className={styles.wrap}>
       <div className={styles.toolbar} data-testid={selectors.components.PanelInspector.Json.content}>
-        <Field label={t('dashboard.inspect-json.select-source', 'Select source')} className="flex-grow-1" noMargin>
+        <Field label={t('dashboard.inspect-json.select-source', 'Select source')} className={flexGrowStyle} noMargin>
           <Select
             inputId="select-source-dropdown"
             options={jsonOptions}

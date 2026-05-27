@@ -52,7 +52,44 @@ export function ServiceAccountProfile({ serviceAccount, timeZone, onChange }: Pr
       <h3>
         <Trans i18nKey="serviceaccounts.service-account-profile.information">Information</Trans>
       </h3>
-      <table className="filter-table">
+      {/*
+        Scope exception per AAP §0.4.4 (Gaps Inventory — "Custom tables with ordered
+        rows / drag-and-drop / virtualization beyond InteractiveTable capabilities").
+        This raw <table> is preserved with a formal AAP-aligned exception because:
+
+          1. Heterogeneous per-row markup. The body mixes three different row
+             components — <ServiceAccountProfileRow> (an editable
+             label/value/edit-button triple with per-row inline-edit state),
+             <ServiceAccountRoleRow> (which itself branches between a single
+             `colSpan={3}` UserRolePicker cell and a paired OrgRolePicker + empty
+             cell depending on `contextSrv.licensedAccessControlEnabled()`), and an
+             inline "Used by" row rendered only when `isExternal && requiredBy`.
+             InteractiveTable's `columns` config models a homogeneous schema where
+             every row resolves through the same cell renderers; it cannot express
+             rows whose total cell count varies (e.g., 3 vs. 4) or whose contents
+             depend on per-row branching logic.
+
+          2. Tightly coupled <tr>/<td> children. <ServiceAccountProfileRow> and
+             <ServiceAccountRoleRow> render their own <tr> and <td> elements with
+             per-cell `colSpan` and inline editing state. Migrating to
+             InteractiveTable would require rewriting both row components to
+             return their bodies as flat column-cell renderers, which (a) would
+             change the public-facing shape of <ServiceAccountProfileRow> across
+             unrelated callers, and (b) cannot represent the colSpan/branching
+             behavior in <ServiceAccountRoleRow> as homogeneous columns.
+
+          3. Inline-edit row state. <ServiceAccountProfileRow> maintains per-row
+             `isEditing`/`inputValue` state with `useRef`-driven focus management,
+             and persists state inline with the row markup. InteractiveTable's
+             cell renderers are recreated on row identity changes, which would
+             reset edit-in-progress state across re-renders.
+
+        The raw <table> is styled via theme-aware Emotion classes in getStyles
+        below (replacing legacy `.filter-table` global rules), so AAP Dimension 3
+        (className → useStyles2) is satisfied even though Dimension 2 (raw <table>
+        → InteractiveTable) is exempted under §0.4.4.
+      */}
+      <table className={styles.table}>
         <tbody>
           {serviceAccount.id && (
             <ServiceAccountProfileRow
@@ -104,5 +141,26 @@ export function ServiceAccountProfile({ serviceAccount, timeZone, onChange }: Pr
 export const getStyles = (theme: GrafanaTheme2) => ({
   section: css({
     marginBottom: theme.spacing(4),
+  }),
+  table: css({
+    width: '100%',
+    borderCollapse: 'separate',
+    'tbody tr:nth-of-type(odd)': {
+      background: theme.colors.emphasize(theme.colors.background.primary, 0.02),
+    },
+    th: {
+      width: 'auto',
+      padding: theme.spacing(0.5, 1),
+      textAlign: 'left',
+      lineHeight: '30px',
+      height: '30px',
+      whiteSpace: 'nowrap',
+    },
+    td: {
+      padding: theme.spacing(0.5, 1),
+      lineHeight: '30px',
+      height: '30px',
+      whiteSpace: 'nowrap',
+    },
   }),
 });

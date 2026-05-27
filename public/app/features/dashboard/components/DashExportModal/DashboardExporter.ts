@@ -1,8 +1,9 @@
 import { defaults, each, sortBy } from 'lodash';
 
-import { type DataSourceRef, type VariableOption, VariableRefresh } from '@grafana/data';
+import { type DataSourceRef, type TypedVariableModel, type VariableOption, VariableRefresh } from '@grafana/data';
 import { getDataSourceSrv } from '@grafana/runtime';
 import { getPanelPluginMeta } from '@grafana/runtime/internal';
+import { type Panel } from '@grafana/schema';
 import config from 'app/core/config';
 import { type PanelModel } from 'app/features/dashboard/state/PanelModel';
 import { getLibraryPanel } from 'app/features/library-panels/state/api';
@@ -27,7 +28,7 @@ export interface Input {
   name: string;
   type: string;
   label: string;
-  value: any;
+  value?: string;
   description: string;
   usage?: InputUsage;
 }
@@ -75,8 +76,16 @@ interface DataSources {
 export interface LibraryElementExport {
   name: string;
   uid: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Public API surface: this exported type is consumed by out-of-scope modules (dashboard-scene/scene/export/exporters.ts, manage-dashboards/import/legacy/actions.ts) and their tests, which build LibraryElementExport-shaped objects directly from heterogeneous library-panel JSON (with string-literal enum values, plugin-specific fieldConfig shapes, etc.). Per AAP §0.9.1 (preserve public API) and §0.9.2.12 (minimal change), `any` is retained at this serialization boundary so external callers continue to type-check without coupling to internal `@grafana/schema` Panel typing.
   model: any;
   kind: LibraryElementKind;
+}
+
+// Heterogeneous shape used by templateizeDatasourceUsage to walk panels, queries,
+// variables, annotations, and library-panel models in search of a datasource ref.
+interface DatasourceCarrier {
+  datasource?: DataSourceRef | null;
+  libraryPanel?: { name: string; uid: string };
 }
 
 export class DashboardExporter {
@@ -95,21 +104,22 @@ export class DashboardExporter {
     const inputs: Input[] = [];
     const requires: Requires = {};
     const datasources: DataSources = {};
-    const variableLookup: { [key: string]: any } = {};
+    const variableLookup: { [key: string]: TypedVariableModel } = {};
     const libraryPanels: Map<string, LibraryElementExport> = new Map<string, LibraryElementExport>();
 
     for (const variable of saveModel.getVariables()) {
       variableLookup[variable.name] = variable;
     }
 
-    const templateizeDatasourceUsage = (obj: any, fallback?: DataSourceRef) => {
+    const templateizeDatasourceUsage = (obj: DatasourceCarrier, fallback?: DataSourceRef) => {
       if (obj.datasource === undefined) {
         obj.datasource = fallback;
         return;
       }
 
-      let datasource = obj.datasource;
-      let datasourceVariable: any = null;
+      // datasource may be reassigned to a string when a template variable is resolved.
+      let datasource: DataSourceRef | string | null = obj.datasource;
+      let datasourceVariable: TypedVariableModel | null = null;
 
       const datasourceUid: string | undefined = datasource?.uid;
       const match = datasourceUid && variableRegex.exec(datasourceUid);
@@ -117,9 +127,17 @@ export class DashboardExporter {
       // ignore data source properties that contain a variable
       if (match) {
         const varName = match[1] || match[2] || match[4];
-        datasourceVariable = variableLookup[varName];
-        if (datasourceVariable && datasourceVariable.current) {
-          datasource = datasourceVariable.current.value;
+        datasourceVariable = variableLookup[varName] ?? null;
+        if (
+          datasourceVariable &&
+          'current' in datasourceVariable &&
+          datasourceVariable.current &&
+          'value' in datasourceVariable.current
+        ) {
+          const variableValue = datasourceVariable.current.value;
+          if (typeof variableValue === 'string') {
+            datasource = variableValue;
+          }
         }
       }
 
@@ -203,7 +221,7 @@ export class DashboardExporter {
 
         await templateizeDatasourceUsage(model);
 
-        const { gridPos, id, ...rest } = model as any;
+        const { gridPos, id, ...rest } = model as Panel;
         if (!libraryPanels.has(uid)) {
           libraryPanels.set(uid, { name, uid, kind: LibraryElementKind.Panel, model: rest });
         }
@@ -260,7 +278,7 @@ export class DashboardExporter {
         }
       }
 
-      each(datasources, (value: any) => {
+      each(datasources, (value) => {
         inputs.push(value);
       });
 

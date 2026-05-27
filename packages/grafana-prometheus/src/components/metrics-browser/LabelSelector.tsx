@@ -50,7 +50,7 @@ export function LabelSelector() {
           <Spinner size="xl" />
         </div>
       ) : (
-        <div className={styles.list} style={{ height: 120 }}>
+        <div className={styles.list}>
           {filteredLabelKeys.map((label) => (
             <PromLabel
               key={label}

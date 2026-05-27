@@ -23,8 +23,10 @@ export interface FlotPosition {
 // - key is the name of the dimension
 // - value is a tuple addressing which column and row from given dimension is active.
 //   If row is undefined, it means that we are not hovering over a datapoint
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- `ActiveDimensions` is publicly exported from `@grafana/ui` (see `VizTooltip/index.tsx`) and consumed by plugin authors who pass concrete `Dimensions`-shaped dictionaries. The historical generic default was `any`, which allowed plugins to use `ActiveDimensions` without specifying their dimension types. Narrowing the default to `Dimensions` (the constraint itself) constrains the inferred mapped type and can subtly change `[key in keyof T]` iteration behavior at type-check time for external consumers. Per AAP §0.9.1 ("Maintain all public API contracts") and §0.8.7 ("Public API Surface Preservation Analysis"), retain the historical `= any` default with this inline justification.
 export type ActiveDimensions<T extends Dimensions = any> = { [key in keyof T]: [number, number | undefined] | null };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- `VizTooltipContentProps` is publicly exported from `@grafana/ui` (see `VizTooltip/index.tsx`) and consumed by plugin authors who type their tooltip-content components with concrete dimension shapes. The historical generic default was `any`, preserving the freedom to write `VizTooltipContentProps` without type arguments and have the props accept arbitrary dimension dictionaries. Narrowing the default to `Dimensions` is a public API tightening. Per AAP §0.9.1 / §0.8.7, retain the historical `= any` default with this inline justification.
 export interface VizTooltipContentProps<T extends Dimensions = any> {
   // Each dimension is described by array of fields representing it
   // I.e. for graph there are two dimensions: x and y axis:

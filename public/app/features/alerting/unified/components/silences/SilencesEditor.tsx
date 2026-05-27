@@ -221,6 +221,15 @@ export const SilencesEditor = ({
 
   return (
     <FormProvider {...formAPI}>
+      {/*
+        Design system gap: SilencesEditor uses react-hook-form's FormProvider/useForm
+        pattern to expose form context to MatchersField and SilencePeriod via
+        useFormContext. @grafana/ui's <Form> wrapper instantiates its own useForm
+        internally, which would conflict with this pattern, and would force the
+        useDebounce-driven duration/endsAt sync logic into a nested component to obey
+        the Rules of Hooks. Raw <form> retained per AAP §0.4.4 / §0.6.1 SilencesEditor
+        override clause.
+      */}
       <form onSubmit={handleSubmit(onSubmit)}>
         <FieldSet className={styles.formContainer}>
           <div className={styles.silencePeriod}>

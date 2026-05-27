@@ -149,7 +149,8 @@ export class FieldConfigEditorBuilder<TOptions> extends OptionsUIRegistryBuilder
   }
 
   addGenericEditor<TSettings>(
-    config: FieldConfigEditorConfig<TOptions, TSettings & any>, // & any... i give up!
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- TSettings & any preserves the open-ended editor settings shape historically used for generic editors; tightening would force panel plugin authors to over-constrain their editor TSettings type
+    config: FieldConfigEditorConfig<TOptions, TSettings & any>,
     editor: (props: StandardEditorProps<TSettings>) => JSX.Element
   ): this {
     return this.addCustomEditor({
@@ -165,10 +166,14 @@ export class FieldConfigEditorBuilder<TOptions> extends OptionsUIRegistryBuilder
 }
 
 export interface NestedValueAccess {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- NestedValueAccess.getValue returns arbitrary panel option value at dynamic paths; consumers narrow at use; public API consumed by panel plugins (canvas, geomap)
   getValue: (path: string) => any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- NestedValueAccess.onChange accepts arbitrary panel option value at dynamic paths; public API consumed by panel plugins (canvas, geomap)
   onChange: (path: string, value: any) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- NestedValueAccess.getContext bridges StandardEditorContext between any-typed option shapes; public API consumed by panel plugins
   getContext?: (parent: StandardEditorContext<any>) => StandardEditorContext<any>;
 }
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- NestedPanelOptions generic default preserved as any to avoid breaking panel plugin authors who omit the type parameter; consistent with FieldConfigEditorBuilder/PanelOptionsEditorBuilder convention
 export interface NestedPanelOptions<TSub = any> {
   path: string;
   category?: string[];
@@ -177,6 +182,7 @@ export interface NestedPanelOptions<TSub = any> {
   values?: (parent: NestedValueAccess) => NestedValueAccess;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- NestedPanelOptionsBuilder generic default and OptionsEditorItem type arguments preserved as any to mirror parent OptionsUIRegistryBuilder pattern; public API consumed by panel plugins
 export class NestedPanelOptionsBuilder<TSub = any> implements OptionsEditorItem<TSub, any, any, any> {
   path = '';
   category?: string[];
@@ -220,6 +226,7 @@ export class NestedPanelOptionsBuilder<TSub = any> implements OptionsEditorItem<
     // by default prefix the path
     return {
       getValue: (path: string) => parent.getValue(`${this.path}.${path}`),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- onChange forwarding callback must match NestedValueAccess.onChange interface signature
       onChange: (path: string, value: any) => parent.onChange(`${this.path}.${path}`, value),
     };
   };

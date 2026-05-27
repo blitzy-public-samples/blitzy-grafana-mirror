@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
+import { useTheme2 } from '@grafana/ui';
 import { CloseButton } from 'app/core/components/CloseButton/CloseButton';
 import { type GeomapLayerHover } from 'app/plugins/panel/geomap/event';
 
@@ -13,6 +14,8 @@ export interface Props {
 }
 
 export const ComplexDataHoverView = ({ layers, onClose, isOpen }: Props) => {
+  const theme = useTheme2();
+  const closeButtonStyle = useMemo(() => ({ zIndex: theme.zIndex.tooltip }), [theme.zIndex.tooltip]);
   const [activeTabIndex, setActiveTabIndex] = useState<number>(0);
 
   if (!layers) {
@@ -21,7 +24,7 @@ export const ComplexDataHoverView = ({ layers, onClose, isOpen }: Props) => {
 
   return (
     <>
-      {isOpen && <CloseButton style={{ zIndex: 1 }} onClick={onClose} />}
+      {isOpen && <CloseButton style={closeButtonStyle} onClick={onClose} />}
       <DataHoverTabs layers={layers} setActiveTabIndex={setActiveTabIndex} activeTabIndex={activeTabIndex} />
       <DataHoverRows layers={layers} activeTabIndex={activeTabIndex} />
     </>
