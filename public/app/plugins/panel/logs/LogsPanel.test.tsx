@@ -23,6 +23,14 @@ import { type LogRowContextModal } from 'app/features/logs/components/log-contex
 
 import { LogsPanel } from './LogsPanel';
 
+// Pre-existing flake category from QA CP3: the suite (~54 tests, including
+// many describe blocks with multiple `waitFor` calls per test) passes
+// comfortably in isolation (~19s for the full file) but individual tests can
+// stretch past the default 30s per-test budget under parallel CPU contention
+// in CI. Bumping the budget to 180s eliminates the parallel-execution timeout
+// flake without changing any behavior under test.
+jest.setTimeout(180 * 1000);
+
 type LogsPanelProps = ComponentProps<typeof LogsPanel>;
 type LogRowContextModalProps = ComponentProps<typeof LogRowContextModal>;
 

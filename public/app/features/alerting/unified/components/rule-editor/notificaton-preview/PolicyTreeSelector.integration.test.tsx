@@ -34,7 +34,11 @@ jest.mock('app/core/components/AppChrome/AppChromeUpdate', () => ({
   AppChromeUpdate: ({ actions }: { actions: ReactNode }) => <div>{actions}</div>,
 }));
 
-jest.setTimeout(90 * 1000);
+// Bumped from 90s -> 180s to provide headroom for parallel CI execution.
+// Pre-existing flake category from QA CP3: the suite passes comfortably in
+// isolation but individual tests exceed the 90s budget under parallel CPU
+// contention. 180s matches the policy used by NotificationPoliciesPage.test.tsx.
+jest.setTimeout(180 * 1000);
 
 const dataSources = {
   default: mockDataSource(

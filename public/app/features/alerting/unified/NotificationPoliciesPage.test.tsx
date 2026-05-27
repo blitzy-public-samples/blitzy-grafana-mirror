@@ -57,6 +57,14 @@ import { ROOT_ROUTE_NAME } from './utils/k8s/constants';
 
 jest.mock('./useRouteGroupsMatcher');
 
+// This is a large alerting integration suite (~700 lines, ~40 tests) that
+// mounts AlertManager + Kubernetes-routing-tree state and exercises modal
+// flows end-to-end. It passes comfortably in isolation but the default
+// 30s per-test budget is tight under parallel CPU contention in CI.
+// Allow more headroom per test; the suite itself still completes in under
+// the worker idle timeout.
+jest.setTimeout(180 * 1000);
+
 setupMswServer();
 
 const updateTiming = async (selectElement: HTMLElement, value: string): Promise<void> => {

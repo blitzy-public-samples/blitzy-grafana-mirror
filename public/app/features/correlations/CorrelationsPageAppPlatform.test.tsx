@@ -32,6 +32,13 @@ const originalFeatureToggles = config.featureToggles;
 // Set app events up, otherwise plugin modules will fail to load
 setAppEvents(appEvents);
 
+// Pre-existing flake category from QA CP3: the suite passes comfortably in
+// isolation (10/10 tests in ~41s) but individual tests can exceed the default
+// 30s per-test budget under parallel CPU contention in CI. Bumping the budget
+// to 180s eliminates the parallel-execution timeout flake without changing
+// any behavior under test.
+jest.setTimeout(180 * 1000);
+
 const renderWithContext = async (datasources: ConstructorParameters<typeof MockDataSourceSrv>[0] = {}) => {
   const grafanaContext = getGrafanaContextMock();
   const dsServer = new MockDataSourceSrv(datasources) as unknown as DataSourceSrv;

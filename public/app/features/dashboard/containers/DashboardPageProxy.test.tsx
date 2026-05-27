@@ -39,6 +39,35 @@ jest.mock('react-router-dom-v5-compat', () => ({
   useParams: jest.fn().mockReturnValue({}),
 }));
 
+// DashboardPageProxy is a thin routing component: it chooses between rendering
+// the legacy DashboardPage and the scenes-based DashboardScenePage based on the
+// `dashboardScene` feature toggle and `scenes` query parameter. The tests
+// below assert only which page component is rendered (via the
+// `dashboard-scene-page` test id) — they do not exercise the page bodies.
+//
+// Rendering the real DashboardPage / DashboardScenePage triggers their data
+// fetch effects (initDashboard / DashboardScenePageStateManager), which
+// download a dashboard DTO via getBackendSrv().get(). The default mock for
+// `@grafana/runtime#getBackendSrv` above returns a placeholder shape that does
+// not satisfy the consumers (e.g. K8sDashboardAPI expects `dash.metadata.name`)
+// and any further fetch via the whatwg-fetch polyfill would hit a real XHR,
+// producing ECONNREFUSED in jsdom.
+//
+// To keep these routing-only tests deterministic and free of network access,
+// mock both page components at module level so their effects never run. The
+// scene page still emits the same `dashboard-scene-page` test id that the
+// assertions rely on; the legacy page emits a distinct test id used only as a
+// readability aid.
+jest.mock('./DashboardPage', () => ({
+  __esModule: true,
+  default: () => <div data-testid="dashboard-page-legacy" />,
+}));
+
+jest.mock('app/features/dashboard-scene/pages/DashboardScenePage', () => ({
+  __esModule: true,
+  default: () => <div data-testid="dashboard-scene-page" />,
+}));
+
 function setup(props: Partial<DashboardPageProxyProps> & { uid?: string }) {
   (useParams as jest.Mock).mockReturnValue({ uid: props.uid });
   return render(
