@@ -97,6 +97,7 @@ export const HeaderCell: React.FC<HeaderCellProps> = ({
       {showTypeIcons && (
         <Icon className={styles.headerCellIcon} name={getFieldTypeIcon(field)} title={field?.type} size="sm" />
       )}
+      {/* Design system gap: this file is internal to the @grafana/ui Table/TableNG primitive; the raw <button> here is the canonical column-header sort-toggle implementation. Kept as raw per refactor protocol (AAP §0.4.4). */}
       <button tabIndex={0} className={styles.headerCellLabel} title={displayName}>
         {displayName}
         {direction && (

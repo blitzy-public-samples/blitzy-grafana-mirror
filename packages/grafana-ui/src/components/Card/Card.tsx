@@ -131,6 +131,7 @@ const Heading = ({ children, className, 'aria-label': ariaLabel }: ChildProps & 
           {children}
         </a>
       ) : onClick ? (
+        // Design system gap: this file IS the @grafana/ui Card primitive; the raw <button> here is the canonical click-target implementation that powers Card's onClick semantics. Kept as raw per refactor protocol (AAP §0.4.4).
         <button onClick={onClick} className={styles.linkHack} aria-label={ariaLabel} type="button">
           {children}
         </button>

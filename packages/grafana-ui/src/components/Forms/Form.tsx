@@ -44,6 +44,7 @@ export function Form<T extends FieldValues>({
   }, [trigger, validateFieldsOnMount, validateOnMount]);
 
   return (
+    // Design system gap: this file IS the @grafana/ui Form primitive (the render-prop wrapper around react-hook-form). The raw <form> element is the canonical implementation. Kept as raw per refactor protocol (AAP §0.4.4).
     <form
       className={css({
         maxWidth: maxWidth !== 'none' ? maxWidth + 'px' : maxWidth,

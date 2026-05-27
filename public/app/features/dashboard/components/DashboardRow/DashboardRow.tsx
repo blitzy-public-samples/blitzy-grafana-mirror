@@ -159,6 +159,7 @@ export function DashboardRow({ panel, dashboard }: DashboardRowProps) {
         </div>
       )}
       {canEdit && (
+        // The literal 'grid-drag-handle' className is preserved verbatim because react-grid-layout uses this exact selector internally to identify draggable row handles in the dashboard grid (see DashboardGrid's draggableHandle: '.grid-drag-handle' prop). Renaming or removing this class would break drag-to-reorder behavior. Preservation is required by AAP §0.9.2.12 minimal-change mandate.
         <div
           data-testid="dashboard-row-drag"
           className={cx(styles.dragHandle, 'grid-drag-handle', {
